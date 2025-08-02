@@ -7,7 +7,7 @@ on:
     branches: [ main, master ]
 
 env:
-  PROJECT_ID: gae252-g1  # 請替換為你的 GCP 專案 ID
+  PROJECT_ID: solid-heaven-466011-d1  # 請替換為你的 GCP 專案 ID
   SERVICE_NAME: ordering-helper-backend
   REGION: asia-east1
 
