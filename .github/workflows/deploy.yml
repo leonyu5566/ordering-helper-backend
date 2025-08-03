@@ -7,13 +7,13 @@ on:
     branches: [ main, master ]
 
 env:
-  PROJECT_ID: solid-heaven-466011-d1  # 請替換為你的 GCP 專案 ID
+  PROJECT_ID: solid-heaven-466011-d1
   SERVICE_NAME: ordering-helper-backend
   REGION: asia-east1
 
 permissions:
-  contents: read
   id-token: write
+  contents: read
 
 jobs:
   deploy:
@@ -23,33 +23,42 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/default'
+        service_account: 'github-ci@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
+        token_format: 'access_token'
+
     - name: Setup Google Cloud CLI
       uses: google-github-actions/setup-gcloud@v2
-      with:
-        project_id: ${{ env.PROJECT_ID }}
-       
-    - name: Authorize Docker push
-      run: gcloud auth configure-docker
+
+    - name: Configure Docker for Artifact Registry
+      run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
     - name: Build and Push Container
       run: |
-        docker build -t gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} .
-        docker push gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+        docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
     - name: Deploy to Cloud Run
-      run: |
-        gcloud run deploy ${{ env.SERVICE_NAME }} \
-          --image gcr.io/${{ env.PROJECT_ID }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
-          --region ${{ env.REGION }} \
-          --platform managed \
-          --allow-unauthenticated \
-          --memory 512Mi \
-          --cpu 1 \
-          --max-instances 10 \
-          --set-env-vars "DB_USERNAME=${{ secrets.DB_USERNAME }},DB_PASSWORD=${{ secrets.DB_PASSWORD }},DB_HOST=${{ secrets.DB_HOST }},DB_NAME=${{ secrets.DB_NAME }},LINE_CHANNEL_ACCESS_TOKEN=${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }},LINE_CHANNEL_SECRET=${{ secrets.LINE_CHANNEL_SECRET }},GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }},AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }},AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}"
+      id: deploy
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.SERVICE_NAME }}
+        image: ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        region: ${{ env.REGION }}
+        env_vars: |
+          DB_USERNAME=${{ secrets.DB_USERNAME }}
+          DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          DB_HOST=${{ secrets.DB_HOST }}
+          DB_NAME=${{ secrets.DB_NAME }}
+          LINE_CHANNEL_ACCESS_TOKEN=${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_CHANNEL_SECRET=${{ secrets.LINE_CHANNEL_SECRET }}
+          GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
+          AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}
+          AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}
 
     - name: Show Service URL
-      run: |
-        gcloud run services describe ${{ env.SERVICE_NAME }} \
-          --region ${{ env.REGION }} \
-          --format="value(status.url)" 
+      run: echo "Service URL: ${{ steps.deploy.outputs.url }}"
