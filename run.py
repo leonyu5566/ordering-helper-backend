@@ -21,9 +21,18 @@ import os
 env_file = 'notebook.env'
 if os.path.exists(env_file):
     load_dotenv(env_file)
+    print(f"Loaded environment variables from {env_file}")
 else:
     # 在 Cloud Run 環境中，環境變數應該已經設定好了
     print("Environment file not found, using system environment variables")
+
+# 調試：檢查關鍵環境變數是否存在
+key_vars = ['DB_USERNAME', 'DB_PASSWORD', 'DB_HOST', 'DB_NAME', 'LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET']
+for var in key_vars:
+    if os.getenv(var):
+        print(f"✓ {var} is set")
+    else:
+        print(f"✗ {var} is not set")
 
 # =============================================================================
 # 應用程式建立區塊

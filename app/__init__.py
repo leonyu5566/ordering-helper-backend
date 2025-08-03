@@ -21,7 +21,20 @@ def create_app():
     app = Flask(__name__)
     
     # 設定資料庫
-    app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///app.db')
+    # 從個別環境變數構建資料庫 URL
+    db_username = os.getenv('DB_USERNAME')
+    db_password = os.getenv('DB_PASSWORD')
+    db_host = os.getenv('DB_HOST')
+    db_name = os.getenv('DB_NAME')
+    
+    if all([db_username, db_password, db_host, db_name]):
+        # 使用 MySQL 連線
+        database_url = f"mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}"
+    else:
+        # 回退到 SQLite
+        database_url = 'sqlite:///app.db'
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # 初始化資料庫
