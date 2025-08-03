@@ -79,10 +79,30 @@ def get_menu(store_id):
         # 取得使用者語言偏好
         user_language = request.args.get('lang', 'zh')
         
-        menu_items = MenuItem.query.filter_by(store_id=store_id).all()
+        # 先檢查店家是否存在
+        store = Store.query.get(store_id)
+        if not store:
+            return jsonify({"error": "找不到店家"}), 404
+        
+        # 嘗試查詢菜單項目
+        try:
+            menu_items = MenuItem.query.filter_by(store_id=store_id).all()
+        except Exception as e:
+            # 如果表格不存在，返回友好的錯誤訊息
+            return jsonify({
+                "error": "此店家目前沒有菜單資料",
+                "store_id": store_id,
+                "store_name": store.store_name,
+                "message": "請使用菜單圖片上傳功能來建立菜單"
+            }), 404
         
         if not menu_items:
-            return jsonify({"error": "找不到菜單項目"}), 404
+            return jsonify({
+                "error": "此店家目前沒有菜單項目",
+                "store_id": store_id,
+                "store_name": store.store_name,
+                "message": "請使用菜單圖片上傳功能來建立菜單"
+            }), 404
         
         # 使用新的翻譯功能（優先使用資料庫翻譯）
         from .helpers import translate_menu_items_with_db_fallback
