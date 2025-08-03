@@ -8,6 +8,7 @@ on:
 
 env:
   PROJECT_ID: solid-heaven-466011-d1
+  PROJECT_NUMBER: 1095766716155
   SERVICE_NAME: ordering-helper-backend
   REGION: asia-east1
 
@@ -22,12 +23,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # ① OIDC 驗證
+    # ① OIDC 驗證（使用專案數字編號）
     - name: Authenticate to Google Cloud
       id: auth
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/default
+        workload_identity_provider: projects/${{ env.PROJECT_NUMBER }}/locations/global/workloadIdentityPools/github/providers/default
         service_account: github-ci@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
         token_format: access_token
 
@@ -35,7 +36,12 @@ jobs:
     - name: Setup Google Cloud CLI
       uses: google-github-actions/setup-gcloud@v2
 
-    # ③ Docker 登入 + Build & Push
+    # ③ 驗證憑證（新增除錯步驟）
+    - name: Verify Authentication
+      run: |
+        gcloud sts credentials identityinfo --cred-file "${{ steps.auth.outputs.credentials_file_path }}"
+
+    # ④ Docker 登入 + Build & Push
     - name: Configure Docker for Artifact Registry
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
@@ -44,7 +50,7 @@ jobs:
         docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }} .
         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
-    # ④ 部署 Cloud Run
+    # ⑤ 部署 Cloud Run
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v2
@@ -63,7 +69,7 @@ jobs:
           AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}
           AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}
 
-    # ⑤ 顯示服務網址（改成多行字串）
+    # ⑥ 顯示服務網址
     - name: Show Service URL
       run: |
         echo "Service URL: ${{ steps.deploy.outputs.url }}"
