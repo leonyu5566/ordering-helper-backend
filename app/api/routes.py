@@ -293,8 +293,12 @@ def get_stores():
                 'store_id': store.store_id,
                 'store_name': store.store_name,
                 'partner_level': store.partner_level,
-                'address': store.address,
-                'description': store.description
+                'gps_lat': store.gps_lat,
+                'gps_lng': store.gps_lng,
+                'place_id': store.place_id,
+                'review_summary': store.review_summary,
+                'main_photo_url': store.main_photo_url,
+                'created_at': store.created_at.isoformat() if store.created_at else None
             }
             stores_data.append(store_data)
         
@@ -313,8 +317,17 @@ def get_store(store_id):
             'store_id': store.store_id,
             'store_name': store.store_name,
             'partner_level': store.partner_level,
-            'address': store.address,
-            'description': store.description
+            'gps_lat': store.gps_lat,
+            'gps_lng': store.gps_lng,
+            'place_id': store.place_id,
+            'review_summary': store.review_summary,
+            'top_dish_1': store.top_dish_1,
+            'top_dish_2': store.top_dish_2,
+            'top_dish_3': store.top_dish_3,
+            'top_dish_4': store.top_dish_4,
+            'top_dish_5': store.top_dish_5,
+            'main_photo_url': store.main_photo_url,
+            'created_at': store.created_at.isoformat() if store.created_at else None
         }
         
         return jsonify(store_data)

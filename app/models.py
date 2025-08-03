@@ -63,10 +63,11 @@ class User(db.Model):
 # - store_id：店家唯一識別碼
 # - store_name：店家名稱
 # - partner_level：合作等級（0=非合作, 1=合作, 2=VIP）
-# - latitude/longitude：店家 GPS 座標
-# - address：店家地址
-# - description：店家簡介
-# - store_photo_url：店家招牌照片 URL
+# - gps_lat/gps_lng：店家 GPS 座標
+# - place_id：Google Places ID
+# - review_summary：評論摘要
+# - top_dish_1-5：熱門菜色
+# - main_photo_url：店家招牌照片 URL
 # - created_at：店家資料建立時間
 # 關聯：與 Menu 模型建立一對多關聯（一個店家可以有多個菜單）
 # =============================================================================
@@ -75,12 +76,20 @@ class Store(db.Model):
     store_id = db.Column(db.Integer, primary_key=True)
     store_name = db.Column(db.String(100), nullable=False)
     partner_level = db.Column(db.SmallInteger, nullable=False, default=0)  # 0=非合作, 1=合作, 2=VIP
-    latitude = db.Column(db.Float)  # 店家緯度
-    longitude = db.Column(db.Float)  # 店家經度
-    address = db.Column(db.String(200))  # 店家地址
-    description = db.Column(db.Text)  # 店家簡介
-    store_photo_url = db.Column(db.String(500))  # 店家招牌照片
+    gps_lat = db.Column(db.Float)  # 店家緯度
+    gps_lng = db.Column(db.Float)  # 店家經度
+    place_id = db.Column(db.String(100))  # Google Places ID
+    review_summary = db.Column(db.Text)  # 評論摘要
+    top_dish_1 = db.Column(db.String(100))  # 熱門菜色1
+    top_dish_2 = db.Column(db.String(100))  # 熱門菜色2
+    top_dish_3 = db.Column(db.String(100))  # 熱門菜色3
+    top_dish_4 = db.Column(db.String(100))  # 熱門菜色4
+    top_dish_5 = db.Column(db.String(100))  # 熱門菜色5
+    main_photo_url = db.Column(db.String(255))  # 店家招牌照片
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    # 新增的欄位（用於向後相容）
+    latitude = db.Column(db.Float)  # 店家緯度（向後相容）
+    longitude = db.Column(db.Float)  # 店家經度（向後相容）
     menus = db.relationship('Menu', backref='store', lazy=True)
 
 class StoreTranslation(db.Model):
