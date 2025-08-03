@@ -579,3 +579,96 @@ def register_user():
 @api_bp.route('/test', methods=['GET'])
 def test():
     return jsonify({'message': 'API is working!'}) #LIFF 前端呼叫的接口。
+
+# =============================================================================
+# 新增缺失的 API 端點
+# 功能：為 LIFF 前端提供必要的 API 端點
+# =============================================================================
+
+@api_bp.route('/health', methods=['GET'])
+def health_check():
+    """健康檢查端點"""
+    return jsonify({
+        'status': 'healthy',
+        'message': 'API is running',
+        'timestamp': datetime.datetime.now().isoformat()
+    })
+
+@api_bp.route('/stores', methods=['GET'])
+def get_all_stores():
+    """取得所有店家列表"""
+    try:
+        stores = Store.query.all()
+        store_list = []
+        
+        for store in stores:
+            store_list.append({
+                'store_id': store.store_id,
+                'store_name': store.store_name,
+                'store_address': store.store_address,
+                'store_phone': store.store_phone,
+                'store_description': store.store_description,
+                'is_partner': store.is_partner
+            })
+        
+        return jsonify({
+            'stores': store_list,
+            'total_count': len(store_list)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': '無法載入店家列表'}), 500
+
+@api_bp.route('/upload-menu-image', methods=['POST'])
+def upload_menu_image():
+    """上傳菜單圖片端點"""
+    try:
+        # 檢查是否有檔案
+        if 'file' not in request.files:
+            return jsonify({'error': '沒有上傳檔案'}), 400
+        
+        file = request.files['file']
+        
+        # 檢查檔案名稱
+        if file.filename == '':
+            return jsonify({'error': '沒有選擇檔案'}), 400
+        
+        # 檢查檔案格式
+        if not allowed_file(file.filename):
+            return jsonify({'error': '不支援的檔案格式'}), 400
+        
+        # 儲存檔案
+        filename = secure_filename(file.filename)
+        file_path = save_uploaded_file(file, filename)
+        
+        if file_path:
+            return jsonify({
+                'message': '檔案上傳成功',
+                'file_path': file_path,
+                'filename': filename
+            })
+        else:
+            return jsonify({'error': '檔案儲存失敗'}), 500
+            
+    except Exception as e:
+        return jsonify({'error': '檔案上傳失敗'}), 500
+
+# =============================================================================
+# 根路徑處理
+# 功能：處理根路徑的請求
+# =============================================================================
+
+def handle_root_path():
+    """處理根路徑請求"""
+    return jsonify({
+        'message': '點餐小幫手後端 API',
+        'version': '1.0.0',
+        'endpoints': {
+            'health': '/api/health',
+            'stores': '/api/stores',
+            'menu': '/api/menu/{store_id}',
+            'upload': '/api/upload-menu-image',
+            'orders': '/api/orders',
+            'test': '/api/test'
+        }
+    })

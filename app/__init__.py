@@ -85,6 +85,13 @@ def create_app():
         </html>
         '''
     
+    # 根路徑處理
+    @app.route('/')
+    def root():
+        """根路徑處理"""
+        from .api.routes import handle_root_path
+        return handle_root_path()
+    
     return app
 
 
