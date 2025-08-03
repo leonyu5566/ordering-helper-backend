@@ -28,8 +28,8 @@ def create_app():
     db_name = os.getenv('DB_NAME')
     
     if all([db_username, db_password, db_host, db_name]):
-        # 使用 MySQL 連線
-        database_url = f"mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}"
+        # 使用 MySQL 連線，添加 SSL 參數
+        database_url = f"mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}?ssl={{'ssl': {{}}}}&ssl_verify_cert=false"
     else:
         # 回退到 SQLite
         database_url = 'sqlite:///app.db'
