@@ -23,23 +23,32 @@ from datetime import datetime
 # 設定日誌
 def setup_logging(app):
     """設定應用程式日誌"""
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    
-    # 檔案日誌處理器
-    file_handler = logging.FileHandler('logs/app.log', encoding='utf-8')
-    file_handler.setLevel(logging.INFO)
-    
-    # 格式化器
-    formatter = logging.Formatter(
-        '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
-    )
-    file_handler.setFormatter(formatter)
-    
-    # 設定應用程式日誌
-    app.logger.addHandler(file_handler)
-    app.logger.setLevel(logging.INFO)
-    app.logger.info('應用程式啟動')
+    try:
+        if not os.path.exists('logs'):
+            os.makedirs('logs')
+        
+        # 檢查是否已經設定過日誌處理器
+        if not app.logger.handlers:
+            # 檔案日誌處理器
+            file_handler = logging.FileHandler('logs/app.log', encoding='utf-8')
+            file_handler.setLevel(logging.INFO)
+            
+            # 格式化器
+            formatter = logging.Formatter(
+                '%(asctime)s %(levelname)s: %(message)s [in %(pathname)s:%(lineno)d]'
+            )
+            file_handler.setFormatter(formatter)
+            
+            # 設定應用程式日誌
+            app.logger.addHandler(file_handler)
+            app.logger.setLevel(logging.INFO)
+            
+            # 避免遞迴調用
+            app.logger.info('應用程式啟動')
+    except Exception as e:
+        # 如果日誌設定失敗，使用簡單的 stderr 輸出
+        import sys
+        print(f"日誌設定失敗: {e}", file=sys.stderr)
 
 # 錯誤處理 Blueprint
 errors = Blueprint('errors', __name__)
@@ -54,9 +63,14 @@ def not_found_error(error):
 @errors.app_errorhandler(500)
 def internal_error(error):
     """處理 500 錯誤"""
-    # 記錄錯誤
-    current_app.logger.error(f'伺服器錯誤: {error}')
-    current_app.logger.error(traceback.format_exc())
+    try:
+        # 記錄錯誤
+        current_app.logger.error(f'伺服器錯誤: {error}')
+        current_app.logger.error(traceback.format_exc())
+    except Exception as e:
+        # 如果日誌記錄失敗，使用簡單的 stderr 輸出
+        import sys
+        print(f"500 錯誤日誌記錄失敗: {e}", file=sys.stderr)
     
     if request.path.startswith('/api/'):
         return jsonify({'error': '伺服器內部錯誤'}), 500
@@ -100,52 +114,70 @@ def handle_api_error(error):
 # 日誌記錄函數
 def log_error(error, context=None):
     """記錄錯誤到日誌"""
-    
-    error_info = {
-        'error': str(error),
-        'timestamp': datetime.now().isoformat(),
-        'url': request.url,
-        'method': request.method,
-        'ip': request.remote_addr,
-        'user_agent': request.headers.get('User-Agent'),
-        'context': context
-    }
-    
-    current_app.logger.error(f'錯誤詳情: {error_info}')
-    current_app.logger.error(traceback.format_exc())
+    try:
+        error_info = {
+            'error': str(error),
+            'timestamp': datetime.now().isoformat(),
+            'url': request.url,
+            'method': request.method,
+            'ip': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent'),
+            'context': context
+        }
+        
+        # 使用安全的日誌記錄方式
+        current_app.logger.error(f'錯誤詳情: {error_info}')
+        current_app.logger.error(traceback.format_exc())
+    except Exception as e:
+        # 如果日誌記錄失敗，使用簡單的 stderr 輸出
+        import sys
+        print(f"日誌記錄失敗: {e}", file=sys.stderr)
 
 def log_api_call(endpoint, method, status_code, response_time=None):
     """記錄 API 呼叫"""
-    
-    api_log = {
-        'endpoint': endpoint,
-        'method': method,
-        'status_code': status_code,
-        'ip': request.remote_addr,
-        'user_agent': request.headers.get('User-Agent'),
-        'response_time': response_time,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    current_app.logger.info(f'API 呼叫: {api_log}')
+    try:
+        api_log = {
+            'endpoint': endpoint,
+            'method': method,
+            'status_code': status_code,
+            'ip': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent'),
+            'response_time': response_time,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        current_app.logger.info(f'API 呼叫: {api_log}')
+    except Exception as e:
+        # 如果日誌記錄失敗，使用簡單的 stderr 輸出
+        import sys
+        print(f"API 日誌記錄失敗: {e}", file=sys.stderr)
 
 def log_user_action(user_id, action, details=None):
     """記錄使用者操作"""
-    
-    action_log = {
-        'user_id': user_id,
-        'action': action,
-        'details': details,
-        'ip': request.remote_addr,
-        'timestamp': datetime.now().isoformat()
-    }
-    
-    current_app.logger.info(f'使用者操作: {action_log}')
+    try:
+        action_log = {
+            'user_id': user_id,
+            'action': action,
+            'details': details,
+            'ip': request.remote_addr,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        current_app.logger.info(f'使用者操作: {action_log}')
+    except Exception as e:
+        # 如果日誌記錄失敗，使用簡單的 stderr 輸出
+        import sys
+        print(f"使用者操作日誌記錄失敗: {e}", file=sys.stderr)
 
 def register_error_handlers(app):
     """註冊錯誤處理器"""
-    # 設定日誌
-    setup_logging(app)
-    
-    # 註冊錯誤處理 Blueprint
-    app.register_blueprint(errors) 
+    try:
+        # 設定日誌
+        setup_logging(app)
+        
+        # 註冊錯誤處理 Blueprint
+        app.register_blueprint(errors)
+    except Exception as e:
+        # 如果錯誤處理器註冊失敗，使用簡單的 stderr 輸出
+        import sys
+        print(f"錯誤處理器註冊失敗: {e}", file=sys.stderr) 

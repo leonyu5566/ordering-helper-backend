@@ -34,13 +34,44 @@ import google.generativeai as genai
 
 webhook_bp = Blueprint('webhook', __name__)
 
-# LINE Bot 設定
-line_bot_api = LineBotApi(os.getenv('LINE_CHANNEL_ACCESS_TOKEN'))
-handler = WebhookHandler(os.getenv('LINE_CHANNEL_SECRET'))
+# LINE Bot 設定（延遲初始化）
+def get_line_bot_api():
+    """取得 LINE Bot API 實例"""
+    try:
+        channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        if not channel_access_token:
+            print("警告: LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
+            return None
+        return LineBotApi(channel_access_token)
+    except Exception as e:
+        print(f"LINE Bot API 初始化失敗: {e}")
+        return None
 
-# Gemini API 設定
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-gemini_model = genai.GenerativeModel('gemini-pro')
+def get_line_bot_handler():
+    """取得 LINE Bot Handler 實例"""
+    try:
+        channel_secret = os.getenv('LINE_CHANNEL_SECRET')
+        if not channel_secret:
+            print("警告: LINE_CHANNEL_SECRET 環境變數未設定")
+            return None
+        return WebhookHandler(channel_secret)
+    except Exception as e:
+        print(f"LINE Bot Handler 初始化失敗: {e}")
+        return None
+
+# Gemini API 設定（延遲初始化）
+def get_gemini_model():
+    """取得 Gemini 模型實例"""
+    try:
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            print("警告: GEMINI_API_KEY 環境變數未設定")
+            return None
+        genai.configure(api_key=api_key)
+        return genai.GenerativeModel('gemini-pro')
+    except Exception as e:
+        print(f"Gemini API 初始化失敗: {e}")
+        return None
 
 @webhook_bp.route("/callback", methods=['POST'])
 def callback():
@@ -49,13 +80,20 @@ def callback():
     body = request.get_data(as_text=True)
     
     try:
-        handler.handle(body, signature)
+        handler = get_line_bot_handler()
+        if handler:
+            # 註冊事件處理器
+            register_event_handlers()
+            # 處理 webhook
+            handler.handle(body, signature)
+        else:
+            print("LINE Bot Handler 未初始化")
+            abort(500)
     except InvalidSignatureError:
         abort(400)
     
     return 'OK'
 
-@handler.add(FollowEvent)
 def handle_follow(event):
     """處理新使用者加入好友"""
     user_id = event.source.user_id
@@ -82,7 +120,21 @@ def handle_follow(event):
         # 即使註冊失敗，也要發送語言選擇訊息
         handle_new_user(event)
 
-@handler.add(MessageEvent, message=TextMessage)
+# 註冊事件處理器
+def register_event_handlers():
+    """註冊事件處理器"""
+    try:
+        handler = get_line_bot_handler()
+        if handler:
+            handler.add(FollowEvent)(handle_follow)
+            handler.add(MessageEvent, message=TextMessage)(handle_text_message)
+            handler.add(MessageEvent, message=LocationMessage)(handle_location_message)
+            handler.add(PostbackEvent)(handle_postback)
+        else:
+            print("警告: LINE Bot Handler 未初始化，無法註冊事件處理器")
+    except Exception as e:
+        print(f"註冊事件處理器失敗: {e}")
+
 def handle_text_message(event):
     """處理文字訊息"""
     user_id = event.source.user_id
@@ -122,10 +174,14 @@ def handle_new_user(event):
     
     welcome_message = "歡迎使用點餐小幫手！\n請選擇您的語言偏好：\n\nWelcome to Ordering Helper!\nPlease select your language preference:"
     
-    line_bot_api.reply_message(
-        event.reply_token,
-        TextSendMessage(text=welcome_message, quick_reply=quick_reply)
-    )
+    line_bot_api = get_line_bot_api()
+    if line_bot_api:
+        get_line_bot_api().reply_message(
+            event.reply_token,
+            TextSendMessage(text=welcome_message, quick_reply=quick_reply)
+        )
+    else:
+        print("LINE Bot API 未初始化")
 
 def handle_existing_user(event, user, text):
     """處理現有使用者的訊息"""
@@ -167,7 +223,7 @@ def handle_existing_user(event, user, text):
             ]
         )
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(
                 text=welcome_messages[user.preferred_lang],
@@ -230,7 +286,7 @@ def handle_food_request(event, user, text):
             }
             message = no_recommendation_messages.get(user.preferred_lang, no_recommendation_messages["zh"])
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message)
             )
@@ -245,7 +301,7 @@ def handle_food_request(event, user, text):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -323,7 +379,7 @@ def get_ai_recommendations(food_request, user_language='zh'):
 """
 
         # 調用 Gemini API
-        response = gemini_model.generate_content(prompt)
+        response = get_gemini_model().generate_content(prompt)
         
         # 解析回應
         try:
@@ -424,7 +480,7 @@ def send_recommendation_results(event, recommendations, user_language):
         else:
             message += "💡 您可以分享位置來查看這些店家的詳細資訊和開始點餐。"
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -439,7 +495,7 @@ def send_recommendation_results(event, recommendations, user_language):
         }
         message = error_messages.get(user_language, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -455,7 +511,7 @@ def handle_recommend_restaurants(event, user):
     
     message = recommendation_prompts.get(user.preferred_lang, recommendation_prompts["zh"])
     
-    line_bot_api.reply_message(
+    get_line_bot_api().reply_message(
         event.reply_token,
         TextSendMessage(text=message)
     )
@@ -472,7 +528,7 @@ def handle_find_restaurants(event, user):
     
     message = location_messages.get(user.preferred_lang, location_messages["zh"])
     
-    line_bot_api.reply_message(
+    get_line_bot_api().reply_message(
         event.reply_token,
         TextSendMessage(text=message)
     )
@@ -548,7 +604,7 @@ def handle_order_history(event, user):
             }
             message += tip_messages.get(user.preferred_lang, tip_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -563,7 +619,7 @@ def handle_order_history(event, user):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -600,12 +656,11 @@ def handle_general_conversation(event, user, text):
     # 這裡可以加入 AI 對話功能
     response = "我理解您的訊息，但我目前主要專注於點餐服務。請告訴我您想要找餐廳還是查看訂單記錄。"
     
-    line_bot_api.reply_message(
+    get_line_bot_api().reply_message(
         event.reply_token,
         TextSendMessage(text=response)
     )
 
-@handler.add(MessageEvent, message=LocationMessage)
 def handle_location_message(event):
     """處理位置訊息"""
     user_id = event.source.user_id
@@ -636,7 +691,7 @@ def handle_location_message(event):
             }
             message = no_stores_messages.get(user.preferred_lang, no_stores_messages["zh"])
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message)
             )
@@ -661,7 +716,7 @@ def handle_location_message(event):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -716,7 +771,7 @@ def send_store_list(event, stores, user_language):
     carousel = CarouselContainer(columns=columns)
     
     # 發送訊息
-    line_bot_api.reply_message(
+    get_line_bot_api().reply_message(
         event.reply_token,
         FlexSendMessage(
             alt_text="附近餐廳清單",
@@ -817,7 +872,7 @@ def send_store_detail(event, store, user_language):
         }
     }
     
-    line_bot_api.reply_message(
+    get_line_bot_api().reply_message(
         event.reply_token,
         FlexSendMessage(
             alt_text=f"{title} 詳細資訊",
@@ -833,7 +888,6 @@ def send_voice_order(order_id):
     # 使用新的完整訂單確認系統
     send_complete_order_notification(order_id)
 
-@handler.add(PostbackEvent)
 def handle_postback(event):
     """處理 Postback 事件"""
     data = event.postback.data
@@ -869,7 +923,7 @@ def handle_postback(event):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -890,7 +944,7 @@ def handle_store_detail(event, store_id, user):
             }
             message = not_found_messages.get(user.preferred_lang, not_found_messages["zh"])
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message)
             )
@@ -945,7 +999,7 @@ def handle_start_ordering(event, store_id, user):
             }
             message = not_found_messages.get(user.preferred_lang, not_found_messages["zh"])
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message)
             )
@@ -974,7 +1028,7 @@ def handle_start_ordering(event, store_id, user):
             
             quick_reply = QuickReply(items=actions)
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message, quick_reply=quick_reply)
             )
@@ -1014,7 +1068,7 @@ def handle_start_ordering(event, store_id, user):
             
             quick_reply = QuickReply(items=actions)
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message, quick_reply=quick_reply)
             )
@@ -1033,7 +1087,7 @@ def handle_back_to_list(event, user):
     }
     message = messages.get(user.preferred_lang, messages["zh"])
     
-    line_bot_api.reply_message(
+    get_line_bot_api().reply_message(
         event.reply_token,
         TextSendMessage(text=message)
     )
@@ -1071,7 +1125,7 @@ def handle_voice_control(event, user, text):
             }
             message = error_messages.get(user.preferred_lang, error_messages["zh"])
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message)
             )
@@ -1086,7 +1140,7 @@ def handle_voice_control(event, user, text):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )
@@ -1129,7 +1183,7 @@ def handle_temp_voice_control(event, user, text):
                 }
                 message = confirm_messages.get(user.preferred_lang, confirm_messages["zh"])
                 
-                line_bot_api.reply_message(
+                get_line_bot_api().reply_message(
                     event.reply_token,
                     TextSendMessage(text=message)
                 )
@@ -1143,7 +1197,7 @@ def handle_temp_voice_control(event, user, text):
                 }
                 message = error_messages.get(user.preferred_lang, error_messages["zh"])
                 
-                line_bot_api.reply_message(
+                get_line_bot_api().reply_message(
                     event.reply_token,
                     TextSendMessage(text=message)
                 )
@@ -1157,7 +1211,7 @@ def handle_temp_voice_control(event, user, text):
             }
             message = error_messages.get(user.preferred_lang, error_messages["zh"])
             
-            line_bot_api.reply_message(
+            get_line_bot_api().reply_message(
                 event.reply_token,
                 TextSendMessage(text=message)
             )
@@ -1172,7 +1226,7 @@ def handle_temp_voice_control(event, user, text):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        line_bot_api.reply_message(
+        get_line_bot_api().reply_message(
             event.reply_token,
             TextSendMessage(text=message)
         )

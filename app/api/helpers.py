@@ -25,11 +25,24 @@ import uuid
 genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
 model = genai.GenerativeModel('gemini-pro-vision')
 
-# Azure TTS 設定
-speech_config = SpeechConfig(
-    subscription=os.getenv('AZURE_SPEECH_KEY'),
-    region=os.getenv('AZURE_SPEECH_REGION')
-)
+# Azure TTS 設定（延遲初始化）
+def get_speech_config():
+    """取得 Azure Speech 配置"""
+    try:
+        speech_key = os.getenv('AZURE_SPEECH_KEY')
+        speech_region = os.getenv('AZURE_SPEECH_REGION')
+        
+        if not speech_key or not speech_region:
+            print("警告: Azure Speech Service 環境變數未設定")
+            return None
+        
+        return SpeechConfig(
+            subscription=speech_key,
+            region=speech_region
+        )
+    except Exception as e:
+        print(f"Azure Speech Service 配置失敗: {e}")
+        return None
 
 def process_menu_with_gemini(image_path, target_language='en'):
     """
@@ -161,6 +174,12 @@ def generate_voice_order(order_id, speech_rate=1.0):
         
         order_text += f"總共{order.total_amount}元，謝謝。"
         
+        # 取得語音配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech Service 配置失敗，跳過語音生成")
+            return None
+        
         # 設定語音參數
         speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
         speech_config.speech_synthesis_speaking_rate = speech_rate
@@ -199,6 +218,12 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
         
         order_text += f"總共{temp_order['total_amount']}元，謝謝。"
         
+        # 取得語音配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech Service 配置失敗，跳過語音生成")
+            return None
+        
         # 設定語音參數
         speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
         speech_config.speech_synthesis_speaking_rate = speech_rate
@@ -226,6 +251,12 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
     生成自定義語速的語音檔
     """
     try:
+        # 取得語音配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech Service 配置失敗，跳過語音生成")
+            return None
+        
         # 設定語音參數
         speech_config.speech_synthesis_voice_name = voice_name
         speech_config.speech_synthesis_speaking_rate = speech_rate
@@ -262,7 +293,7 @@ def create_order_summary(order_id, user_language='zh'):
     
     # 中文摘要
     chinese_summary = f"訂單編號：{order.order_id}\n"
-    chinese_summary += f"店家：{store.store_name}\n"
+    chinese_summary += f"店家：{store.store_name if store else '未知店家'}\n"
     chinese_summary += "訂購項目：\n"
     
     for item in order.items:
@@ -276,7 +307,7 @@ def create_order_summary(order_id, user_language='zh'):
     if user_language != 'zh':
         # 這裡可以呼叫 Gemini API 進行翻譯
         translated_summary = f"Order #{order.order_id}\n"
-        translated_summary += f"Store: {store.store_name}\n"
+        translated_summary += f"Store: {store.store_name if store else 'Unknown Store'}\n"
         translated_summary += "Items:\n"
         
         for item in order.items:
