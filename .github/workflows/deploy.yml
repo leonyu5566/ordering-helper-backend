@@ -2,9 +2,9 @@ name: Deploy to Cloud Run
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
 
 env:
   PROJECT_ID: solid-heaven-466011-d1
@@ -18,22 +18,24 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
+    # ① OIDC 驗證
     - name: Authenticate to Google Cloud
       id: auth
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: 'projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/default'
-        service_account: 'github-ci@${{ env.PROJECT_ID }}.iam.gserviceaccount.com'
-        token_format: 'access_token'
+        workload_identity_provider: projects/${{ env.PROJECT_ID }}/locations/global/workloadIdentityPools/github/providers/default
+        service_account: github-ci@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+        token_format: access_token
 
+    # ② 安裝 gcloud
     - name: Setup Google Cloud CLI
       uses: google-github-actions/setup-gcloud@v2
 
+    # ③ Docker 登入 + Build & Push
     - name: Configure Docker for Artifact Registry
       run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
@@ -42,6 +44,7 @@ jobs:
         docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }} .
         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
+    # ④ 部署 Cloud Run
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v2
@@ -60,5 +63,7 @@ jobs:
           AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}
           AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}
 
+    # ⑤ 顯示服務網址（改成多行字串）
     - name: Show Service URL
-      run: echo "Service URL: ${{ steps.deploy.outputs.url }}"
+      run: |
+        echo "Service URL: ${{ steps.deploy.outputs.url }}"
