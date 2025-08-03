@@ -15,7 +15,15 @@ from dotenv import load_dotenv
 # 功能：在建立 Flask 應用程式之前，先載入 .env 檔案中的環境變數
 # 包含：資料庫連線、API 金鑰、LINE Bot 設定等
 # =============================================================================
-load_dotenv('notebook.env')
+import os
+
+# 嘗試載入環境變數文件，如果不存在則忽略
+env_file = 'notebook.env'
+if os.path.exists(env_file):
+    load_dotenv(env_file)
+else:
+    # 在 Cloud Run 環境中，環境變數應該已經設定好了
+    print("Environment file not found, using system environment variables")
 
 # =============================================================================
 # 應用程式建立區塊
