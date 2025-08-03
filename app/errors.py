@@ -140,4 +140,12 @@ def log_user_action(user_id, action, details=None):
         'timestamp': datetime.now().isoformat()
     }
     
-    current_app.logger.info(f'使用者操作: {action_log}') 
+    current_app.logger.info(f'使用者操作: {action_log}')
+
+def register_error_handlers(app):
+    """註冊錯誤處理器"""
+    # 設定日誌
+    setup_logging(app)
+    
+    # 註冊錯誤處理 Blueprint
+    app.register_blueprint(errors) 

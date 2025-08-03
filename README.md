@@ -1,161 +1,280 @@
-# 點餐傳聲筒後端 (Ordering Helper Backend)
+# 點餐小幫手後端系統
 
-一個基於 Flask 的 LINE Bot 後端系統，提供多語言點餐服務。
+## 專案概述
 
-## 功能特色
+這是一個專為 LINE Bot 點餐系統設計的後端 API，主要負責處理合作店家的菜單資料查詢和非合作店家的菜單圖片翻譯功能。
 
-- 🌐 多語言支援（中文、英文、日文等）
-- 🤖 LINE Bot 整合
-- 🗣️ 語音合成功能（Azure Speech Service）
-- 🧠 AI 菜單處理（Google Gemini）
-- 📊 後台管理系統
-- 🗄️ MySQL 資料庫整合
+**注意：** LIFF 前端獨立部署在 Azure 靜態網頁，後端只提供 API 服務。
 
-## 技術架構
+## 核心架構
 
-- **後端框架**: Flask
-- **資料庫**: MySQL (Google Cloud SQL)
-- **AI 服務**: Google Gemini
-- **語音服務**: Azure Speech Service
-- **部署平台**: Google Cloud Run
+### 後端職責（專注於核心功能）
 
-## 本地開發
+後端系統專注於以下核心功能，避免重複 LINE Bot 已有的功能：
 
-### 環境需求
-- Python 3.11+
-- MySQL 8.0+
+#### 1. **合作店家流程**
+- 接收店家ID → 從資料庫拉取店家資訊和菜單
+- 提供多語言翻譯支援
+- 處理訂單建立和確認
 
-### 安裝步驟
+#### 2. **非合作店家流程**
+- 接收菜單圖片 → 使用 Gemini API 進行 OCR 和翻譯
+- 生成動態菜單供使用者點餐
+- 處理臨時訂單建立
 
-1. **克隆專案**
-```bash
-git clone <your-repo-url>
-cd ordering-helper-backend
+### 分工明確
+
+| 功能 | LINE Bot 負責 | 後端負責 |
+|------|---------------|----------|
+| GPS 定位 | ✅ 處理位置分享 | ❌ 不需要 |
+| 店家選擇 | ✅ 顯示店家清單 | ❌ 不需要 |
+| 店家資訊查詢 | ❌ 不需要 | ✅ 從資料庫拉取 |
+| 菜單翻譯 | ❌ 不需要 | ✅ OCR + AI 翻譯 |
+| 訂單處理 | ❌ 不需要 | ✅ 建立和確認訂單 |
+
+## 完整流程
+
+### 3. 選擇店家 → 進入 LIFF 點餐介面
+
+#### 3.1 合作店家流程
+1. **LINE Bot 處理**：使用者在 LINE Bot 點選店家
+2. **自動建立記錄**：如果店家不存在，自動建立非合作店家記錄
+3. **跳轉 LIFF**：跳轉至合作店家專屬 LIFF 頁面（Azure 靜態網頁）
+4. **載入菜單**：從資料庫撈取已結構化和翻譯的菜單
+5. **多語言顯示**：根據使用者語言偏好顯示菜單
+6. **直接點餐**：使用者可直接選擇數量並確認訂單
+
+#### 3.2 非合作店家流程
+1. **LINE Bot 處理**：使用者在 LINE Bot 點選店家
+2. **自動建立記錄**：自動建立非合作店家記錄
+3. **跳轉 LIFF**：跳轉至非合作店家專屬 LIFF 頁面（Azure 靜態網頁）
+4. **拍照上傳**：LIFF 提示使用者拍攝紙本菜單
+5. **AI 處理**：後端呼叫 Gemini API 進行 OCR 辨識
+6. **動態生成**：將菜單項目與價格轉成結構化資料
+7. **翻譯顯示**：翻譯為使用者語言並動態生成可點選菜單介面
+8. **臨時訂單**：建立基於 OCR 結果的臨時訂單
+
+### 4. 點餐與確認
+
+#### 4.1 購物車功能
+- 使用者在 LIFF 介面選擇品項與數量
+- 即時計算小計和總金額
+- 支援數量調整和移除商品
+
+#### 4.2 訂單確認
+- 點擊「確認訂單」後顯示完整訂單明細
+- 包含商品名稱、數量、單價、小計
+- 顯示總金額和訂單時間
+- 支援多語言訂單摘要
+
+### 5. 生成中文語音檔
+
+#### 5.1 語音生成流程
+- 後端接收訂單後，將品項轉回原始中文菜名
+- 呼叫 Azure TTS API 合成中文語音
+- 支援 .wav 格式輸出
+- 提供可調語速版本（0.5x - 2.0x）
+
+#### 5.2 語音功能特色
+- **多種語音**：支援不同中文語音（如 zh-TW-HsiaoChenNeural）
+- **語速調整**：可調整語速範圍 0.5x - 2.0x
+- **自動生成**：訂單建立時自動生成語音檔
+- **即時下載**：提供語音檔下載 API
+
+### 6. 回傳至 LINE Bot
+
+#### 6.1 Bot 傳送內容
+- **兩則訂單文字摘要**：
+  - 使用者語言摘要（英文/日文/韓文）
+  - 中文摘要（供現場點餐使用）
+- **中文語音檔**：標準語速的點餐語音
+- **語速控制按鈕**：
+  - 慢速播放 (0.7x)
+  - 正常播放 (1.0x)
+  - 快速播放 (1.3x)
+  - 重新播放
+
+#### 6.2 語音控制功能
+- **即時語速調整**：點擊按鈕即可生成不同語速的語音檔
+- **多語言介面**：按鈕文字根據使用者語言顯示
+- **錯誤處理**：語音生成失敗時提供友善的錯誤訊息
+
+### 7. 現場點餐
+
+#### 7.1 點餐流程
+- 使用者於店家櫃檯播放中文語音
+- 語音內容包含完整的點餐資訊
+- 支援不同語速播放，適應不同環境需求
+- 可重複播放，確保點餐準確性
+
+#### 7.2 語音內容格式
+```
+您好，我要點餐。
+牛肉麵 2份，
+紅茶 1份，
+總共350元，謝謝。
 ```
 
-2. **安裝依賴**
-```bash
-pip install -r requirements.txt
-```
+### 改進重點
 
-3. **設定環境變數**
-複製 `notebook.env.example` 為 `notebook.env` 並填入你的設定：
-```bash
-cp notebook.env.example notebook.env
-# 編輯 notebook.env 檔案
-```
+#### ✅ **已改進的功能**
 
-4. **啟動應用程式**
-```bash
-python run.py
-```
+1. **完整的 LINE Bot 通知系統**
+   ```python
+   # 發送兩則文字摘要
+   line_bot_api.push_message(user_id, TextSendMessage(text=chinese_summary))
+   line_bot_api.push_message(user_id, TextSendMessage(text=translated_summary))
+   
+   # 發送語音檔
+   line_bot_api.push_message(user_id, AudioSendMessage(...))
+   
+   # 發送語速控制按鈕
+   send_voice_control_buttons(user_id, order_id, user_language)
+   ```
 
-應用程式會在 `http://127.0.0.1:5001` 啟動
+2. **語速控制功能**
+   - 支援 0.7x、1.0x、1.3x 三種語速
+   - 即時生成和下載語音檔
+   - 多語言按鈕介面
 
-## 部署到 Google Cloud Run
+3. **臨時訂單通知**
+   - 非合作店家也能收到完整的通知
+   - 包含語音檔和語速控制
+   - 支援原始中文菜名語音生成
 
-### 方法一：透過 GitHub Actions（推薦）
+4. **現場點餐支援**
+   - 標準化的中文語音格式
+   - 清晰的點餐內容結構
+   - 適合現場播放的語音品質
 
-1. **設定 GitHub Secrets**
-在 GitHub 專案設定中新增以下 secrets：
-- `GCP_SA_KEY`: Google Cloud 服務帳號金鑰
-- `DB_USERNAME`: 資料庫使用者名稱
-- `DB_PASSWORD`: 資料庫密碼
-- `DB_HOST`: 資料庫主機
-- `DB_NAME`: 資料庫名稱
-- `LINE_CHANNEL_ACCESS_TOKEN`: LINE Bot 存取權杖
-- `LINE_CHANNEL_SECRET`: LINE Bot 密鑰
-- `GEMINI_API_KEY`: Google Gemini API 金鑰
-- `AZURE_SPEECH_KEY`: Azure Speech Service 金鑰
-- `AZURE_SPEECH_REGION`: Azure Speech Service 區域
-
-2. **修改 GitHub Actions 設定**
-編輯 `.github/workflows/deploy.yml` 中的 `PROJECT_ID`
-
-3. **推送程式碼**
-```bash
-git add .
-git commit -m "Initial commit"
-git push origin main
-```
-
-### 方法二：手動部署
-
-1. **建立 Docker 映像**
-```bash
-docker build -t gcr.io/YOUR_PROJECT_ID/ordering-helper-backend .
-```
-
-2. **推送到 Container Registry**
-```bash
-docker push gcr.io/YOUR_PROJECT_ID/ordering-helper-backend
-```
-
-3. **部署到 Cloud Run**
-```bash
-gcloud run deploy ordering-helper-backend \
-  --image gcr.io/YOUR_PROJECT_ID/ordering-helper-backend \
-  --platform managed \
-  --region asia-east1 \
-  --allow-unauthenticated
-```
-
-## 專案結構
-
-```
-ordering-helper-backend/
-├── app/                    # Flask 應用程式
-│   ├── __init__.py        # 應用程式工廠
-│   ├── models.py          # 資料庫模型
-│   ├── api/               # API 路由
-│   ├── admin/             # 後台管理
-│   └── webhook/           # LINE Bot webhook
-├── static/                # 靜態檔案
-├── templates/             # HTML 模板
-├── tools/                 # 工具腳本
-├── Dockerfile             # Docker 設定
-├── requirements.txt       # Python 依賴
-└── run.py                # 應用程式入口
-```
+5. **錯誤處理和用戶體驗**
+   - 完整的錯誤訊息
+   - 多語言支援
+   - 友善的使用者介面
 
 ## API 端點
 
-- `GET /` - 重定向到後台管理
-- `GET /admin/dashboard` - 後台管理首頁
-- `POST /webhook/line` - LINE Bot webhook
-- `POST /api/process-menu` - 處理菜單
-- `POST /api/generate-voice` - 生成語音
+### 核心 API
 
-## 環境變數
+#### 店家相關
+- `GET /api/stores/{store_id}` - 取得店家資訊（支援多語言）
+- `GET /api/stores/check-partner-status` - 檢查店家合作狀態
 
-| 變數名稱 | 說明 | 範例 |
-|---------|------|------|
-| `DB_USERNAME` | 資料庫使用者名稱 | `gae252g1usr` |
-| `DB_PASSWORD` | 資料庫密碼 | `your_password` |
-| `DB_HOST` | 資料庫主機 | `35.201.153.17` |
-| `DB_NAME` | 資料庫名稱 | `gae252g1_db` |
-| `LINE_CHANNEL_ACCESS_TOKEN` | LINE Bot 存取權杖 | `your_token` |
-| `LINE_CHANNEL_SECRET` | LINE Bot 密鑰 | `your_secret` |
-| `GEMINI_API_KEY` | Google Gemini API 金鑰 | `your_gemini_key` |
-| `AZURE_SPEECH_KEY` | Azure Speech Service 金鑰 | `your_azure_key` |
-| `AZURE_SPEECH_REGION` | Azure Speech Service 區域 | `australiaeast` |
+#### 菜單相關
+- `GET /api/menu/{store_id}` - 取得合作店家菜單（支援多語言）
+- `POST /api/menu/process-ocr` - 處理非合作店家菜單圖片
+
+#### 訂單相關
+- `POST /api/orders` - 建立訂單（合作店家）
+- `POST /api/orders/temp` - 建立臨時訂單（非合作店家）
+- `GET /api/orders/{order_id}/confirm` - 取得訂單確認資訊
+- `GET /api/orders/{order_id}/voice` - 取得訂單語音檔
+
+#### 語音相關
+- `POST /api/voice/generate` - 生成自定義語音檔
+
+#### 使用者相關
+- `POST /api/users/register` - 使用者註冊
+
+### LINE Bot 功能
+
+#### 語音控制指令
+- `voice_slow_{order_id}` - 慢速播放 (0.7x)
+- `voice_normal_{order_id}` - 正常播放 (1.0x)
+- `voice_fast_{order_id}` - 快速播放 (1.3x)
+- `voice_replay_{order_id}` - 重新播放
+
+#### 臨時訂單語音控制
+- `temp_voice_slow_{processing_id}` - 臨時訂單慢速播放
+- `temp_voice_normal_{processing_id}` - 臨時訂單正常播放
+- `temp_voice_fast_{processing_id}` - 臨時訂單快速播放
+- `temp_voice_replay_{processing_id}` - 臨時訂單重新播放
+
+### 測試頁面
+- `GET /test` - 後端 API 測試頁面
+
+## 資料庫模型
+
+### 核心模型
+- `User` - 使用者資訊和語言偏好
+- `Store` - 店家資訊（合作/非合作）
+- `Menu/MenuItem` - 菜單項目
+- `MenuTranslation` - 菜單翻譯
+- `Order/OrderItem` - 訂單資料
+- `GeminiProcessing` - AI 處理記錄
+
+## 技術特色
+
+### 1. 多語言支援
+- 優先使用資料庫翻譯
+- AI 翻譯作為備用方案
+- 支援中文、英文、日文、韓文
+
+### 2. 智慧菜單處理
+- 使用 Gemini API 進行 OCR
+- 自動結構化菜單資料
+- 即時翻譯成使用者語言
+
+### 3. 訂單確認系統
+- 生成語音訂單確認
+- 多語言訂單摘要
+- 完整的訂單記錄
+
+### 4. 完整的 API 支援
+- RESTful API 設計
+- 完整的錯誤處理
+- 詳細的 API 文件
+
+## 部署
+
+### 環境需求
+- Python 3.8+
+- Flask
+- SQLAlchemy
+- LINE Bot SDK
+- Google Gemini API
+
+### 快速開始
+```bash
+# 安裝依賴
+pip install -r requirements.txt
+
+# 設定環境變數
+export LINE_CHANNEL_ACCESS_TOKEN="your_token"
+export LINE_CHANNEL_SECRET="your_secret"
+export GEMINI_API_KEY="your_gemini_key"
+
+# 初始化資料庫
+python tools/rebuild_database.py
+
+# 啟動服務
+python run.py
+```
+
+## 開發原則
+
+### 1. 職責分離
+- LINE Bot 負責使用者互動和位置服務
+- 後端專注於資料處理和 AI 功能
+- LIFF 前端獨立部署在 Azure 靜態網頁
+
+### 2. 簡化架構
+- 移除不必要的 GPS 定位功能
+- 專注於核心的菜單翻譯和訂單處理
+
+### 3. 效能優化
+- 優先使用資料庫翻譯減少 API 呼叫
+- 快取常用的翻譯結果
+
+### 4. 使用者體驗
+- 完整的錯誤處理和重試機制
+- 多語言支援
+- 直觀的介面設計
 
 ## 貢獻
 
-1. Fork 專案
-2. 建立功能分支 (`git checkout -b feature/AmazingFeature`)
-3. 提交變更 (`git commit -m 'Add some AmazingFeature'`)
-4. 推送到分支 (`git push origin feature/AmazingFeature`)
-5. 開啟 Pull Request
+歡迎提交 Issue 和 Pull Request 來改善這個專案！
 
 ## 授權
 
-此專案採用 MIT 授權 - 詳見 [LICENSE](LICENSE) 檔案
-
-## 聯絡資訊
-
-如有問題或建議，請聯絡專案維護者。 # 測試自動部署
-# 觸發自動部署 - 2025年 8月 3日 週日 02時29分39秒 CST
-# 重新觸發部署 - 2025年 8月 3日 週日 02時34分02秒 CST
-# 強制觸發新部署 - 2025年 8月 3日 週日 02時42分12秒 CST
-# 測試更新後的 GCP_SA_KEY - 2025年 8月 3日 週日 02時46分48秒 CST
+MIT License
