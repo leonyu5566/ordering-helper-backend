@@ -72,6 +72,15 @@ def process_menu_with_gemini(image_path, target_language='en'):
         # 將 bytes 轉換為 PIL.Image
         image = Image.open(io.BytesIO(image_bytes))
         
+        # 圖片壓縮優化（減少處理時間）
+        max_dimension = 1024  # 最大邊長
+        if max(image.size) > max_dimension:
+            # 等比例縮放
+            ratio = max_dimension / max(image.size)
+            new_size = tuple(int(dim * ratio) for dim in image.size)
+            image = image.resize(new_size, Image.Resampling.LANCZOS)
+            print(f"圖片已壓縮至: {image.size}")
+        
         # 檢查圖片格式並確定 MIME 類型
         import mimetypes
         mime_type, _ = mimetypes.guess_type(image_path)
@@ -79,7 +88,6 @@ def process_menu_with_gemini(image_path, target_language='en'):
             mime_type = 'image/jpeg'  # 預設為 JPEG
         
         print(f"圖片 MIME 類型: {mime_type}")
-        print(f"圖片大小: {len(image_bytes)} bytes")
         print(f"圖片尺寸: {image.size}")
         
         # 建立 Gemini 提示詞
@@ -122,7 +130,8 @@ def process_menu_with_gemini(image_path, target_language='en'):
 - 確保 JSON 格式完全正確，可以直接解析
 - 如果圖片模糊或無法辨識，請將 success 設為 false
 - 翻譯時保持菜名的準確性和文化適應性
-- 請在 30 秒內完成處理
+- 請在 60 秒內完成處理
+- 優先處理清晰可見的菜單項目
 """
         
         # 呼叫 Gemini 2.5 Flash API（添加超時控制）
@@ -131,9 +140,9 @@ def process_menu_with_gemini(image_path, target_language='en'):
         def timeout_handler(signum, frame):
             raise TimeoutError("Gemini API 處理超時")
         
-        # 設定 60 秒超時
+        # 設定 240 秒超時（與 Cloud Run 300秒保持安全邊距）
         signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(60)
+        signal.alarm(240)
         
         try:
             # 使用 Gemini 2.5 Flash 模型
@@ -152,16 +161,17 @@ def process_menu_with_gemini(image_path, target_language='en'):
             # 解析回應
         except TimeoutError:
             signal.alarm(0)  # 取消超時
+            print(f"⚠️ Gemini API 處理超時 (240秒)")
             return {
                 'success': False,
                 'error': 'OCR 處理超時，請稍後再試或上傳較小的圖片',
                 'menu_items': [],
                 'store_info': {},
-                'processing_notes': '處理超時'
+                'processing_notes': '處理超時 (240秒)'
             }
         except Exception as e:
             signal.alarm(0)  # 取消超時
-            print(f"Gemini API 錯誤: {e}")
+            print(f"❌ Gemini API 錯誤: {e}")
             return {
                 'success': False,
                 'error': f'OCR 處理失敗: {str(e)}',
