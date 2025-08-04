@@ -90,48 +90,40 @@ def process_menu_with_gemini(image_path, target_language='en'):
         print(f"圖片 MIME 類型: {mime_type}")
         print(f"圖片尺寸: {image.size}")
         
-        # 建立 Gemini 提示詞
+        # 建立 Gemini 提示詞（優化版）
         prompt = f"""
-你是一個專業的菜單辨識專家。請仔細分析這張菜單圖片，並執行以下任務：
+你是一個 JSON 產生器，專門處理菜單圖片 OCR。
 
-## 任務要求：
-1. **OCR 辨識**：準確辨識所有菜單項目、價格和描述
-2. **結構化處理**：將辨識結果整理成結構化資料
-3. **語言翻譯**：將菜名翻譯為 {target_language} 語言
-4. **價格標準化**：統一價格格式（數字）
+## 任務：
+1. 辨識菜單中的所有項目、價格和描述
+2. 將菜名翻譯為 {target_language} 語言
+3. 輸出嚴格合法的 JSON 格式
 
-## 輸出格式要求：
-請嚴格按照以下 JSON 格式輸出，不要包含任何其他文字：
+## 重要規則：
+⚠️ 只能輸出純 JSON，不要換行、不要解釋、不要 ``` 標籤、不要尾逗號
+⚠️ 價格必須是整數
+⚠️ 如果圖片模糊或無法辨識，將 success 設為 false
+⚠️ 優先處理清晰可見的菜單項目
 
-```json
+## 輸出格式（嚴格 JSON）：
 {{
   "success": true,
   "menu_items": [
     {{
-      "original_name": "原始菜名（中文）",
-      "translated_name": "翻譯後菜名",
-      "price": 數字價格,
-      "description": "菜單描述（如果有）",
-      "category": "分類（如：主食、飲料、小菜等）"
+      "original_name": "原始菜名",
+      "translated_name": "翻譯菜名",
+      "price": 數字,
+      "description": "描述或null",
+      "category": "分類"
     }}
   ],
   "store_info": {{
-    "name": "店家名稱",
-    "address": "地址（如果有）",
-    "phone": "電話（如果有）"
+    "name": "店名",
+    "address": "地址或null",
+    "phone": "電話或null"
   }},
-  "processing_notes": "處理備註"
+  "processing_notes": "備註"
 }}
-```
-
-## 重要注意事項：
-- 價格必須是數字格式
-- 如果無法辨識某個項目，請在 processing_notes 中說明
-- 確保 JSON 格式完全正確，可以直接解析
-- 如果圖片模糊或無法辨識，請將 success 設為 false
-- 翻譯時保持菜名的準確性和文化適應性
-- 請在 60 秒內完成處理
-- 優先處理清晰可見的菜單項目
 """
         
         # 呼叫 Gemini 2.5 Flash API（添加超時控制）
@@ -145,20 +137,53 @@ def process_menu_with_gemini(image_path, target_language='en'):
         signal.alarm(240)
         
         try:
-            # 使用 Gemini 2.5 Flash 模型
+            # 定義 JSON Schema 確保輸出格式
+            response_schema = {
+                "type": "object",
+                "properties": {
+                    "success": {"type": "boolean"},
+                    "menu_items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "original_name": {"type": "string"},
+                                "translated_name": {"type": "string"},
+                                "price": {"type": "integer"},
+                                "description": {"type": ["string", "null"]},
+                                "category": {"type": "string"}
+                            },
+                            "required": ["original_name", "translated_name", "price", "category"]
+                        }
+                    },
+                    "store_info": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "address": {"type": ["string", "null"]},
+                            "phone": {"type": ["string", "null"]}
+                        }
+                    },
+                    "processing_notes": {"type": "string"}
+                },
+                "required": ["success", "menu_items", "store_info"]
+            }
+            
+            # 使用 Gemini 2.5 Flash 模型 + Structured Output
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[
                     prompt,
                     image
                 ],
+                response_schema=response_schema,  # 強制輸出合法 JSON
                 config=genai.types.GenerateContentConfig(
                     thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
                 )
             )
             signal.alarm(0)  # 取消超時
             
-            # 解析回應
+            # 解析回應（現在保證是合法 JSON）
         except TimeoutError:
             signal.alarm(0)  # 取消超時
             print(f"⚠️ Gemini API 處理超時 (240秒)")
@@ -181,7 +206,18 @@ def process_menu_with_gemini(image_path, target_language='en'):
             }
         
         try:
-            result = json.loads(response.text)
+            # 清洗 JSON 字串（防禦性處理）
+            raw_text = response.text.strip()
+            
+            # 移除可能的 Markdown code fence
+            import re
+            raw_text = re.sub(r'```json\s*|\s*```', '', raw_text)
+            
+            # 移除尾逗號
+            raw_text = re.sub(r',(\s*[\]}])', r'\1', raw_text)
+            
+            # 嘗試解析 JSON
+            result = json.loads(raw_text)
             
             # 驗證回應格式
             if not isinstance(result, dict):
@@ -212,13 +248,14 @@ def process_menu_with_gemini(image_path, target_language='en'):
             return result
             
         except json.JSONDecodeError as e:
-            print(f"JSON 解析失敗：{e}")
-            print(f"回應內容：{response.text}")
+            print(f"❌ JSON 解析失敗：{e}")
+            print(f"原始回應內容（前300字）：{response.text[:300]}")
+            print(f"清洗後內容（前300字）：{raw_text[:300]}")
             return {
                 "success": False,
                 "menu_items": [],
                 "store_info": {},
-                "processing_notes": f"JSON 解析失敗：{str(e)}"
+                "processing_notes": f"JSON 解析失敗：{str(e)}。原始回應：{response.text[:100]}..."
             }
         
     except Exception as e:
