@@ -618,13 +618,34 @@ def register_user():
     
     return jsonify({"message": "使用者註冊成功", "user_id": new_user.user_id}), 201
 
-@api_bp.route('/test', methods=['GET', 'OPTIONS'])
+@api_bp.route('/test', methods=['GET', 'POST', 'OPTIONS'])
 def test():
     """API 連線測試"""
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
     
-    response = jsonify({'message': 'API is working!'}) #LIFF 前端呼叫的接口。
+    if request.method == 'POST':
+        # 測試 POST 請求
+        data = request.get_json() or {}
+        response = jsonify({
+            'message': 'POST 請求測試成功',
+            'received_data': data,
+            'content_type': request.content_type,
+            'method': request.method
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
+    # GET 請求
+    response = jsonify({
+        'message': 'API is working!',
+        'method': request.method,
+        'endpoints': {
+            'upload_menu': '/api/upload-menu-image (POST)',
+            'test': '/api/test (GET/POST)',
+            'health': '/api/health (GET)'
+        }
+    })
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
@@ -679,12 +700,22 @@ def get_all_stores():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 500
 
-@api_bp.route('/upload-menu-image', methods=['POST', 'OPTIONS'])
+@api_bp.route('/upload-menu-image', methods=['GET', 'POST', 'OPTIONS'])
 def upload_menu_image():
     """上傳菜單圖片並進行 OCR 處理"""
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
+    
+    # 處理 GET 請求（提供錯誤訊息）
+    if request.method == 'GET':
+        response = jsonify({
+            'error': '此端點只接受 POST 請求',
+            'message': '請使用 POST 方法上傳菜單圖片',
+            'supported_methods': ['POST', 'OPTIONS']
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 405
     
     try:
         print(f"收到上傳請求，Content-Type: {request.content_type}")
