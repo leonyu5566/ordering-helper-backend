@@ -16,7 +16,6 @@
 import os
 import json
 import requests
-import google.generativeai as genai
 from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
 import tempfile
 import uuid

@@ -30,7 +30,7 @@ from linebot.models import (
     CarouselColumn, ImageCarouselColumn, ImageCarouselTemplate,
     URIAction, PostbackAction, PostbackEvent
 )
-import google.generativeai as genai
+# 移除舊版導入，使用新版
 
 webhook_bp = Blueprint('webhook', __name__)
 
@@ -385,8 +385,15 @@ def get_ai_recommendations(food_request, user_language='zh'):
 - 確保 JSON 格式完全正確
 """
 
-        # 調用 Gemini API
-        response = get_gemini_model().generate_content(prompt)
+        # 調用 Gemini 2.5 Flash API
+        from google import genai
+        response = genai.Client().models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[prompt],
+            config=genai.types.GenerateContentConfig(
+                thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
+            )
+        )
         
         # 解析回應
         try:

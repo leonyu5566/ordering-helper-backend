@@ -23,9 +23,9 @@ except ImportError:
     LANGCHAIN_AVAILABLE = False
     print("⚠️ LangChain 強化模組未載入")
 
-# 導入原始 Gemini API 功能（作為回退）
+# 導入新版 Gemini API 功能（作為回退）
 try:
-    import google.generativeai as genai
+    from google import genai
     GEMINI_AVAILABLE = True
 except ImportError:
     GEMINI_AVAILABLE = False

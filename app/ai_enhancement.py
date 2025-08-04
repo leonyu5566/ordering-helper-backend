@@ -42,7 +42,7 @@ class AIEnhancementManager:
         if LANGCHAIN_ENHANCEMENT_AVAILABLE:
             try:
                 config = LangChainConfig(
-                    model_name="gemini-pro",
+                    model_name="gemini-2.5-flash",
                     temperature=0.1,
                     memory_type="buffer",
                     enable_rag=True,
