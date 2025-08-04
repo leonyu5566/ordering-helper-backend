@@ -22,8 +22,8 @@ import tempfile
 import uuid
 
 # Gemini API 設定
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-model = genai.GenerativeModel('gemini-pro-vision')
+from google import genai
+genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
 
 # Azure TTS 設定（延遲初始化）
 def get_speech_config():
@@ -46,7 +46,7 @@ def get_speech_config():
 
 def process_menu_with_gemini(image_path, target_language='en'):
     """
-    使用 Gemini API 處理菜單圖片
+    使用 Gemini 2.5 Flash API 處理菜單圖片
     1. OCR 辨識菜單文字
     2. 結構化為菜單項目
     3. 翻譯為目標語言
@@ -126,7 +126,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
 - 請在 30 秒內完成處理
 """
         
-        # 呼叫 Gemini API（添加超時控制）
+        # 呼叫 Gemini 2.5 Flash API（添加超時控制）
         import signal
         
         def timeout_handler(signum, frame):
@@ -137,8 +137,17 @@ def process_menu_with_gemini(image_path, target_language='en'):
         signal.alarm(60)
         
         try:
-            # 使用 PIL.Image 格式調用 Gemini API
-            response = model.generate_content([prompt, image])
+            # 使用 Gemini 2.5 Flash 模型
+            response = genai.Client().models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    prompt,
+                    image
+                ],
+                config=genai.types.GenerateContentConfig(
+                    thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
+                )
+            )
             signal.alarm(0)  # 取消超時
             
             # 解析回應
@@ -428,14 +437,13 @@ def save_uploaded_file(file, folder='uploads'):
 
 def translate_text(text, target_language='en'):
     """
-    使用 Gemini API 翻譯文字
+    使用 Gemini 2.5 Flash API 翻譯文字
     """
     try:
-        import google.generativeai as genai
+        from google import genai
         
         # 設定 Gemini API
-        genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-        model = genai.GenerativeModel('gemini-pro')
+        genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
         
         # 建立翻譯提示詞
         prompt = f"""
@@ -446,7 +454,13 @@ def translate_text(text, target_language='en'):
         請只回傳翻譯結果，不要包含任何其他文字。
         """
         
-        response = model.generate_content(prompt)
+        response = genai.Client().models.generate_content(
+            model="gemini-2.5-flash",
+            contents=[prompt],
+            config=genai.types.GenerateContentConfig(
+                thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
+            )
+        )
         return response.text.strip()
         
     except Exception as e:

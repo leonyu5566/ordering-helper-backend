@@ -67,8 +67,15 @@ def get_gemini_model():
         if not api_key:
             print("警告: GEMINI_API_KEY 環境變數未設定")
             return None
-        genai.configure(api_key=api_key)
-        return genai.GenerativeModel('gemini-pro')
+        from google import genai
+        genai.Client(api_key=api_key)
+        return genai.Client().models.generate_content(
+            model="gemini-2.5-flash",
+            contents=["測試訊息"],
+            config=genai.types.GenerateContentConfig(
+                thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
+            )
+        )
     except Exception as e:
         print(f"Gemini API 初始化失敗: {e}")
         return None

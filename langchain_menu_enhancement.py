@@ -46,9 +46,9 @@ def create_enhanced_menu_processor():
     
     # 初始化 LangChain
     llm = ChatGoogleGenerativeAI(
-        model="gemini-pro-vision",
+        model="gemini-2.0-flash-exp",
         google_api_key=os.getenv('GEMINI_API_KEY'),
-        temperature=0.1,  # 降低隨機性，提高準確度
+        temperature=0.1,
         max_tokens=4000
     )
     

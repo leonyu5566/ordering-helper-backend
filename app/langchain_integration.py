@@ -117,8 +117,8 @@ class LangChainIntegration:
         
         try:
             # 設定 Gemini API
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-pro-vision')
+            from google import genai
+            genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
             
             # 讀取圖片並轉換為 PIL.Image 格式
             from PIL import Image
@@ -182,8 +182,17 @@ class LangChainIntegration:
 - 翻譯時保持菜名的準確性和文化適應性
 """
             
-            # 調用 Gemini API（使用 PIL.Image 格式）
-            response = model.generate_content([prompt, image])
+            # 調用 Gemini 2.5 Flash API
+            response = genai.Client().models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[
+                    prompt,
+                    image
+                ],
+                config=genai.types.GenerateContentConfig(
+                    thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
+                )
+            )
             
             # 解析回應
             result = json.loads(response.text)
@@ -236,8 +245,8 @@ class LangChainIntegration:
         
         try:
             # 設定 Gemini API
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-pro')
+            from google import genai
+            genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
             
             # 建立翻譯提示詞
             prompt = f"""
@@ -248,13 +257,18 @@ class LangChainIntegration:
             請只回傳翻譯結果，不要包含任何其他文字。
             """
             
-            response = model.generate_content(prompt)
-            translated_text = response.text.strip()
+            response = genai.Client().models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[prompt],
+                config=genai.types.GenerateContentConfig(
+                    thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
+                )
+            )
             
             return {
-                "translated_text": translated_text,
-                "confidence_score": 0.8,
-                "translation_notes": "基礎翻譯處理"
+                "translated_text": response.text.strip(),
+                "confidence_score": 0.9,
+                "translation_notes": "Gemini 2.5 Flash 翻譯"
             }
             
         except Exception as e:
@@ -276,8 +290,8 @@ class LangChainIntegration:
         
         try:
             # 設定 Gemini API
-            genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
-            model = genai.GenerativeModel('gemini-pro')
+            from google import genai
+            genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
             
             # 獲取店家資料
             from app.models import Store
@@ -345,7 +359,13 @@ class LangChainIntegration:
 """
             
             # 調用 Gemini API
-            response = model.generate_content(prompt)
+            response = genai.Client().models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[prompt],
+                config=genai.types.GenerateContentConfig(
+                    thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
+                )
+            )
             
             # 解析回應
             result = json.loads(response.text)
