@@ -52,6 +52,17 @@ def process_menu_with_gemini(image_path, target_language='en'):
     3. 翻譯為目標語言
     """
     try:
+        # 檢查檔案大小
+        file_size = os.path.getsize(image_path)
+        max_size = 10 * 1024 * 1024  # 10MB
+        if file_size > max_size:
+            return {
+                'success': False,
+                'error': f'檔案太大 ({file_size / 1024 / 1024:.1f}MB)，請上傳較小的圖片'
+            }
+        
+        print(f"處理圖片: {image_path}, 大小: {file_size / 1024:.1f}KB")
+        
         # 讀取圖片
         with open(image_path, 'rb') as img_file:
             image_data = img_file.read()
@@ -96,12 +107,44 @@ def process_menu_with_gemini(image_path, target_language='en'):
 - 確保 JSON 格式完全正確，可以直接解析
 - 如果圖片模糊或無法辨識，請將 success 設為 false
 - 翻譯時保持菜名的準確性和文化適應性
+- 請在 30 秒內完成處理
 """
         
-        # 呼叫 Gemini API
-        response = model.generate_content([prompt, image_data])
+        # 呼叫 Gemini API（添加超時控制）
+        import signal
         
-        # 解析回應
+        def timeout_handler(signum, frame):
+            raise TimeoutError("Gemini API 處理超時")
+        
+        # 設定 60 秒超時
+        signal.signal(signal.SIGALRM, timeout_handler)
+        signal.alarm(60)
+        
+        try:
+            response = model.generate_content([prompt, image_data])
+            signal.alarm(0)  # 取消超時
+            
+            # 解析回應
+        except TimeoutError:
+            signal.alarm(0)  # 取消超時
+            return {
+                'success': False,
+                'error': 'OCR 處理超時，請稍後再試或上傳較小的圖片',
+                'menu_items': [],
+                'store_info': {},
+                'processing_notes': '處理超時'
+            }
+        except Exception as e:
+            signal.alarm(0)  # 取消超時
+            print(f"Gemini API 錯誤: {e}")
+            return {
+                'success': False,
+                'error': f'OCR 處理失敗: {str(e)}',
+                'menu_items': [],
+                'store_info': {},
+                'processing_notes': f'處理失敗: {str(e)}'
+            }
+        
         try:
             result = json.loads(response.text)
             
@@ -326,10 +369,12 @@ def create_order_summary(order_id, user_language='zh'):
 
 def save_uploaded_file(file, folder='uploads'):
     """
-    儲存上傳的檔案
+    儲存上傳的檔案並進行圖片壓縮
     """
     import os
     from werkzeug.utils import secure_filename
+    from PIL import Image
+    import io
     
     # 確保目錄存在
     os.makedirs(folder, exist_ok=True)
@@ -339,8 +384,28 @@ def save_uploaded_file(file, folder='uploads'):
     unique_filename = f"{uuid.uuid4()}_{filename}"
     filepath = os.path.join(folder, unique_filename)
     
-    # 儲存檔案
-    file.save(filepath)
+    try:
+        # 讀取圖片並壓縮
+        image = Image.open(file)
+        
+        # 檢查圖片大小，如果太大則壓縮
+        max_size = (2048, 2048)  # 最大尺寸
+        if image.size[0] > max_size[0] or image.size[1] > max_size[1]:
+            print(f"圖片尺寸過大 {image.size}，進行壓縮...")
+            image.thumbnail(max_size, Image.Resampling.LANCZOS)
+        
+        # 轉換為 RGB 模式（如果是 RGBA）
+        if image.mode in ('RGBA', 'LA', 'P'):
+            image = image.convert('RGB')
+        
+        # 儲存壓縮後的圖片
+        image.save(filepath, 'JPEG', quality=85, optimize=True)
+        print(f"圖片已壓縮並儲存: {filepath}")
+        
+    except Exception as e:
+        print(f"圖片壓縮失敗，使用原始檔案: {e}")
+        # 如果壓縮失敗，使用原始檔案
+        file.save(filepath)
     
     return filepath
 

@@ -20,5 +20,5 @@ ENV FLASK_ENV=production
 # 暴露端口
 EXPOSE 8080
 
-# 啟動命令
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "2", "run:app"] 
+# 啟動命令 - 調整記憶體和超時設定
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "--graceful-timeout", "30", "--max-requests", "1000", "--max-requests-jitter", "100", "run:app"] 
