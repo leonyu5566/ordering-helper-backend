@@ -55,10 +55,9 @@ logs/
 *.db
 *.sqlite3
 
-# Test files
-test_*.py
-*_test.py
-
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Instance folder
+instance/ 
