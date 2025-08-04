@@ -687,22 +687,32 @@ def upload_menu_image():
         return handle_cors_preflight()
     
     try:
+        print(f"收到上傳請求，Content-Type: {request.content_type}")
+        print(f"請求表單資料: {list(request.form.keys())}")
+        print(f"請求檔案: {list(request.files.keys())}")
+        
         # 檢查是否有檔案
         if 'file' not in request.files:
+            print("錯誤：沒有找到 'file' 欄位")
             response = jsonify({'error': '沒有上傳檔案'})
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
         
         file = request.files['file']
+        print(f"檔案名稱: {file.filename}")
+        print(f"檔案大小: {len(file.read())} bytes")
+        file.seek(0)  # 重置檔案指標
         
         # 檢查檔案名稱
         if file.filename == '':
+            print("錯誤：檔案名稱為空")
             response = jsonify({'error': '沒有選擇檔案'})
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
         
         # 檢查檔案格式
         if not allowed_file(file.filename):
+            print(f"錯誤：不支援的檔案格式 {file.filename}")
             response = jsonify({'error': '不支援的檔案格式'})
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
@@ -712,15 +722,23 @@ def upload_menu_image():
         user_id = request.form.get('user_id', type=int)
         target_lang = request.form.get('lang', 'en')
         
+        print(f"店家ID: {store_id}")
+        print(f"使用者ID: {user_id}")
+        print(f"目標語言: {target_lang}")
+        
         if not store_id:
+            print("錯誤：沒有提供店家ID")
             response = jsonify({"error": "需要提供店家ID"})
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
         
         # 儲存上傳的檔案
+        print("開始儲存檔案...")
         filepath = save_uploaded_file(file)
+        print(f"檔案已儲存到: {filepath}")
         
         # 建立 Gemini 處理記錄
+        print("建立處理記錄...")
         processing = GeminiProcessing(
             user_id=user_id or 1,  # 如果沒有使用者ID，使用預設值
             store_id=store_id,
@@ -729,8 +747,10 @@ def upload_menu_image():
         )
         db.session.add(processing)
         db.session.commit()
+        print(f"處理記錄已建立，ID: {processing.processing_id}")
         
         # 使用 Gemini API 處理圖片
+        print("開始使用 Gemini API 處理圖片...")
         result = process_menu_with_gemini(filepath, target_lang)
         
         if result and result.get('success', False):
