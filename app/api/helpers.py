@@ -90,28 +90,22 @@ def process_menu_with_gemini(image_path, target_language='en'):
         print(f"圖片 MIME 類型: {mime_type}")
         print(f"圖片尺寸: {image.size}")
         
-        # 建立 Gemini 提示詞（優化版）
+        # 建立 Gemini 提示詞（JSON Mode 優化版）
         prompt = f"""
-你是一個 JSON 產生器，專門處理菜單圖片 OCR。
+你是一個菜單 OCR 專家。請分析這張菜單圖片並輸出 JSON 格式的結果。
 
 ## 任務：
 1. 辨識菜單中的所有項目、價格和描述
 2. 將菜名翻譯為 {target_language} 語言
-3. 輸出嚴格合法的 JSON 格式
+3. 輸出合法的 JSON 物件
 
-## 重要規則：
-⚠️ 只能輸出純 JSON，不要換行、不要解釋、不要 ``` 標籤、不要尾逗號
-⚠️ 價格必須是整數
-⚠️ 如果圖片模糊或無法辨識，將 success 設為 false
-⚠️ 優先處理清晰可見的菜單項目
-
-## 輸出格式（嚴格 JSON）：
+## 輸出格式：
 {{
   "success": true,
   "menu_items": [
     {{
       "original_name": "原始菜名",
-      "translated_name": "翻譯菜名",
+      "translated_name": "翻譯菜名", 
       "price": 數字,
       "description": "描述或null",
       "category": "分類"
@@ -124,6 +118,11 @@ def process_menu_with_gemini(image_path, target_language='en'):
   }},
   "processing_notes": "備註"
 }}
+
+## 注意事項：
+- 價格必須是整數
+- 如果圖片模糊或無法辨識，將 success 設為 false
+- 優先處理清晰可見的菜單項目
 """
         
         # 呼叫 Gemini 2.5 Flash API（添加超時控制）
@@ -137,47 +136,17 @@ def process_menu_with_gemini(image_path, target_language='en'):
         signal.alarm(240)
         
         try:
-            # 定義 JSON Schema 確保輸出格式
-            response_schema = {
-                "type": "object",
-                "properties": {
-                    "success": {"type": "boolean"},
-                    "menu_items": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "original_name": {"type": "string"},
-                                "translated_name": {"type": "string"},
-                                "price": {"type": "integer"},
-                                "description": {"type": ["string", "null"]},
-                                "category": {"type": "string"}
-                            },
-                            "required": ["original_name", "translated_name", "price", "category"]
-                        }
-                    },
-                    "store_info": {
-                        "type": "object",
-                        "properties": {
-                            "name": {"type": "string"},
-                            "address": {"type": ["string", "null"]},
-                            "phone": {"type": ["string", "null"]}
-                        }
-                    },
-                    "processing_notes": {"type": "string"}
-                },
-                "required": ["success", "menu_items", "store_info"]
-            }
+            # 使用 JSON Mode 確保輸出合法 JSON
             
-            # 使用 Gemini 2.5 Flash 模型 + Structured Output
+            # 使用 Gemini 2.5 Flash 模型 + JSON Mode
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[
                     prompt,
                     image
                 ],
-                response_schema=response_schema,  # 強制輸出合法 JSON
                 config=genai.types.GenerateContentConfig(
+                    response_format={"type": "json_object"},  # JSON Mode 確保輸出合法 JSON
                     thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
                 )
             )
@@ -255,7 +224,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
                 "success": False,
                 "menu_items": [],
                 "store_info": {},
-                "processing_notes": f"JSON 解析失敗：{str(e)}。原始回應：{response.text[:100]}..."
+                "processing_notes": f"JSON 解析失敗：{str(e)}。請檢查 Gemini API 回應格式。"
             }
         
     except Exception as e:
