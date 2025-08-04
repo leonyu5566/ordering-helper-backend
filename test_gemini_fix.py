@@ -13,8 +13,8 @@ import io
 # 添加專案路徑
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-def test_gemini_blob_conversion():
-    """測試 Gemini Blob 轉換"""
+def test_gemini_pil_conversion():
+    """測試 Gemini PIL.Image 轉換"""
     print("🧪 測試 Gemini Vision API 修復...")
     
     try:
@@ -28,13 +28,13 @@ def test_gemini_blob_conversion():
         
         print(f"✅ 建立測試圖片: {image_path}")
         
-        # 測試圖片讀取和 Blob 轉換
+        # 測試圖片讀取和 PIL.Image 轉換
         from app.api.helpers import process_menu_with_gemini
         
         # 模擬環境變數
         if not os.getenv('GEMINI_API_KEY'):
             print("⚠️  警告: GEMINI_API_KEY 未設定，跳過實際 API 測試")
-            print("✅ 圖片讀取和 Blob 轉換測試完成")
+            print("✅ 圖片讀取和 PIL.Image 轉換測試完成")
             return True
         
         # 實際測試 Gemini API
@@ -83,15 +83,17 @@ def test_image_processing():
         
         print(f"✅ 圖片讀取成功: {len(image_bytes)} bytes")
         
+        # 測試 PIL.Image 轉換
+        image = Image.open(io.BytesIO(image_bytes))
+        print(f"✅ PIL.Image 轉換成功: {image.size}")
+        
         # 測試 MIME 類型檢測
         import mimetypes
         mime_type, _ = mimetypes.guess_type(image_path)
         print(f"✅ MIME 類型檢測: {mime_type}")
         
-        # 測試 Blob 建立
-        from google.generativeai.types import Blob
-        image_blob = Blob(mime_type=mime_type, data=image_bytes)
-        print(f"✅ Blob 建立成功: {type(image_blob)}")
+        # 測試 Gemini API 調用（模擬）
+        print("✅ 圖片格式驗證完成")
         
         return True
         
@@ -106,23 +108,54 @@ def test_image_processing():
             except:
                 pass
 
+def test_import_fixes():
+    """測試 ImportError 修復"""
+    print("\n🔧 測試 ImportError 修復...")
+    
+    try:
+        # 測試 google.generativeai 導入
+        import google.generativeai as genai
+        print("✅ google.generativeai 導入成功")
+        
+        # 測試 PIL 導入
+        from PIL import Image
+        print("✅ PIL.Image 導入成功")
+        
+        # 測試不會導入不存在的 Blob
+        try:
+            from google.generativeai.types import Blob
+            print("❌ Blob 仍然可以導入（不應該發生）")
+            return False
+        except ImportError:
+            print("✅ Blob 導入失敗（符合預期）")
+        
+        return True
+        
+    except Exception as e:
+        print(f"❌ 導入測試失敗: {e}")
+        return False
+
 def main():
     """主測試函數"""
     print("🚀 開始 Gemini Vision API 修復測試")
     print("=" * 50)
     
+    # 測試導入修復
+    import_test = test_import_fixes()
+    
     # 測試圖片處理
     image_test = test_image_processing()
     
     # 測試 Gemini API
-    gemini_test = test_gemini_blob_conversion()
+    gemini_test = test_gemini_pil_conversion()
     
     print("\n" + "=" * 50)
     print("📊 測試結果:")
+    print(f"   導入修復: {'✅ 通過' if import_test else '❌ 失敗'}")
     print(f"   圖片處理: {'✅ 通過' if image_test else '❌ 失敗'}")
     print(f"   Gemini API: {'✅ 通過' if gemini_test else '❌ 失敗'}")
     
-    if image_test and gemini_test:
+    if import_test and image_test and gemini_test:
         print("\n🎉 所有測試通過！Gemini Vision API 修復成功")
         return True
     else:
