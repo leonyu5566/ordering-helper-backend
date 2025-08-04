@@ -120,9 +120,22 @@ class LangChainIntegration:
             genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
             model = genai.GenerativeModel('gemini-pro-vision')
             
-            # 讀取圖片
+            # 讀取圖片並轉換為正確的格式
             with open(image_path, 'rb') as img_file:
-                image_data = img_file.read()
+                image_bytes = img_file.read()
+            
+            # 檢查圖片格式並確定 MIME 類型
+            import mimetypes
+            mime_type, _ = mimetypes.guess_type(image_path)
+            if not mime_type or not mime_type.startswith('image/'):
+                mime_type = 'image/jpeg'  # 預設為 JPEG
+            
+            logger.info(f"圖片 MIME 類型: {mime_type}")
+            logger.info(f"圖片大小: {len(image_bytes)} bytes")
+            
+            # 將 bytes 轉換為 Gemini SDK 支援的 Blob 格式
+            from google.generativeai.types import Blob
+            image_blob = Blob(mime_type=mime_type, data=image_bytes)
             
             # 建立提示詞
             prompt = f"""
@@ -166,8 +179,8 @@ class LangChainIntegration:
 - 翻譯時保持菜名的準確性和文化適應性
 """
             
-            # 調用 Gemini API
-            response = model.generate_content([prompt, image_data])
+            # 調用 Gemini API（使用正確的 Blob 格式）
+            response = model.generate_content([prompt, image_blob])
             
             # 解析回應
             result = json.loads(response.text)

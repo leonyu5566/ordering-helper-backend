@@ -63,9 +63,22 @@ def process_menu_with_gemini(image_path, target_language='en'):
         
         print(f"處理圖片: {image_path}, 大小: {file_size / 1024:.1f}KB")
         
-        # 讀取圖片
+        # 讀取圖片並轉換為正確的格式
         with open(image_path, 'rb') as img_file:
-            image_data = img_file.read()
+            image_bytes = img_file.read()
+        
+        # 檢查圖片格式並確定 MIME 類型
+        import mimetypes
+        mime_type, _ = mimetypes.guess_type(image_path)
+        if not mime_type or not mime_type.startswith('image/'):
+            mime_type = 'image/jpeg'  # 預設為 JPEG
+        
+        print(f"圖片 MIME 類型: {mime_type}")
+        print(f"圖片大小: {len(image_bytes)} bytes")
+        
+        # 將 bytes 轉換為 Gemini SDK 支援的 Blob 格式
+        from google.generativeai.types import Blob
+        image_blob = Blob(mime_type=mime_type, data=image_bytes)
         
         # 建立 Gemini 提示詞
         prompt = f"""
@@ -121,7 +134,8 @@ def process_menu_with_gemini(image_path, target_language='en'):
         signal.alarm(60)
         
         try:
-            response = model.generate_content([prompt, image_data])
+            # 使用正確的 Blob 格式調用 Gemini API
+            response = model.generate_content([prompt, image_blob])
             signal.alarm(0)  # 取消超時
             
             # 解析回應

@@ -22,11 +22,15 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--memory'
-      - '512Mi'
+      - '1Gi'
       - '--cpu'
       - '1'
       - '--max-instances'
-      - '10'
+      - '2'
+      - '--set-env-vars'
+      - 'WEB_CONCURRENCY=1'
+      - '--timeout'
+      - '300'
 
 images:
   - 'gcr.io/$PROJECT_ID/ordering-helper-backend:$COMMIT_SHA' 

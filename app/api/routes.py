@@ -919,17 +919,22 @@ def upload_menu_image():
             processing.status = 'failed'
             db.session.commit()
             
+            error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
             response = jsonify({
-                "error": "菜單處理失敗，請重新拍攝清晰的菜單照片"
+                "error": error_message,
+                "processing_notes": result.get('processing_notes', '')
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
-            return response, 500
+            return response, 422
             
     except Exception as e:
         print(f"OCR處理失敗：{e}")
-        response = jsonify({'error': '檔案處理失敗'})
+        response = jsonify({
+            'error': '檔案處理失敗',
+            'details': str(e) if app.debug else '請稍後再試'
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 500
+        return response, 422
 
 # =============================================================================
 # 根路徑處理

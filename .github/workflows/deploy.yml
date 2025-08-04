@@ -70,9 +70,7 @@ jobs:
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}
           AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}
-        memory: 2Gi
-        cpu: 2
-        max_instances: 1
+ 
 
     # ⑥ 顯示服務網址
     - name: Show Service URL
