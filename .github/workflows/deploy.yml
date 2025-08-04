@@ -36,10 +36,12 @@ jobs:
     - name: Setup Google Cloud CLI
       uses: google-github-actions/setup-gcloud@v2
 
-    # ③ 驗證憑證（新增除錯步驟）
+    # ③ 驗證憑證（修正為正確的命令）
     - name: Verify Authentication
       run: |
-        gcloud sts credentials identityinfo --cred-file "${{ steps.auth.outputs.credentials_file_path }}"
+        gcloud auth list
+        gcloud config get-value project
+        echo "Current account: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
 
     # ④ Docker 登入 + Build & Push
     - name: Configure Docker for Artifact Registry
