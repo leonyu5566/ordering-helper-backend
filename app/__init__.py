@@ -33,7 +33,13 @@ def create_app():
         "http://127.0.0.1:8080"   # 本地開發
     ]
     
-    CORS(app, origins=allowed_origins, supports_credentials=True)
+    # 更完整的 CORS 設定
+    CORS(app, 
+         origins=allowed_origins, 
+         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+         allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
+         supports_credentials=True,
+         max_age=3600)
     
     # 設定資料庫
     # 從個別環境變數構建資料庫 URL

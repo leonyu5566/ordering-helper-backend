@@ -22,6 +22,19 @@ import datetime
 import uuid
 
 # =============================================================================
+# CORS 處理函數
+# 功能：統一處理 OPTIONS 預檢請求
+# =============================================================================
+def handle_cors_preflight():
+    """處理 CORS 預檢請求"""
+    response = jsonify({'message': 'OK'})
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+    response.headers.add('Access-Control-Max-Age', '3600')
+    return response, 200
+
+# =============================================================================
 # Blueprint 建立區塊
 # 功能：建立 API Blueprint，用於組織所有 API 路由
 # 作用：將所有 API 端點統一註冊到 /api 路徑下
@@ -149,8 +162,11 @@ def check_partner_status():
     except Exception as e:
         return jsonify({'error': '無法檢查店家狀態'}), 500
 
-@api_bp.route('/menu/process-ocr', methods=['POST'])
+@api_bp.route('/menu/process-ocr', methods=['POST', 'OPTIONS'])
 def process_menu_ocr():
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
     """處理菜單圖片 OCR 並生成動態菜單（非合作店家）"""
     if 'image' not in request.files:
         return jsonify({"error": "沒有上傳檔案"}), 400
@@ -230,8 +246,11 @@ def process_menu_ocr():
         print(f"OCR處理失敗：{e}")
         return jsonify({"error": "處理過程中發生錯誤"}), 500
 
-@api_bp.route('/orders', methods=['POST'])
+@api_bp.route('/orders', methods=['POST', 'OPTIONS'])
 def create_order():
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
     """建立訂單（合作店家）"""
     data = request.get_json()
     if not data or 'line_user_id' not in data or 'store_id' not in data or 'items' not in data:
@@ -304,8 +323,11 @@ def create_order():
         "voice_generated": voice_path is not None
     }), 201
 
-@api_bp.route('/orders/temp', methods=['POST'])
+@api_bp.route('/orders/temp', methods=['POST', 'OPTIONS'])
 def create_temp_order():
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
     """建立臨時訂單（非合作店家）"""
     data = request.get_json()
     
@@ -596,27 +618,41 @@ def register_user():
     
     return jsonify({"message": "使用者註冊成功", "user_id": new_user.user_id}), 201
 
-@api_bp.route('/test', methods=['GET'])
+@api_bp.route('/test', methods=['GET', 'OPTIONS'])
 def test():
-    return jsonify({'message': 'API is working!'}) #LIFF 前端呼叫的接口。
+    """API 連線測試"""
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    response = jsonify({'message': 'API is working!'}) #LIFF 前端呼叫的接口。
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
 # =============================================================================
 # 新增缺失的 API 端點
 # 功能：為 LIFF 前端提供必要的 API 端點
 # =============================================================================
 
-@api_bp.route('/health', methods=['GET'])
+@api_bp.route('/health', methods=['GET', 'OPTIONS'])
 def health_check():
     """健康檢查端點"""
-    return jsonify({
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    response = jsonify({
         'status': 'healthy',
         'message': 'API is running',
         'timestamp': datetime.datetime.now().isoformat()
     })
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    return response
 
-@api_bp.route('/stores', methods=['GET'])
+@api_bp.route('/stores', methods=['GET', 'OPTIONS'])
 def get_all_stores():
     """取得所有店家列表"""
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
     try:
         stores = Store.query.all()
         store_list = []
@@ -631,31 +667,45 @@ def get_all_stores():
                 'is_partner': store.is_partner
             })
         
-        return jsonify({
+        response = jsonify({
             'stores': store_list,
             'total_count': len(store_list)
         })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
         
     except Exception as e:
-        return jsonify({'error': '無法載入店家列表'}), 500
+        response = jsonify({'error': '無法載入店家列表'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
-@api_bp.route('/upload-menu-image', methods=['POST'])
+@api_bp.route('/upload-menu-image', methods=['POST', 'OPTIONS'])
 def upload_menu_image():
     """上傳菜單圖片並進行 OCR 處理"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
     try:
         # 檢查是否有檔案
         if 'file' not in request.files:
-            return jsonify({'error': '沒有上傳檔案'}), 400
+            response = jsonify({'error': '沒有上傳檔案'})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         file = request.files['file']
         
         # 檢查檔案名稱
         if file.filename == '':
-            return jsonify({'error': '沒有選擇檔案'}), 400
+            response = jsonify({'error': '沒有選擇檔案'})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         # 檢查檔案格式
         if not allowed_file(file.filename):
-            return jsonify({'error': '不支援的檔案格式'}), 400
+            response = jsonify({'error': '不支援的檔案格式'})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         # 取得參數
         store_id = request.form.get('store_id', type=int)
@@ -663,7 +713,9 @@ def upload_menu_image():
         target_lang = request.form.get('lang', 'en')
         
         if not store_id:
-            return jsonify({"error": "需要提供店家ID"}), 400
+            response = jsonify({"error": "需要提供店家ID"})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
         
         # 儲存上傳的檔案
         filepath = save_uploaded_file(file)
@@ -703,26 +755,32 @@ def upload_menu_image():
                     'processing_id': processing.processing_id
                 })
             
-            return jsonify({
+            response = jsonify({
                 "message": "菜單處理成功",
                 "processing_id": processing.processing_id,
                 "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
                 "target_language": target_lang
-            }), 201
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 201
         else:
             # 處理失敗
             processing.status = 'failed'
             db.session.commit()
             
-            return jsonify({
+            response = jsonify({
                 "error": "菜單處理失敗，請重新拍攝清晰的菜單照片"
-            }), 500
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 500
             
     except Exception as e:
         print(f"OCR處理失敗：{e}")
-        return jsonify({'error': '檔案處理失敗'}), 500
+        response = jsonify({'error': '檔案處理失敗'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 # =============================================================================
 # 根路徑處理
