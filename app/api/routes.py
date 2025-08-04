@@ -641,7 +641,7 @@ def get_all_stores():
 
 @api_bp.route('/upload-menu-image', methods=['POST'])
 def upload_menu_image():
-    """上傳菜單圖片端點"""
+    """上傳菜單圖片並進行 OCR 處理"""
     try:
         # 檢查是否有檔案
         if 'file' not in request.files:
@@ -657,21 +657,72 @@ def upload_menu_image():
         if not allowed_file(file.filename):
             return jsonify({'error': '不支援的檔案格式'}), 400
         
-        # 儲存檔案
-        filename = secure_filename(file.filename)
-        file_path = save_uploaded_file(file, filename)
+        # 取得參數
+        store_id = request.form.get('store_id', type=int)
+        user_id = request.form.get('user_id', type=int)
+        target_lang = request.form.get('lang', 'en')
         
-        if file_path:
+        if not store_id:
+            return jsonify({"error": "需要提供店家ID"}), 400
+        
+        # 儲存上傳的檔案
+        filepath = save_uploaded_file(file)
+        
+        # 建立 Gemini 處理記錄
+        processing = GeminiProcessing(
+            user_id=user_id or 1,  # 如果沒有使用者ID，使用預設值
+            store_id=store_id,
+            image_url=filepath,
+            status='processing'
+        )
+        db.session.add(processing)
+        db.session.commit()
+        
+        # 使用 Gemini API 處理圖片
+        result = process_menu_with_gemini(filepath, target_lang)
+        
+        if result and result.get('success', False):
+            # 更新處理狀態
+            processing.status = 'completed'
+            processing.ocr_result = json.dumps(result, ensure_ascii=False)
+            processing.structured_menu = json.dumps(result, ensure_ascii=False)
+            db.session.commit()
+            
+            # 生成動態菜單資料
+            menu_items = result.get('menu_items', [])
+            dynamic_menu = []
+            
+            for i, item in enumerate(menu_items):
+                dynamic_menu.append({
+                    'temp_id': f"temp_{processing.processing_id}_{i}",
+                    'original_name': item.get('original_name', ''),
+                    'translated_name': item.get('translated_name', ''),
+                    'price': item.get('price', 0),
+                    'description': item.get('description', ''),
+                    'category': item.get('category', ''),
+                    'processing_id': processing.processing_id
+                })
+            
             return jsonify({
-                'message': '檔案上傳成功',
-                'file_path': file_path,
-                'filename': filename
-            })
+                "message": "菜單處理成功",
+                "processing_id": processing.processing_id,
+                "store_info": result.get('store_info', {}),
+                "menu_items": dynamic_menu,
+                "total_items": len(dynamic_menu),
+                "target_language": target_lang
+            }), 201
         else:
-            return jsonify({'error': '檔案儲存失敗'}), 500
+            # 處理失敗
+            processing.status = 'failed'
+            db.session.commit()
+            
+            return jsonify({
+                "error": "菜單處理失敗，請重新拍攝清晰的菜單照片"
+            }), 500
             
     except Exception as e:
-        return jsonify({'error': '檔案上傳失敗'}), 500
+        print(f"OCR處理失敗：{e}")
+        return jsonify({'error': '檔案處理失敗'}), 500
 
 # =============================================================================
 # 根路徑處理

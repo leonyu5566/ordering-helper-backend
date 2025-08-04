@@ -6,9 +6,11 @@
 # - 設定資料庫連線
 # - 註冊 Blueprint
 # - 設定錯誤處理
+# - 設定 CORS 支援
 # =============================================================================
 
 from flask import Flask
+from flask_cors import CORS
 from .models import db
 from .errors import register_error_handlers
 from .admin.routes import admin_bp
@@ -19,6 +21,19 @@ import os
 def create_app():
     """建立 Flask 應用程式"""
     app = Flask(__name__)
+    
+    # 設定 CORS
+    # 允許來自 Azure 靜態網頁的跨來源請求
+    allowed_origins = [
+        "https://green-beach-0f9762500.1.azurestaticapps.net",
+        "https://*.azurestaticapps.net",  # 允許所有 Azure 靜態網頁
+        "http://localhost:3000",  # 本地開發
+        "http://localhost:8080",  # 本地開發
+        "http://127.0.0.1:3000",  # 本地開發
+        "http://127.0.0.1:8080"   # 本地開發
+    ]
+    
+    CORS(app, origins=allowed_origins, supports_credentials=True)
     
     # 設定資料庫
     # 從個別環境變數構建資料庫 URL
