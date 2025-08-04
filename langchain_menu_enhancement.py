@@ -115,9 +115,10 @@ def process_menu_with_langchain(image_path, target_language='en'):
                 prompt,
                 image
             ],
-            config=genai.types.GenerateContentConfig(
-                thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
-            )
+            config={
+                "response_mime_type": "application/json",  # 新版 JSON Mode
+                "thinking_config": genai.types.ThinkingConfig(thinking_budget=256)
+            }
         )
         
         # 解析結果
@@ -181,9 +182,9 @@ def answer_menu_question(menu_data, question):
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=[prompt],
-            config=genai.types.GenerateContentConfig(
-                thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
-            )
+            config={
+                "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+            }
         )
         
         return response.text.strip()

@@ -145,10 +145,10 @@ def process_menu_with_gemini(image_path, target_language='en'):
                     prompt,
                     image
                 ],
-                config=genai.types.GenerateContentConfig(
-                    response_format={"type": "json_object"},  # JSON Mode 確保輸出合法 JSON
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
-                )
+                config={
+                    "response_mime_type": "application/json",  # 新版 JSON Mode
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=256)
+                }
             )
             signal.alarm(0)  # 取消超時
             
@@ -472,9 +472,9 @@ def translate_text(text, target_language='en'):
         response = genai.Client().models.generate_content(
             model="gemini-2.5-flash",
             contents=[prompt],
-            config=genai.types.GenerateContentConfig(
-                thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
-            )
+            config={
+                "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+            }
         )
         return response.text.strip()
         

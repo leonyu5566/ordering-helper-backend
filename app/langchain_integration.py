@@ -189,9 +189,10 @@ class LangChainIntegration:
                     prompt,
                     image
                 ],
-                config=genai.types.GenerateContentConfig(
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
-                )
+                config={
+                    "response_mime_type": "application/json",  # 新版 JSON Mode
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=256)
+                }
             )
             
             # 解析回應
@@ -260,9 +261,9 @@ class LangChainIntegration:
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[prompt],
-                config=genai.types.GenerateContentConfig(
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
-                )
+                config={
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+                }
             )
             
             return {
@@ -362,9 +363,10 @@ class LangChainIntegration:
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[prompt],
-                config=genai.types.GenerateContentConfig(
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=128)
-                )
+                config={
+                    "response_mime_type": "application/json",  # 新版 JSON Mode
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+                }
             )
             
             # 解析回應

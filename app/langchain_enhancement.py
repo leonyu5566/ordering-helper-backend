@@ -49,9 +49,9 @@ class LangChainEnhancement:
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[prompt],
-                config=genai.types.GenerateContentConfig(
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=256)
-                )
+                config={
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=256)
+                }
             )
             
             return {
@@ -99,9 +99,9 @@ class LangChainEnhancement:
                     prompt,
                     image
                 ],
-                config=genai.types.GenerateContentConfig(
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=512)
-                )
+                config={
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)
+                }
             )
             
             return {
@@ -147,9 +147,9 @@ class LangChainEnhancement:
                     prompt,
                     image
                 ],
-                config=genai.types.GenerateContentConfig(
-                    thinking_config=genai.types.ThinkingConfig(thinking_budget=512)
-                )
+                config={
+                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)
+                }
             )
             
             return {
