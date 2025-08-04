@@ -168,10 +168,22 @@ def process_menu_ocr():
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
     """處理菜單圖片 OCR 並生成動態菜單（非合作店家）"""
-    if 'image' not in request.files:
-        return jsonify({"error": "沒有上傳檔案"}), 400
-    
-    file = request.files['image']
+    # 檢查是否有檔案（支援 'file' 和 'image' 參數）
+    file = None
+    if 'file' in request.files:
+        file = request.files['file']
+        print("使用 'file' 參數")
+    elif 'image' in request.files:
+        file = request.files['image']
+        print("使用 'image' 參數")
+    else:
+        print("錯誤：沒有找到 'file' 或 'image' 欄位")
+        print(f"可用的檔案欄位: {list(request.files.keys())}")
+        return jsonify({
+            "error": "沒有上傳檔案",
+            "message": "請使用 'file' 或 'image' 參數上傳檔案",
+            "available_fields": list(request.files.keys())
+        }), 400
     if file.filename == '':
         return jsonify({"error": "沒有選擇檔案"}), 400
     
@@ -649,6 +661,82 @@ def test():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+@api_bp.route('/test-upload', methods=['GET', 'POST', 'OPTIONS'])
+def test_upload():
+    """檔案上傳測試端點"""
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    if request.method == 'GET':
+        response = jsonify({
+            'message': '檔案上傳測試端點',
+            'usage': '請使用 POST 方法上傳檔案',
+            'supported_fields': ['file', 'image'],
+            'example': {
+                'file': '檔案對象',
+                'store_id': '店家ID (數字)',
+                'lang': '目標語言 (可選，預設: en)'
+            }
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+    
+    # POST 請求
+    try:
+        print(f"收到測試上傳請求，Content-Type: {request.content_type}")
+        print(f"請求表單資料: {list(request.form.keys())}")
+        print(f"請求檔案: {list(request.files.keys())}")
+        
+        # 檢查檔案
+        file = None
+        if 'file' in request.files:
+            file = request.files['file']
+            print("使用 'file' 參數")
+        elif 'image' in request.files:
+            file = request.files['image']
+            print("使用 'image' 參數")
+        else:
+            response = jsonify({
+                'error': '沒有找到檔案',
+                'available_fields': list(request.files.keys()),
+                'message': '請使用 "file" 或 "image" 參數'
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
+        
+        # 檢查檔案信息
+        file_info = {
+            'filename': file.filename,
+            'content_type': file.content_type,
+            'size': len(file.read())
+        }
+        file.seek(0)  # 重置檔案指標
+        
+        # 檢查參數
+        store_id = request.form.get('store_id', type=int)
+        lang = request.form.get('lang', 'en')
+        
+        response = jsonify({
+            'message': '檔案上傳測試成功',
+            'file_info': file_info,
+            'parameters': {
+                'store_id': store_id,
+                'lang': lang
+            },
+            'method': request.method,
+            'content_type': request.content_type
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+        
+    except Exception as e:
+        response = jsonify({
+            'error': '檔案上傳測試失敗',
+            'message': str(e)
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
 # =============================================================================
 # 新增缺失的 API 端點
 # 功能：為 LIFF 前端提供必要的 API 端點
@@ -722,14 +810,24 @@ def upload_menu_image():
         print(f"請求表單資料: {list(request.form.keys())}")
         print(f"請求檔案: {list(request.files.keys())}")
         
-        # 檢查是否有檔案
-        if 'file' not in request.files:
-            print("錯誤：沒有找到 'file' 欄位")
-            response = jsonify({'error': '沒有上傳檔案'})
+        # 檢查是否有檔案（支援 'file' 和 'image' 參數）
+        file = None
+        if 'file' in request.files:
+            file = request.files['file']
+            print("使用 'file' 參數")
+        elif 'image' in request.files:
+            file = request.files['image']
+            print("使用 'image' 參數")
+        else:
+            print("錯誤：沒有找到 'file' 或 'image' 欄位")
+            print(f"可用的檔案欄位: {list(request.files.keys())}")
+            response = jsonify({
+                'error': '沒有上傳檔案',
+                'message': '請使用 "file" 或 "image" 參數上傳檔案',
+                'available_fields': list(request.files.keys())
+            })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
-        
-        file = request.files['file']
         print(f"檔案名稱: {file.filename}")
         print(f"檔案大小: {len(file.read())} bytes")
         file.seek(0)  # 重置檔案指標
