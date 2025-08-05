@@ -401,28 +401,73 @@ def create_order():
             validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
             continue
         
-        menu_item = MenuItem.query.get(menu_item_id)
-        if not menu_item:
-            validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
-            continue
-        
-        subtotal = menu_item.price_small * quantity
-        total_amount += subtotal
-        
-        order_items_to_create.append(OrderItem(
-            menu_item_id=menu_item.menu_item_id,
-            quantity_small=quantity,
-            subtotal=subtotal
-        ))
-        
-        # 建立訂單明細供確認
-        order_details.append({
-            'menu_item_id': menu_item.menu_item_id,
-            'item_name': menu_item.item_name,
-            'quantity': quantity,
-            'price': menu_item.price_small,
-            'subtotal': subtotal
-        })
+        # 檢查是否為臨時菜單項目（以 temp_ 開頭）
+        if menu_item_id.startswith('temp_'):
+            # 處理臨時菜單項目
+            price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
+            item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
+            
+            try:
+                price = float(price)
+                if price < 0:
+                    validation_errors.append(f"項目 {i+1}: 價格不能為負數")
+                    continue
+            except (ValueError, TypeError):
+                validation_errors.append(f"項目 {i+1}: 價格格式錯誤，必須是數字")
+                continue
+            
+            subtotal = int(price * quantity)
+            total_amount += subtotal
+            
+            # 為臨時項目創建 OrderItem
+            order_items_to_create.append(OrderItem(
+                menu_item_id=None,  # 臨時項目沒有正式的 menu_item_id
+                temp_item_id=menu_item_id,  # 使用臨時ID
+                temp_item_name=item_name,
+                temp_item_price=int(price),
+                is_temp_item=True,
+                quantity_small=quantity,
+                subtotal=subtotal
+            ))
+            
+            # 建立訂單明細供確認
+            order_details.append({
+                'menu_item_id': menu_item_id,
+                'item_name': item_name,
+                'quantity': quantity,
+                'price': price,
+                'subtotal': subtotal,
+                'is_temp': True
+            })
+        else:
+            # 處理正式菜單項目
+            menu_item = MenuItem.query.get(menu_item_id)
+            if not menu_item:
+                validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
+                continue
+            
+            subtotal = menu_item.price_small * quantity
+            total_amount += subtotal
+            
+            order_items_to_create.append(OrderItem(
+                menu_item_id=menu_item.menu_item_id,
+                temp_item_id=None,
+                temp_item_name=None,
+                temp_item_price=None,
+                is_temp_item=False,
+                quantity_small=quantity,
+                subtotal=subtotal
+            ))
+            
+            # 建立訂單明細供確認
+            order_details.append({
+                'menu_item_id': menu_item.menu_item_id,
+                'item_name': menu_item.item_name,
+                'quantity': quantity,
+                'price': menu_item.price_small,
+                'subtotal': subtotal,
+                'is_temp': False
+            })
 
     if validation_errors:
         return jsonify({
