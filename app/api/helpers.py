@@ -43,9 +43,16 @@ def get_speech_config():
         speech_key = os.getenv('AZURE_SPEECH_KEY')
         speech_region = os.getenv('AZURE_SPEECH_REGION')
         
-        if not speech_key or not speech_region:
-            print("警告: Azure Speech Service 環境變數未設定")
+        # 檢查環境變數
+        if not speech_key:
+            print("警告: AZURE_SPEECH_KEY 環境變數未設定")
             return None
+        
+        if not speech_region:
+            print("警告: AZURE_SPEECH_REGION 環境變數未設定")
+            return None
+        
+        print(f"Azure Speech 配置: region={speech_region}")
         
         return SpeechConfig(
             subscription=speech_key,
@@ -151,169 +158,127 @@ def process_menu_with_gemini(image_path, target_language='en'):
         signal.alarm(240)
         
         try:
-            # 使用 JSON Mode 確保輸出合法 JSON
-            
-            print(f"🚀 開始呼叫 Gemini API...")
-            print(f"📋 請求參數:")
-            print(f"  - 模型: gemini-2.5-flash")
-            print(f"  - 圖片路徑: {image_path}")
-            print(f"  - 目標語言: {target_language}")
-            print(f"  - 圖片尺寸: {image.size}")
-            print(f"  - 圖片格式: {mime_type}")
+            # 取得 Gemini 客戶端
+            gemini_client = get_gemini_client()
+            if not gemini_client:
+                return {
+                    'success': False,
+                    'error': 'Gemini API 客戶端初始化失敗',
+                    'processing_notes': '請檢查 GEMINI_API_KEY 環境變數'
+                }
             
             # 使用 Gemini 2.5 Flash 模型 + JSON Mode
-            response = get_gemini_client().models.generate_content(
+            response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[
-                    prompt,
-                    image
+                    {
+                        "parts": [
+                            {"text": prompt},
+                            {
+                                "inline_data": {
+                                    "mime_type": mime_type,
+                                    "data": image_bytes
+                                }
+                            }
+                        ]
+                    }
                 ],
                 config={
-                    "response_mime_type": "application/json",  # 新版 JSON Mode
-                    "thinking_config": genai.types.ThinkingConfig(thinking_budget=256)
+                    "thinking_config": {
+                        "thinking_budget": 128
+                    }
                 }
             )
-            signal.alarm(0)  # 取消超時
             
-            print(f"✅ Gemini API 呼叫成功")
-            print(f"📄 回應長度: {len(response.text)} 字元")
-            print(f"📄 回應內容（前200字）: {response.text[:200]}")
+            # 取消超時
+            signal.alarm(0)
             
-            # 解析回應（現在保證是合法 JSON）
+            # 解析回應
+            if response and hasattr(response, 'text'):
+                try:
+                    # 嘗試解析 JSON
+                    result_text = response.text.strip()
+                    print(f"Gemini 回應: {result_text[:200]}...")
+                    
+                    # 如果回應包含 JSON，嘗試解析
+                    if '{' in result_text and '}' in result_text:
+                        # 提取 JSON 部分
+                        start = result_text.find('{')
+                        end = result_text.rfind('}') + 1
+                        json_text = result_text[start:end]
+                        
+                        result = json.loads(json_text)
+                        
+                        # 驗證結果格式
+                        if not isinstance(result, dict):
+                            return {
+                                'success': False,
+                                'error': 'Gemini 回應格式錯誤',
+                                'processing_notes': '回應不是有效的 JSON 物件'
+                            }
+                        
+                        # 檢查必要欄位
+                        if 'success' not in result:
+                            result['success'] = True
+                        
+                        if 'menu_items' not in result:
+                            result['menu_items'] = []
+                        
+                        if 'store_info' not in result:
+                            result['store_info'] = {
+                                'name': '未知店家',
+                                'address': None,
+                                'phone': None
+                            }
+                        
+                        print(f"成功處理菜單，共 {len(result.get('menu_items', []))} 個項目")
+                        return result
+                    else:
+                        # 如果沒有 JSON，嘗試結構化處理
+                        return {
+                            'success': False,
+                            'error': '無法從圖片中辨識菜單',
+                            'processing_notes': '圖片可能模糊或不是菜單'
+                        }
+                        
+                except json.JSONDecodeError as e:
+                    print(f"JSON 解析失敗: {e}")
+                    return {
+                        'success': False,
+                        'error': 'JSON 解析失敗',
+                        'processing_notes': f'Gemini 回應格式錯誤: {str(e)}'
+                    }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Gemini API 回應為空',
+                    'processing_notes': '請檢查 API 金鑰和網路連線'
+                }
+                
         except TimeoutError:
-            signal.alarm(0)  # 取消超時
-            print(f"⚠️ Gemini API 處理超時 (240秒)")
+            print("Gemini API 處理超時")
             return {
                 'success': False,
-                'error': 'OCR 處理超時，請稍後再試或上傳較小的圖片',
-                'menu_items': [],
-                'store_info': {},
-                'processing_notes': '處理超時 (240秒)'
+                'error': '處理超時',
+                'processing_notes': '圖片處理時間過長，請嘗試上傳較小的圖片'
             }
         except Exception as e:
-            signal.alarm(0)  # 取消超時
-            print(f"❌ Gemini API 錯誤: {e}")
+            print(f"Gemini API 處理失敗: {e}")
             return {
                 'success': False,
-                'error': f'OCR 處理失敗: {str(e)}',
-                'menu_items': [],
-                'store_info': {},
-                'processing_notes': f'處理失敗: {str(e)}'
+                'error': f'Gemini API 處理失敗: {str(e)}',
+                'processing_notes': '請稍後再試或聯繫技術支援'
             }
-        
-        try:
-            # 清洗 JSON 字串（防禦性處理）
-            raw_text = response.text.strip()
+        finally:
+            # 確保取消超時
+            signal.alarm(0)
             
-            # 移除可能的 Markdown code fence
-            import re
-            raw_text = re.sub(r'```json\s*|\s*```', '', raw_text)
-            
-            # 移除尾逗號
-            raw_text = re.sub(r',(\s*[\]}])', r'\1', raw_text)
-            
-            # 嘗試解析 JSON
-            result = json.loads(raw_text)
-            
-            # 驗證回應格式
-            if not isinstance(result, dict):
-                raise ValueError("回應不是有效的 JSON 物件")
-            
-            # 如果 Gemini API 成功返回結果，即使沒有 success 欄位也設為成功
-            if 'success' not in result:
-                result['success'] = True
-            
-            if 'menu_items' not in result:
-                result['menu_items'] = []
-            
-            if 'store_info' not in result:
-                result['store_info'] = {}
-            
-            # 驗證菜單項目格式並確保所有字串欄位都不是 null/undefined
-            for item in result['menu_items']:
-                if 'original_name' not in item:
-                    item['original_name'] = ''
-                if 'translated_name' not in item:
-                    item['translated_name'] = item.get('original_name', '')
-                if 'price' not in item:
-                    item['price'] = 0
-                if 'description' not in item:
-                    item['description'] = ''
-                if 'category' not in item:
-                    item['category'] = '其他'
-                
-                # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
-                item['original_name'] = str(item.get('original_name', '') or '')
-                item['translated_name'] = str(item.get('translated_name', '') or '')
-                item['description'] = str(item.get('description', '') or '')
-                item['category'] = str(item.get('category', '') or '其他')
-            
-            # 如果成功解析到菜單項目，即使數量很少也視為成功
-            if len(result['menu_items']) > 0:
-                result['success'] = True
-                result['processing_notes'] = result.get('processing_notes', '') + f" 成功辨識到 {len(result['menu_items'])} 個菜單項目"
-                
-                # 加入詳細的除錯 log
-                print(f"✅ Gemini API 成功辨識到 {len(result['menu_items'])} 個菜單項目")
-                print(f"📋 菜單項目詳情:")
-                for i, item in enumerate(result['menu_items']):
-                    print(f"  {i+1}. {item.get('original_name', 'N/A')} - {item.get('translated_name', 'N/A')} - ${item.get('price', 0)}")
-                print(f"🏪 店家資訊: {result.get('store_info', {})}")
-                print(f"📝 處理備註: {result.get('processing_notes', '')}")
-            else:
-                print(f"⚠️ Gemini API 回應成功，但未辨識到菜單項目")
-                print(f"📄 原始回應內容（前500字）: {response.text[:500]}")
-                print(f"🔍 解析後的 result: {json.dumps(result, ensure_ascii=False, indent=2)[:500]}")
-            
-            return result
-            
-        except json.JSONDecodeError as e:
-            print(f"❌ JSON 解析失敗：{e}")
-            print(f"原始回應內容（前300字）：{response.text[:300]}")
-            print(f"清洗後內容（前300字）：{raw_text[:300]}")
-            
-            # 嘗試從回應中提取有用的資訊
-            try:
-                # 如果回應包含菜單項目資訊，嘗試手動解析
-                if 'menu' in response.text.lower() or '菜單' in response.text:
-                    # 嘗試提取菜單項目
-                    menu_items = []
-                    lines = response.text.split('\n')
-                    for line in lines:
-                        if any(keyword in line for keyword in ['元', 'NT$', '$', 'price', '價格']):
-                            # 可能是價格資訊
-                            menu_items.append({
-                                'original_name': line.strip(),
-                                'translated_name': line.strip(),
-                                'price': 0,
-                                'description': '',
-                                'category': '其他'
-                            })
-                    
-                    if menu_items:
-                        return {
-                            "success": True,
-                            "menu_items": menu_items,
-                            "store_info": {},
-                            "processing_notes": f"JSON 解析失敗，但成功提取到 {len(menu_items)} 個可能的菜單項目。原始錯誤：{str(e)}"
-                        }
-            except:
-                pass
-            
-            return {
-                "success": False,
-                "menu_items": [],
-                "store_info": {},
-                "processing_notes": f"JSON 解析失敗：{str(e)}。請檢查 Gemini API 回應格式。"
-            }
-        
     except Exception as e:
-        print(f"Gemini API 處理失敗：{e}")
+        print(f"菜單處理失敗: {e}")
         return {
-            "success": False,
-            "menu_items": [],
-            "store_info": {},
-            "processing_notes": f"處理失敗：{str(e)}"
+            'success': False,
+            'error': f'菜單處理失敗: {str(e)}',
+            'processing_notes': '請檢查圖片格式和大小'
         }
 
 def generate_voice_order(order_id, speech_rate=1.0):
@@ -344,29 +309,34 @@ def generate_voice_order(order_id, speech_rate=1.0):
             print("Azure Speech Service 配置失敗，跳過語音生成")
             return None
         
-        # 延遲導入 Azure Speech SDK
-        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
-        
-        # 設定語音參數
-        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
-        speech_config.speech_synthesis_speaking_rate = speech_rate
-        
-        # 生成語音檔案
-        audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
-        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-        
-        result = synthesizer.speak_text_async(order_text).get()
-        
-        if result.reason == "SynthesizingAudioCompleted":
-            # 取得生成的音檔路徑
-            audio_path = audio_config.filename
-            return audio_path
-        else:
-            print(f"語音生成失敗：{result.reason}")
+        try:
+            # 延遲導入 Azure Speech SDK
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            
+            # 設定語音參數
+            speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+            speech_config.speech_synthesis_speaking_rate = speech_rate
+            
+            # 生成語音檔案
+            audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
+            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+            
+            result = synthesizer.speak_text_async(order_text).get()
+            
+            if result.reason == "SynthesizingAudioCompleted":
+                # 取得生成的音檔路徑
+                audio_path = audio_config.filename
+                return audio_path
+            else:
+                print(f"語音生成失敗：{result.reason}")
+                return None
+                
+        except Exception as e:
+            print(f"Azure TTS 處理失敗：{e}")
             return None
             
     except Exception as e:
-        print(f"Azure TTS 處理失敗：{e}")
+        print(f"語音生成失敗：{e}")
         return None
 
 def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
@@ -391,29 +361,34 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             print("Azure Speech Service 配置失敗，跳過語音生成")
             return None
         
-        # 延遲導入 Azure Speech SDK
-        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
-        
-        # 設定語音參數
-        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
-        speech_config.speech_synthesis_speaking_rate = speech_rate
-        
-        # 生成語音檔案
-        audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
-        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-        
-        result = synthesizer.speak_text_async(order_text).get()
-        
-        if result.reason == "SynthesizingAudioCompleted":
-            # 取得生成的音檔路徑
-            audio_path = audio_config.filename
-            return audio_path
-        else:
-            print(f"語音生成失敗：{result.reason}")
+        try:
+            # 延遲導入 Azure Speech SDK
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            
+            # 設定語音參數
+            speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+            speech_config.speech_synthesis_speaking_rate = speech_rate
+            
+            # 生成語音檔案
+            audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
+            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+            
+            result = synthesizer.speak_text_async(order_text).get()
+            
+            if result.reason == "SynthesizingAudioCompleted":
+                # 取得生成的音檔路徑
+                audio_path = audio_config.filename
+                return audio_path
+            else:
+                print(f"語音生成失敗：{result.reason}")
+                return None
+                
+        except Exception as e:
+            print(f"Azure TTS 處理失敗：{e}")
             return None
             
     except Exception as e:
-        print(f"Azure TTS 處理失敗：{e}")
+        print(f"語音生成失敗：{e}")
         return None
 
 def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-TW-HsiaoChenNeural"):
@@ -427,29 +402,34 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
             print("Azure Speech Service 配置失敗，跳過語音生成")
             return None
         
-        # 延遲導入 Azure Speech SDK
-        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
-        
-        # 設定語音參數
-        speech_config.speech_synthesis_voice_name = voice_name
-        speech_config.speech_synthesis_speaking_rate = speech_rate
-        
-        # 生成語音檔案
-        audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
-        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-        
-        result = synthesizer.speak_text_async(order_text).get()
-        
-        if result.reason == "SynthesizingAudioCompleted":
-            # 取得生成的音檔路徑
-            audio_path = audio_config.filename
-            return audio_path
-        else:
-            print(f"語音生成失敗：{result.reason}")
+        try:
+            # 延遲導入 Azure Speech SDK
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            
+            # 設定語音參數
+            speech_config.speech_synthesis_voice_name = voice_name
+            speech_config.speech_synthesis_speaking_rate = speech_rate
+            
+            # 生成語音檔案
+            audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
+            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+            
+            result = synthesizer.speak_text_async(order_text).get()
+            
+            if result.reason == "SynthesizingAudioCompleted":
+                # 取得生成的音檔路徑
+                audio_path = audio_config.filename
+                return audio_path
+            else:
+                print(f"語音生成失敗：{result.reason}")
+                return None
+                
+        except Exception as e:
+            print(f"Azure TTS 處理失敗：{e}")
             return None
             
     except Exception as e:
-        print(f"Azure TTS 處理失敗：{e}")
+        print(f"語音生成失敗：{e}")
         return None
 
 def create_order_summary(order_id, user_language='zh'):
