@@ -319,24 +319,54 @@ def create_order():
         return handle_cors_preflight()
     """建立訂單（合作店家）"""
     data = request.get_json()
-    if not data or 'line_user_id' not in data or 'store_id' not in data or 'items' not in data:
-        return jsonify({"error": "訂單資料不完整"}), 400
+    if not data:
+        return jsonify({"error": "請求資料為空"}), 400
+    
+    # 檢查必要欄位
+    required_fields = ['line_user_id', 'store_id', 'items']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({
+            "error": "訂單資料不完整",
+            "missing_fields": missing_fields,
+            "received_data": list(data.keys())
+        }), 400
 
     user = User.query.filter_by(line_user_id=data['line_user_id']).first()
     if not user:
-        # 實務上應引導使用者註冊，這裡我們先簡化處理
         return jsonify({"error": "找不到使用者"}), 404
 
     total_amount = 0
     order_items_to_create = []
     order_details = []
+    validation_errors = []
     
-    for item_data in data['items']:
-        menu_item = MenuItem.query.get(item_data['menu_item_id'])
-        if not menu_item: continue
+    for i, item_data in enumerate(data['items']):
+        # 支援多種欄位名稱格式
+        menu_item_id = item_data.get('menu_item_id') or item_data.get('id') or item_data.get('menu_item_id')
+        quantity = item_data.get('quantity') or item_data.get('qty') or item_data.get('quantity_small')
         
-        quantity = int(item_data.get('quantity', 0))
-        if quantity <= 0: continue
+        if not menu_item_id:
+            validation_errors.append(f"項目 {i+1}: 缺少 menu_item_id 或 id 欄位")
+            continue
+            
+        if not quantity:
+            validation_errors.append(f"項目 {i+1}: 缺少 quantity 或 qty 欄位")
+            continue
+        
+        try:
+            quantity = int(quantity)
+            if quantity <= 0:
+                validation_errors.append(f"項目 {i+1}: 數量必須大於 0")
+                continue
+        except (ValueError, TypeError):
+            validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
+            continue
+        
+        menu_item = MenuItem.query.get(menu_item_id)
+        if not menu_item:
+            validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
+            continue
         
         subtotal = menu_item.price_small * quantity
         total_amount += subtotal
@@ -356,38 +386,56 @@ def create_order():
             'subtotal': subtotal
         })
 
-    if not order_items_to_create:
-        return jsonify({"error": "沒有選擇任何商品"}), 400
+    if validation_errors:
+        return jsonify({
+            "error": "訂單資料驗證失敗",
+            "validation_errors": validation_errors,
+            "received_items": data['items']
+        }), 400
 
-    new_order = Order(
-        user_id=user.user_id,
-        store_id=data['store_id'],
-        total_amount=total_amount,
-        items=order_items_to_create
-    )
-    
-    db.session.add(new_order)
-    db.session.commit()
-    
-    # 建立完整訂單確認內容
-    from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
-    
-    order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
-    
-    # 生成中文語音檔
-    voice_path = generate_voice_order(new_order.order_id)
-    
-    # 觸發完整的訂單確認通知（包含語音、中文紀錄、使用者語言紀錄）
-    send_complete_order_notification(new_order.order_id)
-    
-    return jsonify({
-        "message": "訂單建立成功", 
-        "order_id": new_order.order_id,
-        "order_details": order_details,
-        "total_amount": total_amount,
-        "confirmation": order_confirmation,
-        "voice_generated": voice_path is not None
-    }), 201
+    if not order_items_to_create:
+        return jsonify({
+            "error": "沒有選擇任何商品",
+            "received_items": data['items']
+        }), 400
+
+    try:
+        new_order = Order(
+            user_id=user.user_id,
+            store_id=data['store_id'],
+            total_amount=total_amount,
+            items=order_items_to_create
+        )
+        
+        db.session.add(new_order)
+        db.session.commit()
+        
+        # 建立完整訂單確認內容
+        from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
+        
+        order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+        
+        # 生成中文語音檔
+        voice_path = generate_voice_order(new_order.order_id)
+        
+        # 觸發完整的訂單確認通知（包含語音、中文紀錄、使用者語言紀錄）
+        send_complete_order_notification(new_order.order_id)
+        
+        return jsonify({
+            "message": "訂單建立成功", 
+            "order_id": new_order.order_id,
+            "order_details": order_details,
+            "total_amount": total_amount,
+            "confirmation": order_confirmation,
+            "voice_generated": voice_path is not None
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({
+            "error": "訂單建立失敗",
+            "details": str(e)
+        }), 500
 
 @api_bp.route('/orders/temp', methods=['POST', 'OPTIONS'])
 def create_temp_order():
@@ -397,8 +445,18 @@ def create_temp_order():
     """建立臨時訂單（非合作店家）"""
     data = request.get_json()
     
-    if not data or 'processing_id' not in data or 'items' not in data:
-        return jsonify({"error": "訂單資料不完整"}), 400
+    if not data:
+        return jsonify({"error": "請求資料為空"}), 400
+    
+    # 檢查必要欄位
+    required_fields = ['processing_id', 'items']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({
+            "error": "訂單資料不完整",
+            "missing_fields": missing_fields,
+            "received_data": list(data.keys())
+        }), 400
     
     try:
         # 取得處理記錄
@@ -409,27 +467,70 @@ def create_temp_order():
         # 計算總金額和建立訂單明細
         total_amount = 0
         order_details = []
+        validation_errors = []
         
-        for item in data['items']:
-            quantity = item.get('quantity', 1)
-            # 確保價格欄位存在，支援多種價格欄位名稱
-            price = item.get('price_small', item.get('price', 0))
+        for i, item in enumerate(data['items']):
+            # 支援多種欄位名稱格式
+            quantity = item.get('quantity') or item.get('qty') or item.get('quantity_small')
+            price = item.get('price_small') or item.get('price') or item.get('price_unit')
+            original_name = item.get('original_name') or item.get('item_name') or item.get('name')
+            
+            if not quantity:
+                validation_errors.append(f"項目 {i+1}: 缺少 quantity 或 qty 欄位")
+                continue
+                
+            if not price:
+                validation_errors.append(f"項目 {i+1}: 缺少 price 或 price_small 欄位")
+                continue
+                
+            if not original_name:
+                validation_errors.append(f"項目 {i+1}: 缺少 original_name 或 item_name 欄位")
+                continue
+            
+            try:
+                quantity = int(quantity)
+                if quantity <= 0:
+                    validation_errors.append(f"項目 {i+1}: 數量必須大於 0")
+                    continue
+            except (ValueError, TypeError):
+                validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
+                continue
+                
+            try:
+                price = float(price)
+                if price < 0:
+                    validation_errors.append(f"項目 {i+1}: 價格不能為負數")
+                    continue
+            except (ValueError, TypeError):
+                validation_errors.append(f"項目 {i+1}: 價格格式錯誤，必須是數字")
+                continue
+            
             subtotal = price * quantity
             
             if quantity > 0:
                 total_amount += subtotal
                 order_details.append({
-                    'temp_id': item.get('temp_id'),
-                    'original_name': item.get('original_name', ''),
-                    'translated_name': item.get('translated_name', ''),
+                    'temp_id': item.get('temp_id') or item.get('id'),
+                    'original_name': original_name,
+                    'translated_name': item.get('translated_name') or original_name,
                     'quantity': quantity,
                     'price': price,
                     'price_small': price,  # 確保前端需要的欄位存在
                     'subtotal': subtotal
                 })
         
+        if validation_errors:
+            return jsonify({
+                "error": "訂單資料驗證失敗",
+                "validation_errors": validation_errors,
+                "received_items": data['items']
+            }), 400
+        
         if not order_details:
-            return jsonify({"error": "沒有選擇任何商品"}), 400
+            return jsonify({
+                "error": "沒有選擇任何商品",
+                "received_items": data['items']
+            }), 400
         
         # 建立臨時訂單記錄
         temp_order = {
@@ -1038,6 +1139,103 @@ def upload_menu_image():
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 422
+
+@api_bp.route('/debug/order-data', methods=['POST', 'OPTIONS'])
+def debug_order_data():
+    """除錯端點：檢查前端發送的訂單資料格式"""
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "error": "請求資料為空",
+                "content_type": request.content_type,
+                "headers": dict(request.headers)
+            }), 400
+        
+        # 分析資料結構
+        analysis = {
+            "received_data": data,
+            "data_type": type(data).__name__,
+            "top_level_keys": list(data.keys()) if isinstance(data, dict) else [],
+            "validation_results": {}
+        }
+        
+        # 檢查必要欄位
+        required_fields = ['line_user_id', 'store_id', 'items']
+        analysis["validation_results"]["required_fields"] = {
+            "missing": [field for field in required_fields if field not in data],
+            "present": [field for field in required_fields if field in data]
+        }
+        
+        # 分析 items 陣列
+        if 'items' in data and isinstance(data['items'], list):
+            items_analysis = []
+            for i, item in enumerate(data['items']):
+                item_analysis = {
+                    "index": i,
+                    "item_type": type(item).__name__,
+                    "keys": list(item.keys()) if isinstance(item, dict) else [],
+                    "values": item if isinstance(item, dict) else str(item)
+                }
+                
+                # 檢查常見欄位
+                common_fields = ['menu_item_id', 'id', 'quantity', 'qty', 'price', 'price_small', 'price_unit']
+                item_analysis["field_check"] = {}
+                for field in common_fields:
+                    if field in item:
+                        item_analysis["field_check"][field] = {
+                            "value": item[field],
+                            "type": type(item[field]).__name__
+                        }
+                
+                items_analysis.append(item_analysis)
+            
+            analysis["validation_results"]["items"] = items_analysis
+        else:
+            analysis["validation_results"]["items"] = {
+                "error": "items 欄位不存在或不是陣列",
+                "actual_value": data.get('items')
+            }
+        
+        # 檢查使用者
+        if 'line_user_id' in data:
+            from ..models import User
+            user = User.query.filter_by(line_user_id=data['line_user_id']).first()
+            analysis["validation_results"]["user"] = {
+                "found": user is not None,
+                "user_id": user.user_id if user else None
+            }
+        
+        # 檢查店家
+        if 'store_id' in data:
+            from ..models import Store
+            store = Store.query.get(data['store_id'])
+            analysis["validation_results"]["store"] = {
+                "found": store is not None,
+                "store_name": store.store_name if store else None
+            }
+        
+        return jsonify({
+            "message": "訂單資料分析完成",
+            "analysis": analysis,
+            "suggestions": [
+                "如果缺少必要欄位，請檢查前端發送的資料格式",
+                "如果 items 陣列格式不正確，請確保每個項目都有 menu_item_id 和 quantity",
+                "如果找不到使用者或店家，請檢查 ID 是否正確"
+            ]
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": "分析失敗",
+            "exception": str(e),
+            "content_type": request.content_type,
+            "raw_data": request.get_data(as_text=True)
+        }), 500
 
 # =============================================================================
 # 根路徑處理
