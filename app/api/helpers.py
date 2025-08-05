@@ -16,18 +16,30 @@
 import os
 import json
 import requests
-from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
 import tempfile
 import uuid
 
-# Gemini API 設定
-from google import genai
-genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
+# Gemini API 設定（延遲初始化）
+def get_gemini_client():
+    """取得 Gemini 客戶端"""
+    try:
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            print("警告: GEMINI_API_KEY 環境變數未設定")
+            return None
+        from google import genai
+        return genai.Client(api_key=api_key)
+    except Exception as e:
+        print(f"Gemini API 初始化失敗: {e}")
+        return None
 
 # Azure TTS 設定（延遲初始化）
 def get_speech_config():
     """取得 Azure Speech 配置"""
     try:
+        # 延遲導入 Azure Speech SDK
+        from azure.cognitiveservices.speech import SpeechConfig
+        
         speech_key = os.getenv('AZURE_SPEECH_KEY')
         speech_region = os.getenv('AZURE_SPEECH_REGION')
         
@@ -39,6 +51,9 @@ def get_speech_config():
             subscription=speech_key,
             region=speech_region
         )
+    except ImportError as e:
+        print(f"Azure Speech SDK 未安裝: {e}")
+        return None
     except Exception as e:
         print(f"Azure Speech Service 配置失敗: {e}")
         return None
@@ -147,7 +162,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
             print(f"  - 圖片格式: {mime_type}")
             
             # 使用 Gemini 2.5 Flash 模型 + JSON Mode
-            response = genai.Client().models.generate_content(
+            response = get_gemini_client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=[
                     prompt,
@@ -329,6 +344,9 @@ def generate_voice_order(order_id, speech_rate=1.0):
             print("Azure Speech Service 配置失敗，跳過語音生成")
             return None
         
+        # 延遲導入 Azure Speech SDK
+        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+        
         # 設定語音參數
         speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
         speech_config.speech_synthesis_speaking_rate = speech_rate
@@ -373,6 +391,9 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             print("Azure Speech Service 配置失敗，跳過語音生成")
             return None
         
+        # 延遲導入 Azure Speech SDK
+        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+        
         # 設定語音參數
         speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
         speech_config.speech_synthesis_speaking_rate = speech_rate
@@ -405,6 +426,9 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
         if not speech_config:
             print("Azure Speech Service 配置失敗，跳過語音生成")
             return None
+        
+        # 延遲導入 Azure Speech SDK
+        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
         
         # 設定語音參數
         speech_config.speech_synthesis_voice_name = voice_name
@@ -534,7 +558,7 @@ def translate_text(text, target_language='en'):
         請只回傳翻譯結果，不要包含任何其他文字。
         """
         
-        response = genai.Client().models.generate_content(
+        response = get_gemini_client().models.generate_content(
             model="gemini-2.5-flash",
             contents=[prompt],
             config={
@@ -745,7 +769,7 @@ def send_complete_order_notification(order_id):
     包含：兩則訂單文字摘要、中文語音檔、語速控制按鈕
     """
     from ..models import Order, User
-    from ..webhook.routes import line_bot_api
+    from ..webhook.routes import get_line_bot_api
     from linebot.models import (
         TextSendMessage, AudioSendMessage, FlexSendMessage,
         QuickReply, QuickReplyButton, MessageAction
@@ -771,19 +795,23 @@ def send_complete_order_notification(order_id):
         # 2. 發送中文語音檔
         if voice_path and os.path.exists(voice_path):
             with open(voice_path, 'rb') as audio_file:
-                line_bot_api.push_message(
-                    user.line_user_id,
-                    AudioSendMessage(
-                        original_content_url=f"file://{voice_path}",
-                        duration=30000  # 預設30秒
+                line_bot_api = get_line_bot_api()
+                if line_bot_api:
+                    line_bot_api.push_message(
+                        user.line_user_id,
+                        AudioSendMessage(
+                            original_content_url=f"file://{voice_path}",
+                            duration=30000  # 預設30秒
+                        )
                     )
-                )
         
         # 3. 發送中文點餐紀錄
-        line_bot_api.push_message(
-            user.line_user_id,
-            TextSendMessage(text=confirmation["chinese_summary"])
-        )
+        line_bot_api = get_line_bot_api()
+        if line_bot_api:
+            line_bot_api.push_message(
+                user.line_user_id,
+                TextSendMessage(text=confirmation["chinese_summary"])
+            )
         
         # 4. 發送使用者語言的點餐紀錄
         if user.preferred_lang != 'zh':
@@ -806,7 +834,7 @@ def send_voice_control_buttons(user_id, order_id, user_language):
     """
     發送語音控制按鈕
     """
-    from ..webhook.routes import line_bot_api
+    from ..webhook.routes import get_line_bot_api
     from linebot.models import (
         TextSendMessage, QuickReply, QuickReplyButton, MessageAction
     )
@@ -845,58 +873,60 @@ def send_voice_control_buttons(user_id, order_id, user_language):
     
     texts = button_texts.get(user_language, button_texts["zh"])
     
-    # 建立快速回覆按鈕
-    quick_reply = QuickReply(
-        items=[
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["slow"],
-                    text=f"voice_slow_{order_id}"
-                )
-            ),
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["normal"],
-                    text=f"voice_normal_{order_id}"
-                )
-            ),
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["fast"],
-                    text=f"voice_fast_{order_id}"
-                )
-            ),
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["replay"],
-                    text=f"voice_replay_{order_id}"
+    try:
+        line_bot_api = get_line_bot_api()
+        if line_bot_api:
+            line_bot_api.push_message(
+                user_id,
+                TextSendMessage(
+                    text=texts["title"],
+                    quick_reply=QuickReply(
+                        items=[
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["slow"],
+                                    text=f"voice_slow_{order_id}"
+                                )
+                            ),
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["normal"],
+                                    text=f"voice_normal_{order_id}"
+                                )
+                            ),
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["fast"],
+                                    text=f"voice_fast_{order_id}"
+                                )
+                            ),
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["replay"],
+                                    text=f"voice_replay_{order_id}"
+                                )
+                            )
+                        ]
+                    )
                 )
             )
-        ]
-    )
-    
-    # 發送語音控制訊息
-    line_bot_api.push_message(
-        user_id,
-        TextSendMessage(
-            text=texts["title"],
-            quick_reply=quick_reply
-        )
-    )
+    except Exception as e:
+        print(f"發送語音控制按鈕失敗：{e}")
 
 def send_voice_with_rate(user_id, order_id, rate, user_language):
     """
-    發送指定語速的語音檔
+    根據指定語速發送語音
     """
-    from ..webhook.routes import line_bot_api
-    from linebot.models import AudioSendMessage, TextSendMessage
+    from ..webhook.routes import get_line_bot_api
+    from linebot.models import AudioSendMessage
     
     try:
         # 生成指定語速的語音檔
         voice_path = generate_voice_order(order_id, rate)
         
         if voice_path and os.path.exists(voice_path):
-            with open(voice_path, 'rb') as audio_file:
+            line_bot_api = get_line_bot_api()
+            if line_bot_api:
                 line_bot_api.push_message(
                     user_id,
                     AudioSendMessage(
@@ -904,77 +934,28 @@ def send_voice_with_rate(user_id, order_id, rate, user_language):
                         duration=30000
                     )
                 )
-            
-            # 發送語速確認訊息
-            rate_texts = {
-                "zh": f"已生成 {rate}x 語速的語音檔",
-                "en": f"Generated voice file with {rate}x speed",
-                "ja": f"{rate}x の速度で音声ファイルを生成しました",
-                "ko": f"{rate}x 속도로 음성 파일을 생성했습니다"
-            }
-            
-            line_bot_api.push_message(
-                user_id,
-                TextSendMessage(text=rate_texts.get(user_language, rate_texts["zh"]))
-            )
             
             # 清理語音檔案
             os.remove(voice_path)
-        else:
-            # 發送錯誤訊息
-            error_texts = {
-                "zh": "語音檔生成失敗，請稍後再試",
-                "en": "Failed to generate voice file, please try again later",
-                "ja": "音声ファイルの生成に失敗しました。後でもう一度お試しください",
-                "ko": "음성 파일 생성에 실패했습니다. 나중에 다시 시도해 주세요"
-            }
-            
-            line_bot_api.push_message(
-                user_id,
-                TextSendMessage(text=error_texts.get(user_language, error_texts["zh"]))
-            )
             
     except Exception as e:
-        print(f"發送語音檔失敗：{e}")
+        print(f"發送語音失敗：{e}")
 
 def send_temp_order_notification(temp_order, user_id, user_language):
     """
-    發送臨時訂單確認通知到 LINE
+    發送臨時訂單通知
     """
-    from ..webhook.routes import line_bot_api
-    from linebot.models import (
-        TextSendMessage, AudioSendMessage, QuickReply, QuickReplyButton, MessageAction
-    )
+    from ..webhook.routes import get_line_bot_api
+    from linebot.models import TextSendMessage
     
     try:
-        # 1. 生成中文語音檔
-        voice_path = generate_voice_from_temp_order(temp_order, 1.0)
+        # 生成語音檔
+        voice_path = generate_voice_from_temp_order(temp_order)
         
-        # 2. 建立中文點餐紀錄
-        chinese_summary = f"臨時訂單\n"
-        chinese_summary += "訂購項目：\n"
-        
-        for item in temp_order['items']:
-            chinese_summary += f"- {item['original_name']} x{item['quantity']} (${item['subtotal']})\n"
-        
-        chinese_summary += f"總金額：${temp_order['total_amount']}"
-        
-        # 3. 建立使用者語言摘要
-        if user_language != 'zh':
-            translated_summary = f"Temporary Order\n"
-            translated_summary += "Items:\n"
-            
-            for item in temp_order['items']:
-                translated_name = item.get('translated_name', item['original_name'])
-                translated_summary += f"- {translated_name} x{item['quantity']} (${item['subtotal']})\n"
-            
-            translated_summary += f"Total: ${temp_order['total_amount']}"
-        else:
-            translated_summary = chinese_summary
-        
-        # 4. 發送中文語音檔
+        # 發送語音檔
         if voice_path and os.path.exists(voice_path):
-            with open(voice_path, 'rb') as audio_file:
+            line_bot_api = get_line_bot_api()
+            if line_bot_api:
                 line_bot_api.push_message(
                     user_id,
                     AudioSendMessage(
@@ -983,34 +964,30 @@ def send_temp_order_notification(temp_order, user_id, user_language):
                     )
                 )
         
-        # 5. 發送中文點餐紀錄
-        line_bot_api.push_message(
-            user_id,
-            TextSendMessage(text=chinese_summary)
-        )
-        
-        # 6. 發送使用者語言的點餐紀錄
-        if user_language != 'zh':
+        # 發送訂單摘要
+        summary = temp_order.get('summary', '訂單已建立')
+        line_bot_api = get_line_bot_api()
+        if line_bot_api:
             line_bot_api.push_message(
                 user_id,
-                TextSendMessage(text=translated_summary)
+                TextSendMessage(text=summary)
             )
         
-        # 7. 發送語音控制按鈕
+        # 發送語音控制按鈕
         send_temp_voice_control_buttons(user_id, temp_order, user_language)
         
-        # 8. 清理語音檔案
+        # 清理語音檔案
         if voice_path and os.path.exists(voice_path):
             os.remove(voice_path)
             
     except Exception as e:
-        print(f"發送臨時訂單確認失敗：{e}")
+        print(f"發送臨時訂單通知失敗：{e}")
 
 def send_temp_voice_control_buttons(user_id, temp_order, user_language):
     """
-    發送臨時訂單語音控制按鈕
+    發送臨時訂單的語音控制按鈕
     """
-    from ..webhook.routes import line_bot_api
+    from ..webhook.routes import get_line_bot_api
     from linebot.models import (
         TextSendMessage, QuickReply, QuickReplyButton, MessageAction
     )
@@ -1049,109 +1026,90 @@ def send_temp_voice_control_buttons(user_id, temp_order, user_language):
     
     texts = button_texts.get(user_language, button_texts["zh"])
     
-    # 建立快速回覆按鈕
-    quick_reply = QuickReply(
-        items=[
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["slow"],
-                    text=f"temp_voice_slow_{temp_order['processing_id']}"
-                )
-            ),
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["normal"],
-                    text=f"temp_voice_normal_{temp_order['processing_id']}"
-                )
-            ),
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["fast"],
-                    text=f"temp_voice_fast_{temp_order['processing_id']}"
-                )
-            ),
-            QuickReplyButton(
-                action=MessageAction(
-                    label=texts["replay"],
-                    text=f"temp_voice_replay_{temp_order['processing_id']}"
+    try:
+        line_bot_api = get_line_bot_api()
+        if line_bot_api:
+            line_bot_api.push_message(
+                user_id,
+                TextSendMessage(
+                    text=texts["title"],
+                    quick_reply=QuickReply(
+                        items=[
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["slow"],
+                                    text=f"temp_voice_slow_{temp_order['order_id']}"
+                                )
+                            ),
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["normal"],
+                                    text=f"temp_voice_normal_{temp_order['order_id']}"
+                                )
+                            ),
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["fast"],
+                                    text=f"temp_voice_fast_{temp_order['order_id']}"
+                                )
+                            ),
+                            QuickReplyButton(
+                                action=MessageAction(
+                                    label=texts["replay"],
+                                    text=f"temp_voice_replay_{temp_order['order_id']}"
+                                )
+                            )
+                        ]
+                    )
                 )
             )
-        ]
-    )
-    
-    # 發送語音控制訊息
-    line_bot_api.push_message(
-        user_id,
-        TextSendMessage(
-            text=texts["title"],
-            quick_reply=quick_reply
-        )
-    )
+    except Exception as e:
+        print(f"發送臨時訂單語音控制按鈕失敗：{e}")
 
 def get_nearby_stores_with_translations(latitude, longitude, user_language='zh', radius_km=10):
     """
-    根據 GPS 座標取得鄰近店家（包含翻譯）
+    取得附近店家並包含翻譯資訊
     """
     try:
-        from ..models import Store, StoreTranslation
+        # 取得店家翻譯
+        store_translations = get_store_translation_from_db(None, user_language)
         
-        # 取得所有店家
+        # 計算距離並篩選
         stores = Store.query.all()
         nearby_stores = []
         
         for store in stores:
-            # 檢查店家是否有 GPS 座標
-            store_lat = store.gps_lat or store.latitude
-            store_lng = store.gps_lng or store.longitude
-            
-            if store_lat and store_lng:
-                # 計算距離（使用 Haversine 公式）
+            if store.gps_lat and store.gps_lng:
                 distance = calculate_distance(
                     latitude, longitude, 
-                    store_lat, store_lng
+                    store.gps_lat, store.gps_lng
                 )
                 
-                # 檢查是否在指定範圍內
                 if distance <= radius_km:
-                    # 取得店家翻譯
-                    store_translation = get_store_translation_from_db(store.store_id, user_language)
+                    # 取得翻譯資訊
+                    translation = store_translations.get(store.store_id, {})
                     
-                    # 建立店家資料
                     store_data = {
                         'store_id': store.store_id,
                         'store_name': store.store_name,
-                        'partner_level': store.partner_level,
                         'distance': round(distance, 2),
+                        'partner_level': store.partner_level,
+                        'description': translation.get('description_trans', ''),
+                        'reviews': translation.get('reviews', ''),
                         'main_photo_url': store.main_photo_url,
-                        'gps_lat': store_lat,
-                        'gps_lng': store_lng,
-                        'place_id': store.place_id
+                        'top_dishes': [
+                            store.top_dish_1, store.top_dish_2, 
+                            store.top_dish_3, store.top_dish_4, store.top_dish_5
+                        ]
                     }
-                    
-                    # 加入翻譯資訊
-                    if store_translation:
-                        store_data['description'] = store_translation.description_trans or store.review_summary or ''
-                        store_data['reviews'] = store_translation.reviews or ''
-                    else:
-                        # 使用 AI 翻譯
-                        if user_language != 'zh':
-                            store_data['description'] = translate_text_with_fallback(
-                                store.review_summary or '', user_language
-                            )
-                            store_data['reviews'] = ''
-                        else:
-                            store_data['description'] = store.review_summary or ''
-                            store_data['reviews'] = ''
-                    
                     nearby_stores.append(store_data)
         
         # 按距離排序
         nearby_stores.sort(key=lambda x: x['distance'])
-        
         return nearby_stores
         
     except Exception as e:
-        print(f"取得鄰近店家失敗：{e}")
+        print(f"取得附近店家失敗：{e}")
         return []
 
 def calculate_distance(lat1, lon1, lat2, lon2):
