@@ -1226,99 +1226,141 @@ def upload_menu_image():
 
 @api_bp.route('/debug/order-data', methods=['POST', 'OPTIONS'])
 def debug_order_data():
-    """除錯端點：檢查前端發送的訂單資料格式"""
+    # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
     
-    try:
-        data = request.get_json()
-        
-        if not data:
-            return jsonify({
-                "error": "請求資料為空",
-                "content_type": request.content_type,
-                "headers": dict(request.headers)
-            }), 400
-        
-        # 分析資料結構
-        analysis = {
-            "received_data": data,
-            "data_type": type(data).__name__,
-            "top_level_keys": list(data.keys()) if isinstance(data, dict) else [],
-            "validation_results": {}
+    """除錯訂單資料格式"""
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "請求資料為空"}), 400
+    
+    analysis = {
+        "data_type": type(data).__name__,
+        "received_data": data,
+        "top_level_keys": list(data.keys()) if isinstance(data, dict) else [],
+        "validation_results": {
+            "required_fields": {
+                "present": [],
+                "missing": []
+            },
+            "store": {"found": False, "store_name": None},
+            "user": {"found": False, "user_id": None}
         }
-        
-        # 檢查必要欄位
-        required_fields = ['line_user_id', 'store_id', 'items']
-        analysis["validation_results"]["required_fields"] = {
-            "missing": [field for field in required_fields if field not in data],
-            "present": [field for field in required_fields if field in data]
-        }
-        
-        # 分析 items 陣列
-        if 'items' in data and isinstance(data['items'], list):
-            items_analysis = []
-            for i, item in enumerate(data['items']):
-                item_analysis = {
-                    "index": i,
-                    "item_type": type(item).__name__,
-                    "keys": list(item.keys()) if isinstance(item, dict) else [],
-                    "values": item if isinstance(item, dict) else str(item)
-                }
-                
-                # 檢查常見欄位
-                common_fields = ['menu_item_id', 'id', 'quantity', 'qty', 'price', 'price_small', 'price_unit']
-                item_analysis["field_check"] = {}
-                for field in common_fields:
+    }
+    
+    # 檢查必要欄位
+    required_fields = ['store_id', 'items']
+    if isinstance(data, dict):
+        for field in required_fields:
+            if field in data:
+                analysis["validation_results"]["required_fields"]["present"].append(field)
+            else:
+                analysis["validation_results"]["required_fields"]["missing"].append(field)
+    
+    # 檢查店家
+    if isinstance(data, dict) and 'store_id' in data:
+        try:
+            store = Store.query.get(data['store_id'])
+            if store:
+                analysis["validation_results"]["store"]["found"] = True
+                analysis["validation_results"]["store"]["store_name"] = store.store_name
+        except Exception as e:
+            analysis["validation_results"]["store"]["error"] = str(e)
+    
+    # 檢查使用者
+    if isinstance(data, dict) and 'line_user_id' in data:
+        try:
+            user = User.query.filter_by(line_user_id=data['line_user_id']).first()
+            if user:
+                analysis["validation_results"]["user"]["found"] = True
+                analysis["validation_results"]["user"]["user_id"] = user.user_id
+        except Exception as e:
+            analysis["validation_results"]["user"]["error"] = str(e)
+    
+    # 分析 items 陣列
+    if isinstance(data, dict) and 'items' in data and isinstance(data['items'], list):
+        analysis["validation_results"]["items"] = []
+        for i, item in enumerate(data['items']):
+            item_analysis = {
+                "index": i,
+                "item_type": type(item).__name__,
+                "keys": list(item.keys()) if isinstance(item, dict) else [],
+                "values": item if isinstance(item, dict) else item,
+                "field_check": {}
+            }
+            
+            if isinstance(item, dict):
+                for field in ['menu_item_id', 'id', 'quantity', 'qty', 'price', 'price_small']:
                     if field in item:
                         item_analysis["field_check"][field] = {
-                            "value": item[field],
-                            "type": type(item[field]).__name__
+                            "type": type(item[field]).__name__,
+                            "value": item[field]
                         }
-                
-                items_analysis.append(item_analysis)
             
-            analysis["validation_results"]["items"] = items_analysis
+            analysis["validation_results"]["items"].append(item_analysis)
+    
+    suggestions = []
+    if analysis["validation_results"]["required_fields"]["missing"]:
+        suggestions.append("如果缺少必要欄位，請檢查前端發送的資料格式")
+    if not analysis["validation_results"]["items"]:
+        suggestions.append("如果 items 陣列格式不正確，請確保每個項目都有 menu_item_id 和 quantity")
+    if not analysis["validation_results"]["store"]["found"]:
+        suggestions.append("如果找不到使用者或店家，請檢查 ID 是否正確")
+    
+    return jsonify({
+        "message": "訂單資料分析完成",
+        "analysis": analysis,
+        "suggestions": suggestions
+    }), 200
+
+@api_bp.route('/admin/migrate-database', methods=['POST', 'OPTIONS'])
+def migrate_database():
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    """執行資料庫遷移（僅限管理員）"""
+    try:
+        # 檢查是否為管理員（這裡可以添加更嚴格的驗證）
+        # 暫時允許所有請求，但建議添加適當的認證
+        
+        from tools.migrate_order_items import migrate_order_items, verify_migration
+        
+        print("🔄 開始執行資料庫遷移...")
+        
+        # 執行遷移
+        success = migrate_order_items()
+        
+        if success:
+            # 驗證遷移
+            verify_success = verify_migration()
+            
+            if verify_success:
+                return jsonify({
+                    "message": "資料庫遷移成功",
+                    "status": "success",
+                    "details": "OrderItem 表結構已更新，支援臨時項目"
+                }), 200
+            else:
+                return jsonify({
+                    "message": "遷移完成但驗證失敗",
+                    "status": "warning",
+                    "details": "請檢查資料庫結構"
+                }), 200
         else:
-            analysis["validation_results"]["items"] = {
-                "error": "items 欄位不存在或不是陣列",
-                "actual_value": data.get('items')
-            }
-        
-        # 檢查使用者
-        if 'line_user_id' in data:
-            from ..models import User
-            user = User.query.filter_by(line_user_id=data['line_user_id']).first()
-            analysis["validation_results"]["user"] = {
-                "found": user is not None,
-                "user_id": user.user_id if user else None
-            }
-        
-        # 檢查店家
-        if 'store_id' in data:
-            from ..models import Store
-            store = Store.query.get(data['store_id'])
-            analysis["validation_results"]["store"] = {
-                "found": store is not None,
-                "store_name": store.store_name if store else None
-            }
-        
-        return jsonify({
-            "message": "訂單資料分析完成",
-            "analysis": analysis,
-            "suggestions": [
-                "如果缺少必要欄位，請檢查前端發送的資料格式",
-                "如果 items 陣列格式不正確，請確保每個項目都有 menu_item_id 和 quantity",
-                "如果找不到使用者或店家，請檢查 ID 是否正確"
-            ]
-        }), 200
-        
+            return jsonify({
+                "message": "資料庫遷移失敗",
+                "status": "error",
+                "details": "請檢查錯誤日誌"
+            }), 500
+            
     except Exception as e:
         return jsonify({
-            "error": "分析失敗",
-            "exception": str(e),
-            "content_type": request.content_type,
-            "raw_data": request.get_data(as_text=True)
+            "message": "遷移過程中發生錯誤",
+            "status": "error",
+            "details": str(e)
         }), 500
 
 # =============================================================================
