@@ -306,19 +306,21 @@ def generate_voice_order(order_id, speech_rate=1.0):
         # 取得語音配置
         speech_config = get_speech_config()
         if not speech_config:
-            print("Azure Speech Service 配置失敗，跳過語音生成")
-            return None
+            print("Azure Speech Service 配置失敗，使用備用方案")
+            return generate_voice_order_fallback(order_id, speech_rate)
         
         try:
             # 延遲導入 Azure Speech SDK
             from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            import uuid
             
             # 設定語音參數
             speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
             speech_config.speech_synthesis_speaking_rate = speech_rate
             
             # 生成語音檔案
-            audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
+            audio_filename = f"temp_audio_{uuid.uuid4()}.wav"
+            audio_config = AudioConfig(filename=audio_filename)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
@@ -326,18 +328,19 @@ def generate_voice_order(order_id, speech_rate=1.0):
             if result.reason == "SynthesizingAudioCompleted":
                 # 取得生成的音檔路徑
                 audio_path = audio_config.filename
+                print(f"語音生成成功: {audio_path}")
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
-                return None
+                return generate_voice_order_fallback(order_id, speech_rate)
                 
         except Exception as e:
             print(f"Azure TTS 處理失敗：{e}")
-            return None
+            return generate_voice_order_fallback(order_id, speech_rate)
             
     except Exception as e:
         print(f"語音生成失敗：{e}")
-        return None
+        return generate_voice_order_fallback(order_id, speech_rate)
 
 def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
     """
@@ -757,33 +760,56 @@ def send_complete_order_notification(order_id):
     
     order = Order.query.get(order_id)
     if not order:
+        print(f"找不到訂單: {order_id}")
         return
     
     user = User.query.get(order.user_id)
     if not user:
+        print(f"找不到使用者: {order.user_id}")
         return
     
     # 建立完整訂單確認內容
     confirmation = create_complete_order_confirmation(order_id, user.preferred_lang)
     if not confirmation:
+        print(f"無法建立訂單確認內容: {order_id}")
         return
     
     try:
-        # 1. 生成中文語音檔（標準語速）
-        voice_path = generate_voice_order(order_id, 1.0)
+        print(f"開始發送訂單通知: {order_id} -> {user.line_user_id}")
         
-        # 2. 發送中文語音檔
-        if voice_path and os.path.exists(voice_path):
-            with open(voice_path, 'rb') as audio_file:
-                line_bot_api = get_line_bot_api()
-                if line_bot_api:
-                    line_bot_api.push_message(
-                        user.line_user_id,
-                        AudioSendMessage(
-                            original_content_url=f"file://{voice_path}",
-                            duration=30000  # 預設30秒
+        # 1. 生成中文語音檔（標準語速）
+        voice_result = generate_voice_order(order_id, 1.0)
+        
+        # 2. 處理語音結果
+        if voice_result and isinstance(voice_result, str) and os.path.exists(voice_result):
+            # 成功生成語音檔
+            print(f"語音檔生成成功: {voice_result}")
+            try:
+                with open(voice_result, 'rb') as audio_file:
+                    line_bot_api = get_line_bot_api()
+                    if line_bot_api:
+                        line_bot_api.push_message(
+                            user.line_user_id,
+                            AudioSendMessage(
+                                original_content_url=f"file://{voice_result}",
+                                duration=30000  # 預設30秒
+                            )
                         )
-                    )
+                        print("語音檔已發送到 LINE")
+            except Exception as e:
+                print(f"發送語音檔失敗: {e}")
+        elif voice_result and isinstance(voice_result, dict):
+            # 備用方案：發送文字版本
+            print(f"使用備用語音方案: {voice_result.get('text', '')[:50]}...")
+            line_bot_api = get_line_bot_api()
+            if line_bot_api:
+                line_bot_api.push_message(
+                    user.line_user_id,
+                    TextSendMessage(text=f"🎤 點餐語音（文字版）:\n{voice_result.get('text', '')}")
+                )
+                print("備用語音文字已發送到 LINE")
+        else:
+            print("語音生成失敗，跳過語音發送")
         
         # 3. 發送中文點餐紀錄
         line_bot_api = get_line_bot_api()
@@ -792,6 +818,7 @@ def send_complete_order_notification(order_id):
                 user.line_user_id,
                 TextSendMessage(text=confirmation["chinese_summary"])
             )
+            print("中文訂單摘要已發送到 LINE")
         
         # 4. 發送使用者語言的點餐紀錄
         if user.preferred_lang != 'zh':
@@ -799,16 +826,26 @@ def send_complete_order_notification(order_id):
                 user.line_user_id,
                 TextSendMessage(text=confirmation["translated_summary"])
             )
+            print(f"{user.preferred_lang} 語訂單摘要已發送到 LINE")
         
         # 5. 發送語速控制按鈕
         send_voice_control_buttons(user.line_user_id, order_id, user.preferred_lang)
+        print("語速控制按鈕已發送到 LINE")
         
         # 6. 清理語音檔案
-        if voice_path and os.path.exists(voice_path):
-            os.remove(voice_path)
+        if voice_result and isinstance(voice_result, str) and os.path.exists(voice_result):
+            try:
+                os.remove(voice_result)
+                print(f"語音檔案已清理: {voice_result}")
+            except Exception as e:
+                print(f"清理語音檔案失敗: {e}")
+        
+        print(f"訂單通知發送完成: {order_id}")
             
     except Exception as e:
         print(f"發送訂單確認失敗：{e}")
+        import traceback
+        traceback.print_exc()
 
 def send_voice_control_buttons(user_id, order_id, user_language):
     """
@@ -1124,3 +1161,38 @@ def get_partner_level_label(partner_level, language='zh'):
     }
     
     return labels.get(language, labels['zh']).get(partner_level, '非合作')
+
+
+def generate_voice_order_fallback(order_id, speech_rate=1.0):
+    """
+    備用語音生成函數（當 Azure TTS 不可用時）
+    """
+    try:
+        from ..models import Order, OrderItem, MenuItem
+        
+        # 取得訂單資訊
+        order = Order.query.get(order_id)
+        if not order:
+            return None
+        
+        # 建立中文訂單文字
+        order_text = f"您好，我要點餐。"
+        
+        for item in order.items:
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                order_text += f" {menu_item.item_name} {item.quantity_small}份，"
+        
+        order_text += f"總共{order.total_amount}元，謝謝。"
+        
+        # 返回文字而非音檔
+        print(f"使用備用語音生成，文字內容: {order_text}")
+        return {
+            'success': True,
+            'text': order_text,
+            'message': '語音生成功能暫時不可用，請使用文字版本'
+        }
+        
+    except Exception as e:
+        print(f"備用語音生成失敗：{e}")
+        return None
