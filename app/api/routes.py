@@ -412,7 +412,8 @@ def create_temp_order():
         
         for item in data['items']:
             quantity = item.get('quantity', 1)
-            price = item.get('price', 0)
+            # 確保價格欄位存在，支援多種價格欄位名稱
+            price = item.get('price_small', item.get('price', 0))
             subtotal = price * quantity
             
             if quantity > 0:
@@ -423,6 +424,7 @@ def create_temp_order():
                     'translated_name': item.get('translated_name', ''),
                     'quantity': quantity,
                     'price': price,
+                    'price_small': price,  # 確保前端需要的欄位存在
                     'subtotal': subtotal
                 })
         
