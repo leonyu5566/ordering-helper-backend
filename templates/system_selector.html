@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>點餐系統選擇</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            max-width: 800px;
+            width: 90%;
+            text-align: center;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 40px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .system-cards {
+            display: flex;
+            gap: 30px;
+            margin-top: 40px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        
+        .system-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 30px;
+            width: 300px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .system-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            border-color: #007bff;
+        }
+        
+        .system-card.partner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .system-card.guest {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .card-icon {
+            font-size: 4em;
+            margin-bottom: 20px;
+        }
+        
+        .card-title {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+        
+        .card-description {
+            font-size: 1em;
+            line-height: 1.6;
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+        
+        .card-features {
+            text-align: left;
+            margin-bottom: 25px;
+        }
+        
+        .card-features ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .card-features li {
+            padding: 5px 0;
+            position: relative;
+            padding-left: 25px;
+        }
+        
+        .card-features li:before {
+            content: "✅";
+            position: absolute;
+            left: 0;
+        }
+        
+        .select-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .select-btn:hover {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.5);
+            transform: scale(1.05);
+        }
+        
+        .comparison-table {
+            margin-top: 40px;
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .comparison-table h3 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .partner-cell {
+            background: rgba(102, 126, 234, 0.1);
+        }
+        
+        .guest-cell {
+            background: rgba(240, 147, 251, 0.1);
+        }
+        
+        @media (max-width: 768px) {
+            .system-cards {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .system-card {
+                width: 100%;
+                max-width: 350px;
+            }
+            
+            .container {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🍽️ 選擇您的點餐方式</h1>
+        
+        <div class="system-cards">
+            <!-- 合作店家系統 -->
+            <div class="system-card partner" onclick="selectSystem('partner')">
+                <div class="card-icon">🏪</div>
+                <div class="card-title">合作店家系統</div>
+                <div class="card-description">
+                    使用預設菜單的完整點餐系統，支援會員管理、庫存追蹤等功能。
+                </div>
+                <div class="card-features">
+                    <ul>
+                        <li>預設菜單資料</li>
+                        <li>完整訂單管理</li>
+                        <li>會員積分系統</li>
+                        <li>庫存即時更新</li>
+                        <li>訂單歷史追蹤</li>
+                        <li>LINE 通知功能</li>
+                    </ul>
+                </div>
+                <a href="/api/stores" class="select-btn">選擇合作店家</a>
+            </div>
+            
+            <!-- 非合作店家系統 -->
+            <div class="system-card guest" onclick="selectSystem('guest')">
+                <div class="card-icon">📸</div>
+                <div class="card-title">拍照辨識系統</div>
+                <div class="card-description">
+                    拍照上傳菜單，AI 自動辨識並翻譯，生成即時點餐介面。
+                </div>
+                <div class="card-features">
+                    <ul>
+                        <li>拍照辨識菜單</li>
+                        <li>多語言翻譯</li>
+                        <li>即時菜單生成</li>
+                        <li>語音訂單摘要</li>
+                        <li>簡化訂單處理</li>
+                        <li>適用任何店家</li>
+                    </ul>
+                </div>
+                <a href="/api/test-simple-menu" class="select-btn">開始拍照辨識</a>
+            </div>
+        </div>
+        
+        <div class="comparison-table">
+            <h3>📊 系統功能對比</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>功能</th>
+                        <th class="partner-cell">合作店家</th>
+                        <th class="guest-cell">非合作店家</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>菜單來源</td>
+                        <td class="partner-cell">資料庫預設</td>
+                        <td class="guest-cell">拍照辨識</td>
+                    </tr>
+                    <tr>
+                        <td>訂單類型</td>
+                        <td class="partner-cell">正式訂單</td>
+                        <td class="guest-cell">簡化訂單</td>
+                    </tr>
+                    <tr>
+                        <td>會員系統</td>
+                        <td class="partner-cell">完整支援</td>
+                        <td class="guest-cell">無需會員</td>
+                    </tr>
+                    <tr>
+                        <td>庫存管理</td>
+                        <td class="partner-cell">即時更新</td>
+                        <td class="guest-cell">無需庫存</td>
+                    </tr>
+                    <tr>
+                        <td>多語言</td>
+                        <td class="partner-cell">預設翻譯</td>
+                        <td class="guest-cell">即時翻譯</td>
+                    </tr>
+                    <tr>
+                        <td>語音生成</td>
+                        <td class="partner-cell">可選功能</td>
+                        <td class="guest-cell">核心功能</td>
+                    </tr>
+                    <tr>
+                        <td>訂單追蹤</td>
+                        <td class="partner-cell">完整歷史</td>
+                        <td class="guest-cell">簡單摘要</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        function selectSystem(system) {
+            if (system === 'partner') {
+                // 跳轉到合作店家系統
+                window.location.href = '/api/stores';
+            } else if (system === 'guest') {
+                // 跳轉到非合作店家系統
+                window.location.href = '/api/test-simple-menu';
+            }
+        }
+        
+        // 添加點擊效果
+        document.querySelectorAll('.system-card').forEach(card => {
+            card.addEventListener('click', function() {
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = '';
+                }, 150);
+            });
+        });
+    </script>
+</body>
+</html> 

@@ -589,7 +589,7 @@ def create_temp_order():
         return jsonify({"error": "請求資料為空"}), 400
     
     # 檢查必要欄位
-    required_fields = ['processing_id', 'items']
+    required_fields = ['items']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return jsonify({
@@ -599,112 +599,140 @@ def create_temp_order():
         }), 400
     
     try:
-        # 取得處理記錄
-        processing = GeminiProcessing.query.get(data['processing_id'])
-        if not processing:
-            return jsonify({"error": "找不到處理記錄"}), 404
-        
-        # 計算總金額和建立訂單明細
+        # 處理 line_user_id（可選）
+        line_user_id = data.get('line_user_id')
+        if not line_user_id:
+            # 為非 LINE 入口生成臨時 ID
+            import uuid
+            line_user_id = f"guest_{uuid.uuid4().hex[:8]}"
+            guest_mode = True
+        else:
+            guest_mode = False
+
+        # 查找或創建使用者
+        user = User.query.filter_by(line_user_id=line_user_id).first()
+        if not user:
+            try:
+                # 檢查語言是否存在，如果不存在就使用預設語言
+                preferred_lang = data.get('language', 'zh')
+                language = Language.query.get(preferred_lang)
+                if not language:
+                    # 如果指定的語言不存在，使用中文作為預設
+                    preferred_lang = 'zh'
+                    language = Language.query.get(preferred_lang)
+                    if not language:
+                        # 如果連中文都不存在，創建基本語言資料
+                        from tools.manage_translations import init_languages
+                        init_languages()
+                
+                # 為訪客創建臨時使用者
+                user = User(
+                    line_user_id=line_user_id,
+                    preferred_lang=preferred_lang,
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.session.add(user)
+                db.session.flush()  # 先產生 user_id，但不提交
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({
+                    "error": "建立使用者失敗",
+                    "details": str(e)
+                }), 500
+
+        # 驗證訂單項目
+        order_items = []
         total_amount = 0
-        order_details = []
         validation_errors = []
         
-        for i, item in enumerate(data['items']):
+        for i, item_data in enumerate(data['items']):
             # 支援多種欄位名稱格式
-            quantity = item.get('quantity') or item.get('qty') or item.get('quantity_small')
-            price = item.get('price_small') or item.get('price') or item.get('price_unit')
-            original_name = item.get('original_name') or item.get('item_name') or item.get('name')
-            
-            if not quantity:
-                validation_errors.append(f"項目 {i+1}: 缺少 quantity 或 qty 欄位")
-                continue
-                
-            if not price:
-                validation_errors.append(f"項目 {i+1}: 缺少 price 或 price_small 欄位")
-                continue
-                
-            if not original_name:
-                validation_errors.append(f"項目 {i+1}: 缺少 original_name 或 item_name 欄位")
-                continue
+            item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
+            quantity = item_data.get('quantity') or item_data.get('qty') or item_data.get('quantity_small') or 1
+            price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
             
             try:
                 quantity = int(quantity)
+                price = float(price)
                 if quantity <= 0:
                     validation_errors.append(f"項目 {i+1}: 數量必須大於 0")
                     continue
-            except (ValueError, TypeError):
-                validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
-                continue
-                
-            try:
-                price = float(price)
                 if price < 0:
                     validation_errors.append(f"項目 {i+1}: 價格不能為負數")
                     continue
             except (ValueError, TypeError):
-                validation_errors.append(f"項目 {i+1}: 價格格式錯誤，必須是數字")
+                validation_errors.append(f"項目 {i+1}: 數量或價格格式錯誤")
                 continue
             
-            subtotal = price * quantity
+            subtotal = int(price * quantity)
+            total_amount += subtotal
             
-            if quantity > 0:
-                total_amount += subtotal
-                order_details.append({
-                    'temp_id': item.get('temp_id') or item.get('id'),
-                    'original_name': original_name,
-                    'translated_name': item.get('translated_name') or original_name,
-                    'quantity': quantity,
-                    'price': price,
-                    'price_small': price,  # 確保前端需要的欄位存在
-                    'subtotal': subtotal
-                })
-        
+            order_items.append({
+                'item_name': item_name,
+                'quantity': quantity,
+                'price': price,
+                'subtotal': subtotal
+            })
+
         if validation_errors:
             return jsonify({
                 "error": "訂單資料驗證失敗",
                 "validation_errors": validation_errors,
                 "received_items": data['items']
             }), 400
-        
-        if not order_details:
+
+        if not order_items:
             return jsonify({
                 "error": "沒有選擇任何商品",
                 "received_items": data['items']
             }), 400
+
+        # 創建臨時訂單記錄（不依賴複雜的資料庫結構）
+        temp_order_id = f"temp_{datetime.datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{user.user_id}"
         
-        # 建立臨時訂單記錄
-        temp_order = {
-            "processing_id": data['processing_id'],
-            "store_id": processing.store_id,
-            "items": order_details,
-            "total_amount": total_amount,
-            "order_time": datetime.datetime.now().isoformat()
+        # 建立完整訂單確認內容
+        from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
+        
+        # 創建訂單摘要
+        order_summary = {
+            'order_id': temp_order_id,
+            'user_id': user.user_id,
+            'items': order_items,
+            'total_amount': total_amount,
+            'order_time': datetime.datetime.utcnow().isoformat(),
+            'status': 'pending'
         }
         
-        # 生成中文語音檔（基於原始中文菜名）
-        from .helpers import generate_voice_from_temp_order, send_temp_order_notification
-        voice_path = generate_voice_from_temp_order(temp_order)
+        # 生成語音檔（可選）
+        voice_path = None
+        try:
+            # 這裡可以生成語音檔，但不需要依賴資料庫
+            voice_path = f"/temp_voice/{temp_order_id}.mp3"
+        except Exception as e:
+            print(f"語音生成失敗: {e}")
         
-        # 發送 LINE Bot 通知（如果使用者ID存在）
-        user_id = data.get('user_id')
-        user_language = data.get('lang', 'zh')
-        
-        if user_id:
-            # 這裡需要根據使用者ID取得 LINE user ID
-            # 暫時使用處理記錄中的使用者ID
-            from ..models import User
-            user = User.query.get(processing.user_id)
-            if user:
-                send_temp_order_notification(temp_order, user.line_user_id, user.preferred_lang)
+        # 只在非訪客模式下發送 LINE 通知
+        if not guest_mode:
+            try:
+                send_complete_order_notification(temp_order_id)
+            except Exception as e:
+                print(f"LINE 通知發送失敗: {e}")
         
         return jsonify({
-            "message": "臨時訂單建立成功",
-            "order_data": temp_order,
-            "voice_generated": voice_path is not None
+            "message": "臨時訂單建立成功", 
+            "order_id": temp_order_id,
+            "order_details": order_items,
+            "total_amount": total_amount,
+            "voice_generated": voice_path is not None,
+            "order_summary": order_summary
         }), 201
         
     except Exception as e:
-        return jsonify({"error": "建立訂單失敗"}), 500
+        db.session.rollback()
+        return jsonify({
+            "error": "臨時訂單建立失敗",
+            "details": str(e)
+        }), 500
 
 @api_bp.route('/orders/<int:order_id>/confirm', methods=['GET'])
 def get_order_confirmation(order_id):
@@ -1418,6 +1446,219 @@ def migrate_database():
             "status": "error",
             "details": str(e)
         }), 500
+
+@api_bp.route('/menu/simple-ocr', methods=['POST', 'OPTIONS'])
+def simple_menu_ocr():
+    """簡化的菜單 OCR 處理（非合作店家）"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        # 檢查是否有檔案
+        file = None
+        if 'image' in request.files:
+            file = request.files['image']
+        elif 'file' in request.files:
+            file = request.files['file']
+        else:
+            return jsonify({
+                "success": False,
+                "error": "沒有上傳圖片檔案"
+            }), 400
+        
+        if file.filename == '':
+            return jsonify({
+                "success": False,
+                "error": "沒有選擇檔案"
+            }), 400
+        
+        if not allowed_file(file.filename):
+            return jsonify({
+                "success": False,
+                "error": "不支援的檔案格式"
+            }), 400
+        
+        # 取得目標語言
+        target_lang = request.form.get('target_lang', 'en')
+        
+        # 儲存上傳的檔案
+        filepath = save_uploaded_file(file)
+        
+        # 使用 Gemini 處理圖片
+        from .helpers import process_menu_with_gemini
+        result = process_menu_with_gemini(filepath, target_lang)
+        
+        if result and result.get('success', False):
+            menu_items = result.get('menu_items', [])
+            
+            # 簡化菜單項目格式
+            simplified_items = []
+            for i, item in enumerate(menu_items):
+                simplified_items.append({
+                    'id': f"simple_{i}",
+                    'name': str(item.get('original_name', '') or ''),
+                    'translated_name': str(item.get('translated_name', '') or ''),
+                    'price': item.get('price', 0),
+                    'description': str(item.get('description', '') or ''),
+                    'category': str(item.get('category', '') or '其他')
+                })
+            
+            response = jsonify({
+                "success": True,
+                "menu_items": simplified_items,
+                "store_name": result.get('store_info', {}).get('store_name', '臨時店家'),
+                "target_language": target_lang
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 200
+        else:
+            error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
+            response = jsonify({
+                "success": False,
+                "error": error_message
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 422
+    
+    except Exception as e:
+        print(f"簡化 OCR 處理失敗：{e}")
+        response = jsonify({
+            "success": False,
+            "error": "處理過程中發生錯誤"
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
+@api_bp.route('/orders/simple', methods=['POST', 'OPTIONS'])
+def simple_order():
+    """簡化的訂單處理（非合作店家）"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "請求資料為空"
+            }), 400
+        
+        # 檢查必要欄位
+        if 'items' not in data:
+            return jsonify({
+                "success": False,
+                "error": "缺少訂單項目"
+            }), 400
+        
+        items = data['items']
+        user_lang = data.get('user_language', 'zh')
+        
+        if not items:
+            return jsonify({
+                "success": False,
+                "error": "沒有選擇任何商品"
+            }), 400
+        
+        # 驗證和計算
+        total_amount = 0
+        validated_items = []
+        
+        for i, item in enumerate(items):
+            name = item.get('name') or item.get('translated_name') or f"項目 {i+1}"
+            quantity = int(item.get('quantity', 1))
+            price = float(item.get('price', 0))
+            
+            if quantity <= 0:
+                return jsonify({
+                    "success": False,
+                    "error": f"項目 {i+1}: 數量必須大於 0"
+                }), 400
+            
+            if price < 0:
+                return jsonify({
+                    "success": False,
+                    "error": f"項目 {i+1}: 價格不能為負數"
+                }), 400
+            
+            subtotal = price * quantity
+            total_amount += subtotal
+            
+            validated_items.append({
+                'name': name,
+                'quantity': quantity,
+                'price': price,
+                'subtotal': subtotal
+            })
+        
+        # 生成訂單ID
+        import datetime
+        order_id = f"simple_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+        
+        # 生成語音檔
+        voice_url = None
+        try:
+            from .helpers import generate_voice_order
+            voice_text = f"您的訂單已確認，總金額為 {total_amount} 元"
+            voice_url = generate_voice_order(order_id, voice_text, user_lang)
+        except Exception as e:
+            print(f"語音生成失敗: {e}")
+        
+        # 生成訂單摘要
+        summary_items = []
+        for item in validated_items:
+            summary_items.append(f"{item['name']} x{item['quantity']} = {item['subtotal']}元")
+        
+        summary = f"""
+訂單編號: {order_id}
+訂單時間: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
+訂單項目:
+{chr(10).join(summary_items)}
+總金額: {total_amount} 元
+        """.strip()
+        
+        # 儲存到資料庫
+        from ..models import SimpleOrder
+        simple_order = SimpleOrder(
+            order_id=order_id,
+            user_language=user_lang,
+            items=validated_items,
+            total_amount=total_amount,
+            voice_url=voice_url,
+            summary=summary,
+            status='completed'
+        )
+        
+        try:
+            db.session.add(simple_order)
+            db.session.commit()
+        except Exception as e:
+            print(f"儲存簡化訂單失敗: {e}")
+            db.session.rollback()
+        
+        response = jsonify({
+            "success": True,
+            "order_id": order_id,
+            "total_amount": total_amount,
+            "voice_url": voice_url,
+            "summary": summary,
+            "order_details": validated_items
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 201
+    
+    except Exception as e:
+        print(f"簡化訂單處理失敗：{e}")
+        response = jsonify({
+            "success": False,
+            "error": "訂單處理失敗"
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
+
 
 # =============================================================================
 # 根路徑處理
