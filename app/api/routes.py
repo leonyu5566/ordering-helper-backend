@@ -230,13 +230,22 @@ def process_menu_ocr():
             
             for i, item in enumerate(menu_items):
                 # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
+                # 並提供前端需要的所有必要欄位
                 dynamic_menu.append({
                     'temp_id': f"temp_{processing.processing_id}_{i}",
+                    'id': f"temp_{processing.processing_id}_{i}",  # 前端可能需要 id 欄位
                     'original_name': str(item.get('original_name', '') or ''),
                     'translated_name': str(item.get('translated_name', '') or ''),
+                    'en_name': str(item.get('translated_name', '') or ''),  # 英語名稱
                     'price': item.get('price', 0),
+                    'price_small': item.get('price', 0),  # 小份價格
+                    'price_large': item.get('price', 0),  # 大份價格
                     'description': str(item.get('description', '') or ''),
                     'category': str(item.get('category', '') or '其他'),
+                    'image_url': '/static/images/default-dish.png',  # 預設圖片
+                    'imageUrl': '/static/images/default-dish.png',  # 前端可能用這個欄位名
+                    'inventory': 999,  # 庫存數量
+                    'available': True,  # 是否可購買
                     'processing_id': processing.processing_id
                 })
             
@@ -941,13 +950,22 @@ def upload_menu_image():
             
             for i, item in enumerate(menu_items):
                 # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
+                # 並提供前端需要的所有必要欄位
                 dynamic_menu.append({
                     'temp_id': f"temp_{processing.processing_id}_{i}",
+                    'id': f"temp_{processing.processing_id}_{i}",  # 前端可能需要 id 欄位
                     'original_name': str(item.get('original_name', '') or ''),
                     'translated_name': str(item.get('translated_name', '') or ''),
+                    'en_name': str(item.get('translated_name', '') or ''),  # 英語名稱
                     'price': item.get('price', 0),
+                    'price_small': item.get('price', 0),  # 小份價格
+                    'price_large': item.get('price', 0),  # 大份價格
                     'description': str(item.get('description', '') or ''),
                     'category': str(item.get('category', '') or '其他'),
+                    'image_url': '/static/images/default-dish.png',  # 預設圖片
+                    'imageUrl': '/static/images/default-dish.png',  # 前端可能用這個欄位名
+                    'inventory': 999,  # 庫存數量
+                    'available': True,  # 是否可購買
                     'processing_id': processing.processing_id
                 })
             
