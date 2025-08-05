@@ -138,6 +138,14 @@ def process_menu_with_gemini(image_path, target_language='en'):
         try:
             # 使用 JSON Mode 確保輸出合法 JSON
             
+            print(f"🚀 開始呼叫 Gemini API...")
+            print(f"📋 請求參數:")
+            print(f"  - 模型: gemini-2.5-flash")
+            print(f"  - 圖片路徑: {image_path}")
+            print(f"  - 目標語言: {target_language}")
+            print(f"  - 圖片尺寸: {image.size}")
+            print(f"  - 圖片格式: {mime_type}")
+            
             # 使用 Gemini 2.5 Flash 模型 + JSON Mode
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
@@ -151,6 +159,10 @@ def process_menu_with_gemini(image_path, target_language='en'):
                 }
             )
             signal.alarm(0)  # 取消超時
+            
+            print(f"✅ Gemini API 呼叫成功")
+            print(f"📄 回應長度: {len(response.text)} 字元")
+            print(f"📄 回應內容（前200字）: {response.text[:200]}")
             
             # 解析回應（現在保證是合法 JSON）
         except TimeoutError:
@@ -219,6 +231,18 @@ def process_menu_with_gemini(image_path, target_language='en'):
             if len(result['menu_items']) > 0:
                 result['success'] = True
                 result['processing_notes'] = result.get('processing_notes', '') + f" 成功辨識到 {len(result['menu_items'])} 個菜單項目"
+                
+                # 加入詳細的除錯 log
+                print(f"✅ Gemini API 成功辨識到 {len(result['menu_items'])} 個菜單項目")
+                print(f"📋 菜單項目詳情:")
+                for i, item in enumerate(result['menu_items']):
+                    print(f"  {i+1}. {item.get('original_name', 'N/A')} - {item.get('translated_name', 'N/A')} - ${item.get('price', 0)}")
+                print(f"🏪 店家資訊: {result.get('store_info', {})}")
+                print(f"📝 處理備註: {result.get('processing_notes', '')}")
+            else:
+                print(f"⚠️ Gemini API 回應成功，但未辨識到菜單項目")
+                print(f"📄 原始回應內容（前500字）: {response.text[:500]}")
+                print(f"🔍 解析後的 result: {json.dumps(result, ensure_ascii=False, indent=2)[:500]}")
             
             return result
             

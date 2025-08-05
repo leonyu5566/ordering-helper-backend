@@ -249,6 +249,16 @@ def process_menu_ocr():
                 "processing_notes": result.get('processing_notes', '')
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
+            
+            # 加入 API 回應的除錯 log
+            print(f"🎉 API 成功回應 201 Created")
+            print(f"📊 回應統計:")
+            print(f"  - 處理ID: {processing.processing_id}")
+            print(f"  - 菜單項目數: {len(dynamic_menu)}")
+            print(f"  - 目標語言: {target_lang}")
+            print(f"  - 店家資訊: {result.get('store_info', {})}")
+            print(f"  - 處理備註: {result.get('processing_notes', '')}")
+            
             return response, 201
         else:
             # 處理失敗 - 只有在真正的錯誤時才返回 422
@@ -261,6 +271,12 @@ def process_menu_ocr():
             
             # 如果是 JSON 解析錯誤或其他可恢復的錯誤，返回 422
             if 'JSON 解析失敗' in error_message or 'extra_forbidden' in error_message:
+                print(f"❌ API 返回 422 錯誤")
+                print(f"🔍 錯誤詳情:")
+                print(f"  - 錯誤訊息: {error_message}")
+                print(f"  - 處理備註: {processing_notes}")
+                print(f"  - 處理ID: {processing.processing_id}")
+                
                 response = jsonify({
                     "error": error_message,
                     "processing_notes": processing_notes
@@ -269,6 +285,12 @@ def process_menu_ocr():
                 return response, 422
             else:
                 # 其他錯誤返回 500
+                print(f"❌ API 返回 500 錯誤")
+                print(f"🔍 錯誤詳情:")
+                print(f"  - 錯誤訊息: {error_message}")
+                print(f"  - 處理備註: {processing_notes}")
+                print(f"  - 處理ID: {processing.processing_id}")
+                
                 response = jsonify({
                     "error": error_message,
                     "processing_notes": processing_notes
@@ -937,6 +959,16 @@ def upload_menu_image():
                 "processing_notes": result.get('processing_notes', '')
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
+            
+            # 加入 API 回應的除錯 log
+            print(f"🎉 API 成功回應 201 Created")
+            print(f"📊 回應統計:")
+            print(f"  - 處理ID: {processing.processing_id}")
+            print(f"  - 菜單項目數: {len(dynamic_menu)}")
+            print(f"  - 目標語言: {target_lang}")
+            print(f"  - 店家資訊: {result.get('store_info', {})}")
+            print(f"  - 處理備註: {result.get('processing_notes', '')}")
+            
             return response, 201
         else:
             # 處理失敗 - 只有在真正的錯誤時才返回 422
@@ -949,6 +981,12 @@ def upload_menu_image():
             
             # 如果是 JSON 解析錯誤或其他可恢復的錯誤，返回 422
             if 'JSON 解析失敗' in error_message or 'extra_forbidden' in error_message:
+                print(f"❌ API 返回 422 錯誤")
+                print(f"🔍 錯誤詳情:")
+                print(f"  - 錯誤訊息: {error_message}")
+                print(f"  - 處理備註: {processing_notes}")
+                print(f"  - 處理ID: {processing.processing_id}")
+                
                 response = jsonify({
                     "error": error_message,
                     "processing_notes": processing_notes
@@ -957,6 +995,12 @@ def upload_menu_image():
                 return response, 422
             else:
                 # 其他錯誤返回 500
+                print(f"❌ API 返回 500 錯誤")
+                print(f"🔍 錯誤詳情:")
+                print(f"  - 錯誤訊息: {error_message}")
+                print(f"  - 處理備註: {processing_notes}")
+                print(f"  - 處理ID: {processing.processing_id}")
+                
                 response = jsonify({
                     "error": error_message,
                     "processing_notes": processing_notes
