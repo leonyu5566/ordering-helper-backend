@@ -109,7 +109,48 @@ def fix_database_issues():
             if user_id_col and not user_id_col.get('autoincrement', False):
                 print("🔧 修復 user_id 自動遞增設定...")
                 # 這裡需要執行 ALTER TABLE 語句
-                db.engine.execute("ALTER TABLE users MODIFY user_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT")
+                with db.engine.connect() as conn:
+                    # 先檢查並刪除外鍵約束
+                    try:
+                        # 檢查所有可能引用了 user_id 的表格
+                        tables_to_check = ['orders', 'gemini_processing', 'ocr_menus', 'user_actions']
+                        for table_name in tables_to_check:
+                            try:
+                                result = conn.execute(db.text(f"SHOW CREATE TABLE {table_name}"))
+                                create_table_sql = result.fetchone()[1]
+                                print(f"{table_name} table structure: {create_table_sql}")
+                            except Exception as e:
+                                print(f"檢查 {table_name} 表格時發生錯誤：{e}")
+                        
+                    except Exception as e:
+                        print(f"檢查表格結構時發生錯誤：{e}")
+                    
+                    # 先刪除所有外鍵約束
+                    foreign_key_tables = [
+                        ('ocr_menus', 'ocr_menus_ibfk_1'),
+                        ('user_actions', 'user_actions_ibfk_1')
+                    ]
+                    
+                    for table_name, constraint_name in foreign_key_tables:
+                        try:
+                            conn.execute(db.text(f"ALTER TABLE {table_name} DROP FOREIGN KEY {constraint_name}"))
+                            print(f"✅ 已刪除 {table_name} 外鍵約束 {constraint_name}")
+                        except Exception as e:
+                            print(f"刪除 {table_name} 外鍵約束時發生錯誤：{e}")
+                    
+                    # 修改 user_id 欄位
+                    conn.execute(db.text("ALTER TABLE users MODIFY user_id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT"))
+                    print("✅ 已修改 users.user_id 為自動遞增")
+                    
+                    # 重新建立外鍵約束
+                    for table_name, constraint_name in foreign_key_tables:
+                        try:
+                            conn.execute(db.text(f"ALTER TABLE {table_name} ADD CONSTRAINT {constraint_name} FOREIGN KEY (user_id) REFERENCES users(user_id)"))
+                            print(f"✅ 已重新建立 {table_name} 外鍵約束 {constraint_name}")
+                        except Exception as e:
+                            print(f"重新建立 {table_name} 外鍵約束時發生錯誤：{e}")
+                    
+                    conn.commit()
                 print("✅ user_id 自動遞增設定已修復")
             
             # 確保語言資料存在
