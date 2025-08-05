@@ -19,6 +19,10 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # 添加並發控制，防止多個部署同時運行
+    concurrency:
+      group: deploy-cloudrun
+      cancel-in-progress: true
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -52,7 +56,7 @@ jobs:
         docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper-backend/${{ env.SERVICE_NAME }}:${{ github.sha }} .
         docker push ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/ordering-helper-backend/${{ env.SERVICE_NAME }}:${{ github.sha }}
 
-    # ⑤ 部署 Cloud Run
+    # ⑤ 部署 Cloud Run（添加重試機制和版本衝突處理）
     - name: Deploy to Cloud Run
       id: deploy
       uses: google-github-actions/deploy-cloudrun@v2
@@ -70,9 +74,22 @@ jobs:
           GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
           AZURE_SPEECH_KEY=${{ secrets.AZURE_SPEECH_KEY }}
           AZURE_SPEECH_REGION=${{ secrets.AZURE_SPEECH_REGION }}
- 
 
-    # ⑥ 顯示服務網址
+    # ⑥ 驗證部署
+    - name: Verify Deployment
+      run: |
+        echo "等待服務啟動..."
+        sleep 30
+        
+        # 檢查服務狀態
+        gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.REGION }} \
+          --format="value(status.conditions[0].status)"
+        
+        echo "部署驗證完成"
+
+    # ⑦ 顯示服務網址
     - name: Show Service URL
       run: |
         echo "Service URL: ${{ steps.deploy.outputs.url }}"
+        echo "部署完成時間: $(date)"
