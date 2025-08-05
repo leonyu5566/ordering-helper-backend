@@ -426,12 +426,29 @@ def create_order():
                 
                 if not temp_menu_item:
                     # 創建新的臨時菜單項目
-                    from app.models import Menu
+                    from app.models import Menu, Store
+                    
+                    # 確保店家存在，如果不存在則創建預設店家
+                    store_id = data.get('store_id')
+                    if not store_id:
+                        # 如果沒有 store_id，創建一個預設店家
+                        default_store = Store.query.filter_by(store_name='預設店家').first()
+                        if not default_store:
+                            default_store = Store(
+                                store_name='預設店家',
+                                partner_level=0,  # 非合作店家
+                                created_at=datetime.datetime.utcnow()
+                            )
+                            db.session.add(default_store)
+                            db.session.flush()
+                        store_id = default_store.store_id
+                        # 更新請求資料中的 store_id
+                        data['store_id'] = store_id
                     
                     # 找到或創建一個臨時菜單
-                    temp_menu = Menu.query.filter_by(store_id=data['store_id']).first()
+                    temp_menu = Menu.query.filter_by(store_id=store_id).first()
                     if not temp_menu:
-                        temp_menu = Menu(store_id=data['store_id'], version=1)
+                        temp_menu = Menu(store_id=store_id, version=1)
                         db.session.add(temp_menu)
                         db.session.flush()
                     

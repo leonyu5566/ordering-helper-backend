@@ -94,7 +94,7 @@ class Store(db.Model):
 
 class StoreTranslation(db.Model):
     __tablename__ = 'store_translations'
-    store_translation_id = db.Column(db.BigInteger, primary_key=True)
+    store_translation_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
     lang_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
     description_trans = db.Column(db.Text)  # 翻譯後的店家簡介
@@ -102,7 +102,7 @@ class StoreTranslation(db.Model):
 
 class Menu(db.Model):
     __tablename__ = 'menus'
-    menu_id = db.Column(db.BigInteger, primary_key=True)
+    menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
     version = db.Column(db.Integer, nullable=False, default=1)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -110,7 +110,7 @@ class Menu(db.Model):
 
 class MenuItem(db.Model):
     __tablename__ = 'menu_items'
-    menu_item_id = db.Column(db.BigInteger, primary_key=True)
+    menu_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     menu_id = db.Column(db.BigInteger, db.ForeignKey('menus.menu_id'), nullable=False)
     item_name = db.Column(db.String(100), nullable=False) # 這是中文菜品名
     price_big = db.Column(db.Integer)
@@ -120,7 +120,7 @@ class MenuItem(db.Model):
 
 class MenuTranslation(db.Model):
     __tablename__ = 'menu_translations'
-    menu_translation_id = db.Column(db.BigInteger, primary_key=True)
+    menu_translation_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
     lang_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
     item_name_trans = db.Column(db.String(100)) # 翻譯後的菜品名
@@ -129,7 +129,7 @@ class MenuTranslation(db.Model):
 
 class Order(db.Model):
     __tablename__ = 'orders'
-    order_id = db.Column(db.BigInteger, primary_key=True)
+    order_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
     order_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
@@ -140,7 +140,7 @@ class Order(db.Model):
 
 class OrderItem(db.Model):
     __tablename__ = 'order_items'
-    order_item_id = db.Column(db.BigInteger, primary_key=True)
+    order_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id'), nullable=False)
     menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
     quantity_small = db.Column(db.Integer, nullable=False, default=0)
@@ -148,7 +148,7 @@ class OrderItem(db.Model):
 
 class VoiceFile(db.Model):
     __tablename__ = 'voice_files'
-    voice_file_id = db.Column(db.BigInteger, primary_key=True)
+    voice_file_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id'), nullable=False)
     file_url = db.Column(db.String(500), nullable=False)  # 語音檔案 URL
     file_type = db.Column(db.String(10), default='mp3')  # mp3, wav
@@ -157,7 +157,7 @@ class VoiceFile(db.Model):
 
 class GeminiProcessing(db.Model):
     __tablename__ = 'gemini_processing'
-    processing_id = db.Column(db.BigInteger, primary_key=True)
+    processing_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
     image_url = db.Column(db.String(500), nullable=False)  # 上傳的菜單圖片 URL
