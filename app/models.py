@@ -50,7 +50,7 @@ class Language(db.Model):
 # =============================================================================
 class User(db.Model):
     __tablename__ = 'users'
-    user_id = db.Column(db.BigInteger, primary_key=True)
+    user_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     line_user_id = db.Column(db.String(100), unique=True, nullable=False)
     preferred_lang = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)

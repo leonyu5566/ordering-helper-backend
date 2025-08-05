@@ -345,13 +345,26 @@ def create_order():
     # 查找或創建使用者
     user = User.query.filter_by(line_user_id=line_user_id).first()
     if not user:
+        # 檢查語言是否存在，如果不存在就使用預設語言
+        preferred_lang = data.get('language', 'zh')
+        language = Language.query.get(preferred_lang)
+        if not language:
+            # 如果指定的語言不存在，使用中文作為預設
+            preferred_lang = 'zh'
+            language = Language.query.get(preferred_lang)
+            if not language:
+                # 如果連中文都不存在，創建基本語言資料
+                from tools.manage_translations import init_languages
+                init_languages()
+        
         # 為訪客創建臨時使用者
         user = User(
             line_user_id=line_user_id,
-            preferred_lang=data.get('language', 'zh'),
+            preferred_lang=preferred_lang,
             created_at=datetime.datetime.utcnow()
         )
         db.session.add(user)
+        db.session.flush()  # 先產生 user_id，但不提交
         db.session.commit()
 
     total_amount = 0
