@@ -521,9 +521,27 @@ def create_order():
         }), 400
 
     try:
+        # 確保 store_id 有值
+        store_id = data.get('store_id')
+        if not store_id:
+            # 如果沒有 store_id，創建一個預設店家
+            from app.models import Store
+            default_store = Store.query.filter_by(store_name='預設店家').first()
+            if not default_store:
+                default_store = Store(
+                    store_name='預設店家',
+                    partner_level=0,  # 非合作店家
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.session.add(default_store)
+                db.session.flush()
+            store_id = default_store.store_id
+            # 更新請求資料中的 store_id
+            data['store_id'] = store_id
+        
         new_order = Order(
             user_id=user.user_id,
-            store_id=data['store_id'],
+            store_id=store_id,
             total_amount=total_amount,
             items=order_items_to_create
         )
