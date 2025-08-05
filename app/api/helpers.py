@@ -192,6 +192,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
             if not isinstance(result, dict):
                 raise ValueError("回應不是有效的 JSON 物件")
             
+            # 如果 Gemini API 成功返回結果，即使沒有 success 欄位也設為成功
             if 'success' not in result:
                 result['success'] = True
             
@@ -214,12 +215,46 @@ def process_menu_with_gemini(image_path, target_language='en'):
                 if 'category' not in item:
                     item['category'] = '其他'
             
+            # 如果成功解析到菜單項目，即使數量很少也視為成功
+            if len(result['menu_items']) > 0:
+                result['success'] = True
+                result['processing_notes'] = result.get('processing_notes', '') + f" 成功辨識到 {len(result['menu_items'])} 個菜單項目"
+            
             return result
             
         except json.JSONDecodeError as e:
             print(f"❌ JSON 解析失敗：{e}")
             print(f"原始回應內容（前300字）：{response.text[:300]}")
             print(f"清洗後內容（前300字）：{raw_text[:300]}")
+            
+            # 嘗試從回應中提取有用的資訊
+            try:
+                # 如果回應包含菜單項目資訊，嘗試手動解析
+                if 'menu' in response.text.lower() or '菜單' in response.text:
+                    # 嘗試提取菜單項目
+                    menu_items = []
+                    lines = response.text.split('\n')
+                    for line in lines:
+                        if any(keyword in line for keyword in ['元', 'NT$', '$', 'price', '價格']):
+                            # 可能是價格資訊
+                            menu_items.append({
+                                'original_name': line.strip(),
+                                'translated_name': line.strip(),
+                                'price': 0,
+                                'description': '',
+                                'category': '其他'
+                            })
+                    
+                    if menu_items:
+                        return {
+                            "success": True,
+                            "menu_items": menu_items,
+                            "store_info": {},
+                            "processing_notes": f"JSON 解析失敗，但成功提取到 {len(menu_items)} 個可能的菜單項目。原始錯誤：{str(e)}"
+                        }
+            except:
+                pass
+            
             return {
                 "success": False,
                 "menu_items": [],

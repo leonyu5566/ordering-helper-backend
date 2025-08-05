@@ -213,8 +213,10 @@ def process_menu_ocr():
         db.session.commit()
         
         # 使用 Gemini API 處理圖片
+        print("開始使用 Gemini API 處理圖片...")
         result = process_menu_with_gemini(filepath, target_lang)
         
+        # 檢查處理結果
         if result and result.get('success', False):
             # 更新處理狀態
             processing.status = 'completed'
@@ -237,22 +239,42 @@ def process_menu_ocr():
                     'processing_id': processing.processing_id
                 })
             
-            return jsonify({
+            response = jsonify({
                 "message": "菜單處理成功",
                 "processing_id": processing.processing_id,
                 "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
-                "target_language": target_lang
-            }), 201
+                "target_language": target_lang,
+                "processing_notes": result.get('processing_notes', '')
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 201
         else:
-            # 處理失敗
+            # 處理失敗 - 只有在真正的錯誤時才返回 422
             processing.status = 'failed'
             db.session.commit()
             
-            return jsonify({
-                "error": "菜單處理失敗，請重新拍攝清晰的菜單照片"
-            }), 500
+            # 檢查是否是 JSON 解析錯誤或其他可恢復的錯誤
+            error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
+            processing_notes = result.get('processing_notes', '')
+            
+            # 如果是 JSON 解析錯誤或其他可恢復的錯誤，返回 422
+            if 'JSON 解析失敗' in error_message or 'extra_forbidden' in error_message:
+                response = jsonify({
+                    "error": error_message,
+                    "processing_notes": processing_notes
+                })
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response, 422
+            else:
+                # 其他錯誤返回 500
+                response = jsonify({
+                    "error": error_message,
+                    "processing_notes": processing_notes
+                })
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response, 500
     
     except Exception as e:
         print(f"OCR處理失敗：{e}")
@@ -882,6 +904,7 @@ def upload_menu_image():
         print("開始使用 Gemini API 處理圖片...")
         result = process_menu_with_gemini(filepath, target_lang)
         
+        # 檢查處理結果
         if result and result.get('success', False):
             # 更新處理狀態
             processing.status = 'completed'
@@ -910,22 +933,36 @@ def upload_menu_image():
                 "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
-                "target_language": target_lang
+                "target_language": target_lang,
+                "processing_notes": result.get('processing_notes', '')
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 201
         else:
-            # 處理失敗
+            # 處理失敗 - 只有在真正的錯誤時才返回 422
             processing.status = 'failed'
             db.session.commit()
             
+            # 檢查是否是 JSON 解析錯誤或其他可恢復的錯誤
             error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
-            response = jsonify({
-                "error": error_message,
-                "processing_notes": result.get('processing_notes', '')
-            })
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            return response, 422
+            processing_notes = result.get('processing_notes', '')
+            
+            # 如果是 JSON 解析錯誤或其他可恢復的錯誤，返回 422
+            if 'JSON 解析失敗' in error_message or 'extra_forbidden' in error_message:
+                response = jsonify({
+                    "error": error_message,
+                    "processing_notes": processing_notes
+                })
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response, 422
+            else:
+                # 其他錯誤返回 500
+                response = jsonify({
+                    "error": error_message,
+                    "processing_notes": processing_notes
+                })
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                return response, 500
             
     except Exception as e:
         print(f"OCR處理失敗：{e}")
