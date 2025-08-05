@@ -214,7 +214,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
             if 'store_info' not in result:
                 result['store_info'] = {}
             
-            # 驗證菜單項目格式
+            # 驗證菜單項目格式並確保所有字串欄位都不是 null/undefined
             for item in result['menu_items']:
                 if 'original_name' not in item:
                     item['original_name'] = ''
@@ -226,6 +226,12 @@ def process_menu_with_gemini(image_path, target_language='en'):
                     item['description'] = ''
                 if 'category' not in item:
                     item['category'] = '其他'
+                
+                # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
+                item['original_name'] = str(item.get('original_name', '') or '')
+                item['translated_name'] = str(item.get('translated_name', '') or '')
+                item['description'] = str(item.get('description', '') or '')
+                item['category'] = str(item.get('category', '') or '其他')
             
             # 如果成功解析到菜單項目，即使數量很少也視為成功
             if len(result['menu_items']) > 0:
@@ -631,12 +637,12 @@ def translate_menu_items_with_db_fallback(menu_items, target_language='en'):
         
         translated_item = {
             'menu_item_id': item.menu_item_id,
-            'original_name': item.item_name,
-            'translated_name': translated_name,
+            'original_name': str(item.item_name or ''),
+            'translated_name': str(translated_name or ''),
             'price_small': item.price_small,
             'price_large': item.price_large,
-            'description': item.description,
-            'translated_description': translated_description,
+            'description': str(item.description or ''),
+            'translated_description': str(translated_description or ''),
             'translation_source': 'database' if db_translation and db_translation.item_name_trans else 'ai'
         }
         translated_items.append(translated_item)
@@ -661,9 +667,9 @@ def translate_store_info_with_db_fallback(store, target_language='en'):
     
     return {
         'store_id': store.store_id,
-        'original_name': store.store_name,
-        'translated_name': translated_name,
-        'translated_reviews': translated_reviews,
+        'original_name': str(store.store_name or ''),
+        'translated_name': str(translated_name or ''),
+        'translated_reviews': str(translated_reviews or ''),
         'translation_source': 'database' if db_translation else 'ai'
     }
 

@@ -229,13 +229,14 @@ def process_menu_ocr():
             dynamic_menu = []
             
             for i, item in enumerate(menu_items):
+                # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
                 dynamic_menu.append({
                     'temp_id': f"temp_{processing.processing_id}_{i}",
-                    'original_name': item.get('original_name', ''),
-                    'translated_name': item.get('translated_name', ''),
+                    'original_name': str(item.get('original_name', '') or ''),
+                    'translated_name': str(item.get('translated_name', '') or ''),
                     'price': item.get('price', 0),
-                    'description': item.get('description', ''),
-                    'category': item.get('category', ''),
+                    'description': str(item.get('description', '') or ''),
+                    'category': str(item.get('category', '') or '其他'),
                     'processing_id': processing.processing_id
                 })
             
@@ -939,13 +940,14 @@ def upload_menu_image():
             dynamic_menu = []
             
             for i, item in enumerate(menu_items):
+                # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
                 dynamic_menu.append({
                     'temp_id': f"temp_{processing.processing_id}_{i}",
-                    'original_name': item.get('original_name', ''),
-                    'translated_name': item.get('translated_name', ''),
+                    'original_name': str(item.get('original_name', '') or ''),
+                    'translated_name': str(item.get('translated_name', '') or ''),
                     'price': item.get('price', 0),
-                    'description': item.get('description', ''),
-                    'category': item.get('category', ''),
+                    'description': str(item.get('description', '') or ''),
+                    'category': str(item.get('category', '') or '其他'),
                     'processing_id': processing.processing_id
                 })
             
