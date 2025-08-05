@@ -419,26 +419,51 @@ def create_order():
             subtotal = int(price * quantity)
             total_amount += subtotal
             
-            # 為臨時項目創建 OrderItem
-            order_items_to_create.append(OrderItem(
-                menu_item_id=None,  # 臨時項目沒有正式的 menu_item_id
-                temp_item_id=menu_item_id,  # 使用臨時ID
-                temp_item_name=item_name,
-                temp_item_price=int(price),
-                is_temp_item=True,
-                quantity_small=quantity,
-                subtotal=subtotal
-            ))
-            
-            # 建立訂單明細供確認
-            order_details.append({
-                'menu_item_id': menu_item_id,
-                'item_name': item_name,
-                'quantity': quantity,
-                'price': price,
-                'subtotal': subtotal,
-                'is_temp': True
-            })
+            # 為臨時項目創建一個臨時的 MenuItem 記錄
+            try:
+                # 檢查是否已經有對應的臨時菜單項目
+                temp_menu_item = MenuItem.query.filter_by(item_name=item_name).first()
+                
+                if not temp_menu_item:
+                    # 創建新的臨時菜單項目
+                    from app.models import Menu
+                    
+                    # 找到或創建一個臨時菜單
+                    temp_menu = Menu.query.filter_by(store_id=data['store_id']).first()
+                    if not temp_menu:
+                        temp_menu = Menu(store_id=data['store_id'], version=1)
+                        db.session.add(temp_menu)
+                        db.session.flush()
+                    
+                    temp_menu_item = MenuItem(
+                        menu_id=temp_menu.menu_id,
+                        item_name=item_name,
+                        price_small=int(price),
+                        price_big=int(price)  # 使用相同價格
+                    )
+                    db.session.add(temp_menu_item)
+                    db.session.flush()  # 獲取 menu_item_id
+                
+                # 使用臨時菜單項目的 ID
+                order_items_to_create.append(OrderItem(
+                    menu_item_id=temp_menu_item.menu_item_id,
+                    quantity_small=quantity,
+                    subtotal=subtotal
+                ))
+                
+                # 建立訂單明細供確認
+                order_details.append({
+                    'menu_item_id': temp_menu_item.menu_item_id,
+                    'item_name': item_name,
+                    'quantity': quantity,
+                    'price': price,
+                    'subtotal': subtotal,
+                    'is_temp': True
+                })
+                
+            except Exception as e:
+                validation_errors.append(f"項目 {i+1}: 創建臨時菜單項目失敗 - {str(e)}")
+                continue
         else:
             # 處理正式菜單項目
             menu_item = MenuItem.query.get(menu_item_id)
@@ -451,10 +476,6 @@ def create_order():
             
             order_items_to_create.append(OrderItem(
                 menu_item_id=menu_item.menu_item_id,
-                temp_item_id=None,
-                temp_item_name=None,
-                temp_item_price=None,
-                is_temp_item=False,
                 quantity_small=quantity,
                 subtotal=subtotal
             ))
