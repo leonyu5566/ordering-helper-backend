@@ -1,53 +1,65 @@
 // 前端訂單建立範例程式碼
 // 展示最佳的實作方式，與後端完全相容
 
+// 取得使用者 ID 的函數
+async function getCurrentUserId() {
+    // 檢查是否在 LIFF 環境中
+    if (typeof liff !== 'undefined' && liff.isLoggedIn()) {
+        try {
+            const profile = await liff.getProfile();
+            return profile.userId; // LINE 使用者 ID
+        } catch (error) {
+            console.error('無法取得 LINE 使用者資料:', error);
+        }
+    }
+    
+    // 非 LIFF 環境或取得失敗時，使用訪客 ID
+    return `guest_${crypto.randomUUID().slice(0, 8)}`;
+}
+
+// 取得當前店家 ID
+function getCurrentStoreId() {
+    // 從 URL 參數或全域變數取得
+    const urlParams = new URLSearchParams(window.location.search);
+    return parseInt(urlParams.get('store_id')) || 1; // 預設店家 ID
+}
+
+// 取得使用者語言偏好
+function getUserLanguage() {
+    // 從 URL 參數或瀏覽器語言取得
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('lang') || navigator.language.split('-')[0] || 'zh';
+}
+
+// 主要訂單提交函數
 async function submitOrder() {
     try {
-        // 1. 準備購物車資料
-        const cartItems = getCartItems(); // 你的購物車資料
+        // 1. 取得購物車資料
+        const cartItems = getCartItems(); // 你的購物車資料取得方式
         
-        // 2. 驗證購物車資料
         if (!cartItems || cartItems.length === 0) {
-            alert('購物車是空的，請先選擇商品');
+            alert('購物車是空的');
             return;
         }
         
-        // 3. 建立訂單項目（支援多種格式）
+        // 2. 取得使用者 ID
+        const lineUserId = await getCurrentUserId();
+        console.log('使用者 ID:', lineUserId);
+        
+        // 3. 準備訂單項目
         const orderItems = cartItems.map(item => {
-            // 找到對應的菜單項目
-            const menuItem = currentMenuItems.find(i => 
-                (i.id == item.menu_item_id) || 
-                (i.menu_item_id == item.menu_item_id) || 
-                (i.temp_id == item.menu_item_id)
-            );
-            
-            if (!menuItem) {
-                console.warn('找不到菜單項目:', item);
-                return null;
-            }
-            
-            // 驗證價格
-            const price = menuItem.price_small || menuItem.price || 0;
-            if (!price || isNaN(price) || price <= 0) {
-                console.warn('商品價格無效:', menuItem);
-                return null;
-            }
-            
-            // 驗證數量
+            const price = item.price_small || item.price || 0;
             const quantity = item.quantity || item.qty || 0;
-            if (!quantity || quantity <= 0) {
-                console.warn('商品數量無效:', item);
+            
+            if (!item.menu_item_id && !item.id) {
+                console.warn('項目缺少 ID:', item);
                 return null;
             }
             
             return {
-                // 支援多種欄位名稱（後端會自動處理）
-                menu_item_id: menuItem.menu_item_id || menuItem.id || menuItem.temp_id,
-                quantity: quantity,  // 後端也支援 qty
-                price_unit: price,   // 後端也支援 price 或 price_small
-                
-                // 額外資訊（可選）
-                item_name: menuItem.item_name || menuItem.original_name,
+                menu_item_id: item.menu_item_id || item.id,
+                quantity: quantity,
+                price_unit: price,
                 subtotal: price * quantity
             };
         }).filter(Boolean); // 過濾掉無效項目
@@ -62,8 +74,9 @@ async function submitOrder() {
         
         // 5. 準備請求資料
         const orderData = {
-            line_user_id: getCurrentUserId(), // 你的使用者ID取得方式
-            store_id: getCurrentStoreId(),    // 你的店家ID取得方式
+            line_user_id: lineUserId, // 現在是可選的
+            store_id: getCurrentStoreId(),
+            language: getUserLanguage(),
             items: orderItems,
             total: total  // 可選，後端會重新計算
         };
@@ -85,16 +98,22 @@ async function submitOrder() {
             console.error('後端錯誤:', errorData);
             
             // 顯示詳細的錯誤訊息
+            let errorMessage = '訂單建立失敗';
             if (errorData.validation_errors) {
-                const errorMessage = errorData.validation_errors.join('\n');
-                alert(`訂單資料驗證失敗：\n${errorMessage}`);
+                errorMessage = `資料驗證失敗：\n${errorData.validation_errors.join('\n')}`;
             } else if (errorData.missing_fields) {
-                const missingFields = errorData.missing_fields.join(', ');
-                alert(`缺少必要欄位：${missingFields}`);
+                errorMessage = `缺少必要欄位：${errorData.missing_fields.join(', ')}`;
+            } else if (errorData.detail) {
+                errorMessage = errorData.detail;
+            } else if (errorData.message) {
+                errorMessage = errorData.message;
+            } else if (errorData.error) {
+                errorMessage = errorData.error;
             } else {
-                alert(`訂單建立失敗：${errorData.error}`);
+                errorMessage = `${response.statusText} (${response.status})`;
             }
-            return;
+            
+            throw new Error(errorMessage);
         }
         
         // 8. 處理成功回應
@@ -109,7 +128,7 @@ async function submitOrder() {
         
     } catch (error) {
         console.error('訂單提交失敗:', error);
-        alert('訂單提交失敗，請稍後再試');
+        alert(`訂單送出失敗：${error.message}`);
     }
 }
 
@@ -164,60 +183,83 @@ async function submitTempOrder() {
             const errorData = await response.json();
             console.error('臨時訂單錯誤:', errorData);
             
+            let errorMessage = '臨時訂單建立失敗';
             if (errorData.validation_errors) {
-                const errorMessage = errorData.validation_errors.join('\n');
-                alert(`臨時訂單驗證失敗：\n${errorMessage}`);
-            } else {
-                alert(`臨時訂單建立失敗：${errorData.error}`);
+                errorMessage = `資料驗證失敗：\n${errorData.validation_errors.join('\n')}`;
+            } else if (errorData.missing_fields) {
+                errorMessage = `缺少必要欄位：${errorData.missing_fields.join(', ')}`;
+            } else if (errorData.error) {
+                errorMessage = errorData.error;
             }
-            return;
+            
+            throw new Error(errorMessage);
         }
         
         const result = await response.json();
         console.log('臨時訂單建立成功:', result);
         
-        alert(`臨時訂單建立成功！\n總金額: $${result.total_amount}`);
+        alert(`臨時訂單建立成功！\n處理編號: ${result.processing_id}`);
+        
+        // 清空臨時訂單
+        clearTempOrder();
         
     } catch (error) {
         console.error('臨時訂單提交失敗:', error);
-        alert('臨時訂單提交失敗，請稍後再試');
+        alert(`臨時訂單送出失敗：${error.message}`);
     }
 }
 
-// 除錯函數：檢查資料格式
-async function debugOrderData(orderData) {
-    try {
-        const response = await fetch('/api/debug/order-data', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(orderData)
-        });
-        
-        const result = await response.json();
-        console.log('資料格式分析:', result);
-        
-        if (result.analysis) {
-            console.log('驗證結果:', result.analysis.validation_results);
+// 輔助函數
+function getCartItems() {
+    // 實作你的購物車資料取得邏輯
+    return window.cart || [];
+}
+
+function clearCart() {
+    // 實作你的購物車清空邏輯
+    window.cart = [];
+    updateCartUI();
+}
+
+function getTempOrderItems() {
+    // 實作你的臨時訂單資料取得邏輯
+    return window.tempOrderItems || [];
+}
+
+function clearTempOrder() {
+    // 實作你的臨時訂單清空邏輯
+    window.tempOrderItems = [];
+    updateTempOrderUI();
+}
+
+function getCurrentProcessingId() {
+    // 實作你的處理ID取得邏輯
+    return window.processingId || Date.now();
+}
+
+function updateCartUI() {
+    // 實作你的購物車UI更新邏輯
+    console.log('更新購物車UI');
+}
+
+function updateTempOrderUI() {
+    // 實作你的臨時訂單UI更新邏輯
+    console.log('更新臨時訂單UI');
+}
+
+// LIFF 初始化（如果需要的話）
+async function initializeLiff() {
+    if (typeof liff !== 'undefined') {
+        try {
+            await liff.init({ liffId: 'YOUR_LIFF_ID' });
+            console.log('LIFF 初始化成功');
+        } catch (error) {
+            console.error('LIFF 初始化失敗:', error);
         }
-        
-        return result;
-        
-    } catch (error) {
-        console.error('除錯請求失敗:', error);
     }
 }
 
-// 使用範例
-// debugOrderData({
-//     line_user_id: "test_user",
-//     store_id: 1,
-//     items: [
-//         {
-//             id: 1,
-//             qty: 2,
-//             price: 100
-//         }
-//     ]
-// }); 
+// 頁面載入時初始化
+document.addEventListener('DOMContentLoaded', function() {
+    initializeLiff();
+}); 

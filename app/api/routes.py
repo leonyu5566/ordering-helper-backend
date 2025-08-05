@@ -323,7 +323,7 @@ def create_order():
         return jsonify({"error": "請求資料為空"}), 400
     
     # 檢查必要欄位
-    required_fields = ['line_user_id', 'store_id', 'items']
+    required_fields = ['store_id', 'items']
     missing_fields = [field for field in required_fields if field not in data]
     if missing_fields:
         return jsonify({
@@ -332,9 +332,27 @@ def create_order():
             "received_data": list(data.keys())
         }), 400
 
-    user = User.query.filter_by(line_user_id=data['line_user_id']).first()
+    # 處理 line_user_id（可選）
+    line_user_id = data.get('line_user_id')
+    if not line_user_id:
+        # 為非 LINE 入口生成臨時 ID
+        import uuid
+        line_user_id = f"guest_{uuid.uuid4().hex[:8]}"
+        guest_mode = True
+    else:
+        guest_mode = False
+
+    # 查找或創建使用者
+    user = User.query.filter_by(line_user_id=line_user_id).first()
     if not user:
-        return jsonify({"error": "找不到使用者"}), 404
+        # 為訪客創建臨時使用者
+        user = User(
+            line_user_id=line_user_id,
+            preferred_lang=data.get('language', 'zh'),
+            created_at=datetime.datetime.utcnow()
+        )
+        db.session.add(user)
+        db.session.commit()
 
     total_amount = 0
     order_items_to_create = []
@@ -418,8 +436,9 @@ def create_order():
         # 生成中文語音檔
         voice_path = generate_voice_order(new_order.order_id)
         
-        # 觸發完整的訂單確認通知（包含語音、中文紀錄、使用者語言紀錄）
-        send_complete_order_notification(new_order.order_id)
+        # 只在非訪客模式下發送 LINE 通知
+        if not guest_mode:
+            send_complete_order_notification(new_order.order_id)
         
         return jsonify({
             "message": "訂單建立成功", 
