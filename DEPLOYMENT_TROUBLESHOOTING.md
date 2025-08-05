@@ -70,10 +70,10 @@ gcloud auth login
 
 ### 3. 環境變數問題
 檢查 GitHub Secrets 是否正確設定：
-- `DB_USERNAME`
+- `DB_USER`
 - `DB_PASSWORD`
 - `DB_HOST`
-- `DB_NAME`
+- `DB_DATABASE`
 - `LINE_CHANNEL_ACCESS_TOKEN`
 - `LINE_CHANNEL_SECRET`
 - `GEMINI_API_KEY`

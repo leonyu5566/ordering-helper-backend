@@ -43,10 +43,10 @@ def create_app():
     
     # 設定資料庫
     # 從個別環境變數構建資料庫 URL
-    db_username = os.getenv('DB_USERNAME')
+    db_username = os.getenv('DB_USER')
     db_password = os.getenv('DB_PASSWORD')
     db_host = os.getenv('DB_HOST')
-    db_name = os.getenv('DB_NAME')
+    db_name = os.getenv('DB_DATABASE')
     
     if all([db_username, db_password, db_host, db_name]):
         # 使用 MySQL 連線，添加 SSL 參數
