@@ -142,14 +142,9 @@ class OrderItem(db.Model):
     __tablename__ = 'order_items'
     order_item_id = db.Column(db.BigInteger, primary_key=True)
     order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id'), nullable=False)
-    menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=True)  # 改為可空
+    menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
     quantity_small = db.Column(db.Integer, nullable=False, default=0)
     subtotal = db.Column(db.Integer, nullable=False)
-    # 新增欄位用於臨時項目
-    temp_item_id = db.Column(db.String(100), nullable=True)  # 臨時項目ID
-    temp_item_name = db.Column(db.String(100), nullable=True)  # 臨時項目名稱
-    temp_item_price = db.Column(db.Integer, nullable=True)  # 臨時項目價格
-    is_temp_item = db.Column(db.Boolean, default=False)  # 是否為臨時項目
 
 class VoiceFile(db.Model):
     __tablename__ = 'voice_files'
