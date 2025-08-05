@@ -13,7 +13,7 @@
 # =============================================================================
 
 from flask import Blueprint, jsonify, request, send_file
-from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, GeminiProcessing, VoiceFile
+from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, GeminiProcessing, VoiceFile, Language
 from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file
 import json
 import os
