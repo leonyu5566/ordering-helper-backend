@@ -113,7 +113,7 @@ def fix_database_issues():
                     # 先檢查並刪除外鍵約束
                     try:
                         # 檢查所有可能引用了 user_id 的表格
-                        tables_to_check = ['orders', 'gemini_processing', 'ocr_menus', 'user_actions']
+                        tables_to_check = ['orders', 'ocr_menus', 'ocr_menu_items', 'user_actions']
                         for table_name in tables_to_check:
                             try:
                                 result = conn.execute(db.text(f"SHOW CREATE TABLE {table_name}"))

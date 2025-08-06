@@ -13,7 +13,7 @@
 # =============================================================================
 
 from flask import Blueprint, jsonify, request, send_file, current_app
-from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, GeminiProcessing, VoiceFile, Language
+from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, OCRMenu, OCRMenuItem, VoiceFile, Language
 from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file
 import json
 import os
@@ -1104,33 +1104,48 @@ def fix_database():
         existing_tables = inspector.get_table_names()
         
         # 檢查並創建必要的表
-        required_tables = ['gemini_processing']
+        required_tables = ['ocr_menus', 'ocr_menu_items']
         
         for table_name in required_tables:
             if table_name not in existing_tables:
                 print(f"🔧 創建 {table_name} 表...")
                 
-                if table_name == 'gemini_processing':
-                    # 直接執行 SQL 創建表
+                if table_name == 'ocr_menus':
+                    # 創建 ocr_menus 表
                     create_table_sql = """
-                    CREATE TABLE gemini_processing (
-                        processing_id BIGINT NOT NULL AUTO_INCREMENT,
+                    CREATE TABLE ocr_menus (
+                        ocr_menu_id BIGINT NOT NULL AUTO_INCREMENT,
                         user_id BIGINT NOT NULL,
-                        store_id INTEGER NOT NULL,
-                        image_url VARCHAR(500) NOT NULL,
-                        ocr_result TEXT,
-                        structured_menu TEXT,
-                        status VARCHAR(20) DEFAULT 'processing',
-                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (processing_id),
-                        FOREIGN KEY (user_id) REFERENCES users (user_id),
-                        FOREIGN KEY (store_id) REFERENCES stores (store_id)
-                    )
+                        store_name VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
+                        upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (ocr_menu_id),
+                        FOREIGN KEY (user_id) REFERENCES users (user_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='非合作店家用戶OCR菜單主檔'
                     """
                     
                     db.session.execute(text(create_table_sql))
                     db.session.commit()
                     print(f"✅ {table_name} 表創建成功")
+                    
+                elif table_name == 'ocr_menu_items':
+                    # 創建 ocr_menu_items 表
+                    create_table_sql = """
+                    CREATE TABLE ocr_menu_items (
+                        ocr_menu_item_id BIGINT NOT NULL AUTO_INCREMENT,
+                        ocr_menu_id BIGINT NOT NULL,
+                        item_name VARCHAR(100) COLLATE utf8mb4_bin NOT NULL,
+                        price_big INT DEFAULT NULL,
+                        price_small INT NOT NULL,
+                        translated_desc TEXT COLLATE utf8mb4_bin,
+                        PRIMARY KEY (ocr_menu_item_id),
+                        FOREIGN KEY (ocr_menu_id) REFERENCES ocr_menus (ocr_menu_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='OCR菜單品項明細'
+                    """
+                    
+                    db.session.execute(text(create_table_sql))
+                    db.session.commit()
+                    print(f"✅ {table_name} 表創建成功")
+                    
                 else:
                     print(f"❌ 不支援創建 {table_name} 表")
                     return jsonify({
@@ -1144,11 +1159,22 @@ def fix_database():
                 columns = inspector.get_columns(table_name)
                 column_names = [col['name'] for col in columns]
                 
-                if table_name == 'gemini_processing':
-                    expected_columns = [
-                        'processing_id', 'user_id', 'store_id', 'image_url', 
-                        'ocr_result', 'structured_menu', 'status', 'created_at'
-                    ]
+                if table_name == 'ocr_menus':
+                    expected_columns = ['ocr_menu_id', 'user_id', 'store_name', 'upload_time']
+                    
+                    missing_columns = [col for col in expected_columns if col not in column_names]
+                    
+                    if missing_columns:
+                        print(f"⚠️  {table_name} 表缺少欄位: {missing_columns}")
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'{table_name} 表結構不完整，缺少欄位: {missing_columns}'
+                        }), 500
+                    else:
+                        print(f"✅ {table_name} 表結構正確")
+                        
+                elif table_name == 'ocr_menu_items':
+                    expected_columns = ['ocr_menu_item_id', 'ocr_menu_id', 'item_name', 'price_big', 'price_small', 'translated_desc']
                     
                     missing_columns = [col for col in expected_columns if col not in column_names]
                     

@@ -83,40 +83,27 @@ def create_ocr_tables():
             print(f"詳細錯誤: {traceback.format_exc()}")
             return False
 
-def migrate_gemini_data():
-    """遷移 GeminiProcessing 資料到 ocr_menus"""
+def check_ocr_tables():
+    """檢查 OCR 相關表"""
     app = create_app()
     
     with app.app_context():
         try:
-            print("🔍 檢查是否需要遷移資料...")
+            print("🔍 檢查 OCR 相關表...")
             
-            # 檢查是否有 gemini_processing 表
+            # 檢查是否有 ocr_menus 和 ocr_menu_items 表
             inspector = db.inspect(db.engine)
             existing_tables = inspector.get_table_names()
             
-            if 'gemini_processing' in existing_tables:
-                print("⚠️  發現 gemini_processing 表，建議遷移資料...")
-                
-                # 檢查是否有資料
-                result = db.session.execute(text("SELECT COUNT(*) as count FROM gemini_processing")).fetchone()
-                if result and result[0] > 0:
-                    print(f"發現 {result[0]} 筆 gemini_processing 資料")
-                    print("建議手動遷移資料或刪除舊表")
-                else:
-                    print("gemini_processing 表為空，可以安全刪除")
-                    
-                    # 刪除舊表
-                    db.session.execute(text("DROP TABLE IF EXISTS gemini_processing"))
-                    db.session.commit()
-                    print("✅ gemini_processing 表已刪除")
+            if 'ocr_menus' in existing_tables and 'ocr_menu_items' in existing_tables:
+                print("✅ OCR 相關表已存在")
+                return True
             else:
-                print("✅ 沒有發現 gemini_processing 表")
-            
-            return True
+                print("⚠️  OCR 相關表不存在，建議創建")
+                return False
             
         except Exception as e:
-            print(f"❌ 遷移資料時發生錯誤: {e}")
+            print(f"❌ 檢查 OCR 表時發生錯誤: {e}")
             return False
 
 def insert_sample_data():
@@ -206,9 +193,9 @@ if __name__ == "__main__":
         print("❌ 創建 ocr 表失敗")
         sys.exit(1)
     
-    # 遷移資料
-    if not migrate_gemini_data():
-        print("❌ 遷移資料失敗")
+    # 檢查 OCR 表
+    if not check_ocr_tables():
+        print("❌ 檢查 OCR 表失敗")
         sys.exit(1)
     
     # 插入範例資料

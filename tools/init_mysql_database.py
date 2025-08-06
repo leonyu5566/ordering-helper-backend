@@ -40,7 +40,7 @@ def init_mysql_database():
             required_tables = [
                 'languages', 'stores', 'users', 'orders', 'order_items',
                 'menus', 'menu_items', 'menu_translations', 'store_translations',
-                'gemini_processing', 'voice_files', 'simple_orders', 'simple_menu_processings'
+                'ocr_menus', 'ocr_menu_items', 'voice_files', 'simple_orders', 'simple_menu_processings'
             ]
             
             missing_tables = [table for table in required_tables if table not in existing_tables]

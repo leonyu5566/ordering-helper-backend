@@ -98,16 +98,21 @@ curl https://your-service-url/api/health
 ### **您的模型（保持不變）**
 
 ```python
-class GeminiProcessing(db.Model):
-    __tablename__ = 'gemini_processing'
-    processing_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+class OCRMenu(db.Model):
+    __tablename__ = 'ocr_menus'
+    ocr_menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
-    store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    image_url = db.Column(db.String(500), nullable=False)
-    ocr_result = db.Column(db.Text)
-    structured_menu = db.Column(db.Text)
-    status = db.Column(db.String(20), default='processing')
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    store_name = db.Column(db.String(100))
+    upload_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
+class OCRMenuItem(db.Model):
+    __tablename__ = 'ocr_menu_items'
+    ocr_menu_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    ocr_menu_id = db.Column(db.BigInteger, db.ForeignKey('ocr_menus.ocr_menu_id'), nullable=False)
+    item_name = db.Column(db.String(100), nullable=False)
+    price_big = db.Column(db.Integer)
+    price_small = db.Column(db.Integer, nullable=False)
+    translated_desc = db.Column(db.Text)
 ```
 
 ### **同事的資料庫結構**
@@ -143,7 +148,7 @@ CREATE TABLE ocr_menu_items (
 ### **工作原理：**
 
 1. **本地開發**：使用 SQLite，所有表自動創建
-2. **Cloud Run 部署**：使用 MySQL，自動創建 `gemini_processing` 表
+2. **Cloud Run 部署**：使用 MySQL，自動創建 `ocr_menus` 和 `ocr_menu_items` 表
 3. **資料庫初始化**：`tools/init_mysql_database.py` 確保所有表存在
 
 ## 🛠️ **故障排除**

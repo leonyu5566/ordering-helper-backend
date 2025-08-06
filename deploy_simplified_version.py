@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 部署簡化版本的 Cloud Run 服務
-功能：部署不依賴 gemini_processing 表的版本
+功能：部署使用 ocr_menus 和 ocr_menu_items 表的版本
 """
 
 import os
@@ -147,7 +147,7 @@ def test_ocr_endpoint():
         print(f"📊 OCR 端點回應狀態碼: {response.status_code}")
         
         if response.status_code in [201, 422]:  # 201 成功，422 是預期的 JSON 解析錯誤
-            print("✅ OCR 端點測試通過（不再依賴 gemini_processing 表）")
+            print("✅ OCR 端點測試通過（使用 ocr_menus 和 ocr_menu_items 表）")
             return True
         else:
             print(f"❌ OCR 端點測試失敗")
@@ -187,7 +187,7 @@ def main():
         return False
     
     print("🎉 部署和測試完成！")
-    print("✅ 簡化版本已成功部署，不再依賴 gemini_processing 表")
+    print("✅ 簡化版本已成功部署，使用 ocr_menus 和 ocr_menu_items 表")
     
     return True
 

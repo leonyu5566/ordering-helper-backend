@@ -155,16 +155,7 @@ class VoiceFile(db.Model):
     speech_rate = db.Column(db.Float, default=1.0)  # 語速倍率
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
-class GeminiProcessing(db.Model):
-    __tablename__ = 'gemini_processing'
-    processing_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
-    store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    image_url = db.Column(db.String(500), nullable=False)  # 上傳的菜單圖片 URL
-    ocr_result = db.Column(db.Text)  # OCR 辨識結果
-    structured_menu = db.Column(db.Text)  # 結構化後的菜單 (JSON)
-    status = db.Column(db.String(20), default='processing')  # processing, completed, failed
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+
 
 # =============================================================================
 # OCR 處理模型（符合同事的資料庫結構）

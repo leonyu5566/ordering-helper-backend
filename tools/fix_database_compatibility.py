@@ -28,7 +28,7 @@ def check_and_fix_database_compatibility():
             required_tables = [
                 'users', 'languages', 'stores', 'menus', 'menu_items', 
                 'menu_translations', 'orders', 'order_items', 'voice_files',
-                'gemini_processing', 'simple_orders', 'simple_menu_processings',
+                'ocr_menus', 'ocr_menu_items', 'simple_orders', 'simple_menu_processings',
                 'store_translations'
             ]
             
