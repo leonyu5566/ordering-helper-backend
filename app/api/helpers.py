@@ -1243,45 +1243,67 @@ def generate_order_summary_with_gemini(items, user_language='zh'):
         # 構建訂單項目文字（改善格式）
         items_text = ""
         total_amount = 0
+        item_details = []
+        
         for item in items:
             name = item['name']
             quantity = item['quantity']
             subtotal = item['subtotal']
             total_amount += subtotal
+            
+            # 記錄詳細資訊用於 Gemini API
+            item_details.append({
+                'name': name,
+                'quantity': quantity,
+                'price': item.get('price', 0),
+                'subtotal': subtotal
+            })
+            
             items_text += f"{name} x{quantity}、"
         
         # 移除最後一個頓號
         if items_text.endswith('、'):
             items_text = items_text[:-1]
         
-        # 構建 Gemini 提示詞（改善提示詞工程）
+        # 構建更詳細的 Gemini 提示詞
+        import json
         prompt = f"""
-你是一個專業的點餐助手。請根據以下點餐項目生成自然的中文語音和訂單摘要。
+你是一個專業的點餐助手。請根據以下實際的點餐項目生成自然的中文語音和訂單摘要。
 
-點餐項目：{items_text}
-總金額：{total_amount}元
+## 點餐項目詳情：
+{json.dumps(item_details, ensure_ascii=False, indent=2)}
+
+## 總金額：{total_amount}元
 
 請生成：
 
 1. **中文語音內容**（給店家聽的，要自然流暢）：
-   - 格式：老闆，我要[品項1]一份、[品項2]一杯，謝謝。
-   - 要求：語言要自然，像是客人親自點餐
+   - 格式：老闆，我要[實際品項名稱]一份、[實際品項名稱]一杯，謝謝。
+   - 要求：使用實際的品項名稱，語言要自然，像是客人親自點餐
+   - 避免使用"品項1、品項2"這樣的佔位符
    - 範例：老闆，我要經典夏威夷奶醬義大利麵一份，謝謝。
 
 2. **中文訂單摘要**（給使用者看的）：
-   - 格式：[品項1] x [數量]、[品項2] x [數量]
-   - 要求：清晰列出所有品項和數量
+   - 格式：[實際品項名稱] x [數量]、[實際品項名稱] x [數量]
+   - 要求：清晰列出所有實際品項和數量
+   - 避免使用"品項1、品項2"這樣的佔位符
    - 範例：經典夏威夷奶醬義大利麵 x 1
 
 3. **使用者語言摘要**（{user_language}）：
-   - 格式：Order: [item1] x [qty], [item2] x [qty]
-   - 要求：使用使用者選擇的語言
+   - 格式：Order: [實際品項名稱] x [qty], [實際品項名稱] x [qty]
+   - 要求：使用使用者選擇的語言，翻譯實際品項名稱
+   - 避免使用"Item 1、Item 2"這樣的佔位符
+
+## 重要注意事項：
+- 必須使用實際的品項名稱，不要使用"品項1、品項2"等佔位符
+- 語音內容要自然流暢，適合現場點餐
+- 摘要要清晰易讀，便於使用者確認
 
 請以 JSON 格式回傳：
 {{
-    "chinese_voice": "老闆，我要經典夏威夷奶醬義大利麵一份，謝謝。",
-    "chinese_summary": "經典夏威夷奶醬義大利麵 x 1",
-    "user_summary": "Order: Classic Hawaiian Cream Pasta x 1"
+    "chinese_voice": "老闆，我要[實際品項名稱]一份，謝謝。",
+    "chinese_summary": "[實際品項名稱] x [數量]",
+    "user_summary": "Order: [實際品項名稱] x [qty]"
 }}
         """
         
@@ -1304,12 +1326,23 @@ def generate_order_summary_with_gemini(items, user_language='zh'):
             import json
             result = json.loads(response.text)
             
-            # 確保回傳格式正確
+            # 確保回傳格式正確，並檢查是否包含實際品項名稱
             if 'chinese_voice' not in result:
                 result['chinese_voice'] = f"老闆，我要{items_text}，謝謝。"
+            elif '品項1' in result['chinese_voice'] or '項目1' in result['chinese_voice']:
+                # 如果 Gemini 回傳了佔位符，使用實際品項名稱
+                result['chinese_voice'] = f"老闆，我要{items_text}，謝謝。"
+            
             if 'chinese_summary' not in result:
                 result['chinese_summary'] = items_text.replace('、', '、').replace('x', ' x ')
+            elif '品項1' in result['chinese_summary'] or '項目1' in result['chinese_summary']:
+                # 如果 Gemini 回傳了佔位符，使用實際品項名稱
+                result['chinese_summary'] = items_text.replace('、', '、').replace('x', ' x ')
+            
             if 'user_summary' not in result:
+                result['user_summary'] = f"Order: {items_text}"
+            elif 'Item 1' in result['user_summary'] or '項目1' in result['user_summary']:
+                # 如果 Gemini 回傳了佔位符，使用實際品項名稱
                 result['user_summary'] = f"Order: {items_text}"
             
             return result

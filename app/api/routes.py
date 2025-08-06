@@ -1612,9 +1612,18 @@ def simple_order():
         validated_items = []
         
         for i, item in enumerate(items):
-            name = item.get('name') or item.get('translated_name') or f"項目 {i+1}"
+            # 優先使用實際的菜名，如果沒有則使用預設值
+            name = (item.get('name') or 
+                   item.get('translated_name') or 
+                   item.get('original_name') or 
+                   item.get('item_name') or 
+                   f"項目 {i+1}")
             quantity = int(item.get('quantity', 1))
             price = float(item.get('price', 0))
+            
+            # 調試信息：檢查項目名稱
+            print(f"項目 {i+1} 原始資料: {item}")
+            print(f"項目 {i+1} 最終名稱: {name}")
             
             if quantity <= 0:
                 return jsonify({
