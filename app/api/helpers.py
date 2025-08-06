@@ -301,6 +301,63 @@ def process_menu_with_gemini(image_path, target_language='en'):
             'processing_notes': '請檢查圖片格式和大小'
         }
 
+def normalize_order_text_for_tts(text):
+    """
+    文本預處理：將訂單文本中的 x1 格式轉換為自然的中文量詞表達
+    基於 Azure TTS 的最佳實踐，使用文本預處理而非 SSML 提示詞
+    """
+    import re
+    
+    def repl(match):
+        item_name = match.group(1).strip()
+        quantity = int(match.group(2))
+        
+        # 飲料類關鍵字（使用「杯」）
+        drink_keywords = ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒', '檸檬', '柳橙', '蘋果']
+        
+        # 餐點類關鍵字（使用「份」）
+        food_keywords = ['麵', '飯', '鍋', '義大利', '牛排', '雞排', '豬排', '魚排', '蝦', '肉', '菜', '湯', '沙拉']
+        
+        # 判斷是飲料還是餐點
+        if any(keyword in item_name for keyword in drink_keywords):
+            if quantity == 1:
+                return f"{item_name}一杯"
+            else:
+                return f"{item_name}{quantity}杯"
+        else:
+            if quantity == 1:
+                return f"{item_name}一份"
+            else:
+                return f"{item_name}{quantity}份"
+    
+    # 匹配模式：菜名 + x + 數量
+    # 支援 x1, X1, *1, ×1 等多種格式
+    pattern = r'(\S+?)\s*[xX*×]\s*(\d+)'
+    normalized_text = re.sub(pattern, repl, text)
+    
+    return normalized_text
+
+def test_text_normalization():
+    """
+    測試文本預處理功能
+    """
+    test_cases = [
+        "經典奶油夏威夷義大利麵 x1、綠茶 x1",
+        "牛肉麵 X1、可樂 *1",
+        "雞排飯 ×2、奶茶 x1",
+        "義大利麵 x1、柳橙汁 x2",
+        "牛排 x1、啤酒 x3"
+    ]
+    
+    print("=== 文本預處理測試 ===")
+    for test_case in test_cases:
+        normalized = normalize_order_text_for_tts(test_case)
+        print(f"原始: {test_case}")
+        print(f"預處理後: {normalized}")
+        print("---")
+    
+    return True
+
 def generate_voice_order(order_id, speech_rate=1.0):
     """
     使用 Azure TTS 生成訂單語音
@@ -345,6 +402,10 @@ def generate_voice_order(order_id, speech_rate=1.0):
         else:
             voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
             order_text = f"老闆，我要{voice_items}，謝謝。"
+        
+        # 應用文本預處理（確保沒有遺漏的 x1 格式）
+        order_text = normalize_order_text_for_tts(order_text)
+        print(f"[TTS] 預處理後的訂單文本: {order_text}")
         
         # 取得語音配置
         speech_config = get_speech_config()
@@ -415,6 +476,10 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
                     order_text += f" {original_name}{quantity}份，"
         
         order_text += f"總共{int(temp_order['total_amount'])}元，謝謝。"
+        
+        # 應用文本預處理（確保沒有遺漏的 x1 格式）
+        order_text = normalize_order_text_for_tts(order_text)
+        print(f"[TTS] 預處理後的臨時訂單文本: {order_text}")
         
         # 取得語音配置
         speech_config = get_speech_config()
@@ -1086,8 +1151,11 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
             order_text = f"老闆，我要{voice_items}，謝謝。"
         
+        # 應用文本預處理（確保沒有遺漏的 x1 格式）
+        order_text = normalize_order_text_for_tts(order_text)
+        print(f"[TTS] 備用方案預處理後的訂單文本: {order_text}")
+        
         # 返回文字而非音檔
-        print(f"使用備用語音生成，文字內容: {order_text}")
         return {
             'success': True,
             'text': order_text,
