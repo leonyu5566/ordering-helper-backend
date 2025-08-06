@@ -1095,25 +1095,31 @@ def fix_database():
         inspector = inspect(db.engine)
         existing_tables = inspector.get_table_names()
         
-        # 如果有問題的表，先刪除
-        problematic_tables = ['store_translations', 'gemini_processing']
-        for table in problematic_tables:
-            if table in existing_tables:
-                print(f"🗑️  刪除有問題的表: {table}")
-                db.session.execute(text(f"DROP TABLE IF EXISTS {table}"))
-        
-        db.session.commit()
-        print("✅ 已清理有問題的表")
-        
-        # 創建所有表
-        db.create_all()
-        print("✅ 已重新創建所有表")
-        
-        # 檢查 gemini_processing 表是否存在
-        inspector = inspect(db.engine)
-        existing_tables = inspector.get_table_names()
-        
-        if 'gemini_processing' in existing_tables:
+        # 只創建 gemini_processing 表
+        if 'gemini_processing' not in existing_tables:
+            print("🔧 創建 gemini_processing 表...")
+            
+            # 直接執行 SQL 創建表
+            create_table_sql = """
+            CREATE TABLE gemini_processing (
+                processing_id BIGINT NOT NULL AUTO_INCREMENT,
+                user_id BIGINT NOT NULL,
+                store_id INTEGER NOT NULL,
+                image_url VARCHAR(500) NOT NULL,
+                ocr_result TEXT,
+                structured_menu TEXT,
+                status VARCHAR(20) DEFAULT 'processing',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (processing_id),
+                FOREIGN KEY (user_id) REFERENCES users (user_id),
+                FOREIGN KEY (store_id) REFERENCES stores (store_id)
+            )
+            """
+            
+            db.session.execute(text(create_table_sql))
+            db.session.commit()
+            print("✅ gemini_processing 表創建成功")
+        else:
             print("✅ gemini_processing 表已存在")
             
             # 檢查表結構
@@ -1135,12 +1141,6 @@ def fix_database():
                 }), 500
             else:
                 print("✅ 表結構正確")
-        else:
-            print("❌ gemini_processing 表不存在")
-            return jsonify({
-                'status': 'error',
-                'message': 'gemini_processing 表創建失敗'
-            }), 500
         
         print("🎉 數據庫修復完成")
         response = jsonify({
