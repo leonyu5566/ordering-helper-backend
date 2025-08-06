@@ -1556,7 +1556,7 @@ def migrate_database():
 
 @api_bp.route('/menu/simple-ocr', methods=['POST', 'OPTIONS'])
 def simple_menu_ocr():
-    """簡化的菜單 OCR 處理（非合作店家）"""
+    """簡化的菜單 OCR 處理（非合作店家）- 不儲存資料庫"""
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
@@ -1599,7 +1599,7 @@ def simple_menu_ocr():
         if result and result.get('success', False):
             menu_items = result.get('menu_items', [])
             
-            # 簡化菜單項目格式
+            # 簡化菜單項目格式（不儲存資料庫）
             simplified_items = []
             for i, item in enumerate(menu_items):
                 simplified_items.append({
@@ -1615,7 +1615,8 @@ def simple_menu_ocr():
                 "success": True,
                 "menu_items": simplified_items,
                 "store_name": result.get('store_info', {}).get('store_name', '臨時店家'),
-                "target_language": target_lang
+                "target_language": target_lang,
+                "processing_notes": result.get('processing_notes', '')
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 200
@@ -1623,7 +1624,8 @@ def simple_menu_ocr():
             error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
             response = jsonify({
                 "success": False,
-                "error": error_message
+                "error": error_message,
+                "processing_notes": result.get('processing_notes', '')
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 422
@@ -1639,7 +1641,7 @@ def simple_menu_ocr():
 
 @api_bp.route('/orders/simple', methods=['POST', 'OPTIONS'])
 def simple_order():
-    """簡化的訂單處理（非合作店家）"""
+    """簡化訂單處理（非合作店家）- 不儲存資料庫，直接生成語音"""
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
@@ -1661,7 +1663,7 @@ def simple_order():
             }), 400
         
         items = data['items']
-        user_lang = data.get('user_language', 'zh')
+        user_language = data.get('user_language', 'zh')
         
         if not items:
             return jsonify({
@@ -1700,58 +1702,65 @@ def simple_order():
                 'subtotal': subtotal
             })
         
-        # 生成訂單ID
+        # 生成訂單ID（用於檔案命名）
         import datetime
         order_id = f"simple_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         
-        # 生成語音檔
+        # 使用 Gemini API 生成訂單摘要
+        from .helpers import generate_order_summary_with_gemini
+        order_summary = generate_order_summary_with_gemini(validated_items, user_language)
+        
+        # 生成中文語音檔（Azure Speech）
         voice_url = None
         try:
-            from .helpers import generate_voice_order
-            voice_text = f"您的訂單已確認，總金額為 {total_amount} 元"
-            voice_url = generate_voice_order(order_id, voice_text, user_lang)
+            from .helpers import generate_chinese_voice_with_azure
+            voice_url = generate_chinese_voice_with_azure(order_summary, order_id)
         except Exception as e:
             print(f"語音生成失敗: {e}")
         
-        # 生成訂單摘要
-        summary_items = []
+        # 生成使用者語言版本的訂單摘要
+        user_summary_items = []
         for item in validated_items:
-            summary_items.append(f"{item['name']} x{item['quantity']} = {item['subtotal']}元")
+            user_summary_items.append(f"{item['name']} x{item['quantity']} = {item['subtotal']}元")
         
-        summary = f"""
-訂單編號: {order_id}
-訂單時間: {datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')}
-訂單項目:
-{chr(10).join(summary_items)}
-總金額: {total_amount} 元
+        user_summary = f"""
+Order Summary:
+{chr(10).join(user_summary_items)}
+Total Amount: {total_amount} 元
         """.strip()
         
-        # 儲存到資料庫
-        from ..models import SimpleOrder
-        simple_order = SimpleOrder(
-            order_id=order_id,
-            user_language=user_lang,
-            items=validated_items,
-            total_amount=total_amount,
-            voice_url=voice_url,
-            summary=summary,
-            status='completed'
-        )
+        # 準備訂單資料
+        order_data = {
+            "order_id": order_id,
+            "total_amount": total_amount,
+            "voice_url": voice_url,
+            "chinese_summary": order_summary.get('chinese_summary', '點餐摘要'),
+            "user_summary": user_summary,
+            "order_details": validated_items
+        }
         
-        try:
-            db.session.add(simple_order)
-            db.session.commit()
-        except Exception as e:
-            print(f"儲存簡化訂單失敗: {e}")
-            db.session.rollback()
+        # 發送給 LINE Bot（如果提供了使用者ID）
+        line_user_id = data.get('line_user_id')
+        if line_user_id:
+            try:
+                from .helpers import send_order_to_line_bot
+                send_success = send_order_to_line_bot(line_user_id, order_data)
+                if send_success:
+                    print(f"✅ 成功發送訂單到 LINE Bot，使用者: {line_user_id}")
+                else:
+                    print(f"⚠️ LINE Bot 發送失敗，使用者: {line_user_id}")
+            except Exception as e:
+                print(f"❌ LINE Bot 發送異常: {e}")
         
         response = jsonify({
             "success": True,
             "order_id": order_id,
             "total_amount": total_amount,
             "voice_url": voice_url,
-            "summary": summary,
-            "order_details": validated_items
+            "chinese_summary": order_summary.get('chinese_summary', '點餐摘要'),
+            "user_summary": user_summary,
+            "order_details": validated_items,
+            "line_bot_sent": line_user_id is not None
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 201
@@ -1765,7 +1774,148 @@ def simple_order():
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 500
 
+@api_bp.route('/voice/control', methods=['POST', 'OPTIONS'])
+def voice_control():
+    """語音控制 API - 處理 LINE Bot 的語音控制按鈕"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({
+                "success": False,
+                "error": "請求資料為空"
+            }), 400
+        
+        # 檢查必要欄位
+        required_fields = ['user_id', 'action', 'order_id']
+        missing_fields = [field for field in required_fields if field not in data]
+        if missing_fields:
+            return jsonify({
+                "success": False,
+                "error": "缺少必要欄位",
+                "missing_fields": missing_fields
+            }), 400
+        
+        user_id = data['user_id']
+        action = data['action']
+        order_id = data['order_id']
+        
+        # 根據動作處理語音控制
+        from .helpers import send_voice_with_rate
+        
+        if action == 'replay':
+            # 重新播放（正常語速）
+            success = send_voice_with_rate(user_id, order_id, 1.0)
+        elif action == 'slow':
+            # 慢速播放
+            success = send_voice_with_rate(user_id, order_id, 0.7)
+        elif action == 'fast':
+            # 快速播放
+            success = send_voice_with_rate(user_id, order_id, 1.3)
+        else:
+            return jsonify({
+                "success": False,
+                "error": "不支援的語音控制動作"
+            }), 400
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"語音控制成功: {action}",
+                "user_id": user_id,
+                "order_id": order_id
+            }), 200
+        else:
+            return jsonify({
+                "success": False,
+                "error": "語音控制失敗"
+            }), 500
+            
+    except Exception as e:
+        print(f"語音控制處理失敗：{e}")
+        return jsonify({
+            "success": False,
+            "error": "語音控制處理失敗"
+        }), 500
 
+@api_bp.route('/line/webhook', methods=['POST', 'OPTIONS'])
+def line_webhook():
+    """LINE Bot Webhook 處理"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        data = request.get_json()
+        
+        if not data or 'events' not in data:
+            return jsonify({"success": False, "error": "無效的 webhook 資料"}), 400
+        
+        # 處理每個事件
+        for event in data['events']:
+            event_type = event.get('type')
+            user_id = event.get('source', {}).get('userId')
+            
+            if not user_id:
+                continue
+            
+            if event_type == 'postback':
+                # 處理 postback 事件（語音控制按鈕）
+                postback_data = event.get('postback', {}).get('data', '')
+                
+                if postback_data.startswith('replay_voice:'):
+                    order_id = postback_data.split(':')[1]
+                    from .helpers import send_voice_with_rate
+                    send_voice_with_rate(user_id, order_id, 1.0)
+                    
+                elif postback_data.startswith('slow_voice:'):
+                    order_id = postback_data.split(':')[1]
+                    from .helpers import send_voice_with_rate
+                    send_voice_with_rate(user_id, order_id, 0.7)
+                    
+                elif postback_data.startswith('fast_voice:'):
+                    order_id = postback_data.split(':')[1]
+                    from .helpers import send_voice_with_rate
+                    send_voice_with_rate(user_id, order_id, 1.3)
+            
+            elif event_type == 'message':
+                # 處理文字訊息
+                message_text = event.get('message', {}).get('text', '')
+                
+                if message_text.lower() in ['help', '幫助', '說明']:
+                    # 發送幫助訊息
+                    help_message = """
+點餐小幫手使用說明：
+
+1. 拍照辨識菜單
+2. 選擇想要的品項
+3. 確認訂單
+4. 系統會自動生成中文語音檔
+5. 在店家播放語音即可點餐
+
+支援語音控制：
+- 重新播放：正常語速
+- 慢速播放：適合店家聽
+- 快速播放：節省時間
+                    """.strip()
+                    
+                    from .helpers import send_order_to_line_bot
+                    send_order_to_line_bot(user_id, {
+                        "chinese_summary": help_message,
+                        "user_summary": help_message,
+                        "voice_url": None,
+                        "total_amount": 0
+                    })
+        
+        return jsonify({"success": True}), 200
+        
+    except Exception as e:
+        print(f"LINE Webhook 處理失敗：{e}")
+        return jsonify({"success": False, "error": "Webhook 處理失敗"}), 500
 
 # =============================================================================
 # 根路徑處理
@@ -1786,3 +1936,57 @@ def handle_root_path():
             'test': '/api/test'
         }
     })
+
+@api_bp.route('/test/line-bot', methods=['GET', 'OPTIONS'])
+def test_line_bot():
+    """測試 LINE Bot 環境變數設定"""
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        import os
+        
+        # 檢查環境變數
+        line_channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        line_channel_secret = os.getenv('LINE_CHANNEL_SECRET')
+        
+        # 檢查其他必要環境變數
+        gemini_api_key = os.getenv('GEMINI_API_KEY')
+        azure_speech_key = os.getenv('AZURE_SPEECH_KEY')
+        azure_speech_region = os.getenv('AZURE_SPEECH_REGION')
+        
+        # 構建測試結果
+        test_results = {
+            "line_bot": {
+                "channel_access_token": "✅ 已設定" if line_channel_access_token else "❌ 未設定",
+                "channel_secret": "✅ 已設定" if line_channel_secret else "❌ 未設定"
+            },
+            "ai_services": {
+                "gemini_api_key": "✅ 已設定" if gemini_api_key else "❌ 未設定",
+                "azure_speech_key": "✅ 已設定" if azure_speech_key else "❌ 未設定",
+                "azure_speech_region": "✅ 已設定" if azure_speech_region else "❌ 未設定"
+            },
+            "all_configured": all([
+                line_channel_access_token,
+                line_channel_secret,
+                gemini_api_key,
+                azure_speech_key,
+                azure_speech_region
+            ])
+        }
+        
+        response = jsonify({
+            "message": "LINE Bot 環境變數檢查",
+            "test_results": test_results,
+            "ready_for_production": test_results["all_configured"]
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+        
+    except Exception as e:
+        response = jsonify({
+            "error": "環境變數檢查失敗",
+            "details": str(e)
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500

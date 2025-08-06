@@ -251,6 +251,31 @@ python tools/rebuild_database.py
 python run.py
 ```
 
+## 🔧 環境變數設定
+
+### 必要環境變數
+```bash
+# Gemini API
+GEMINI_API_KEY=your_gemini_api_key
+
+# Azure Speech Service
+AZURE_SPEECH_KEY=your_azure_speech_key
+AZURE_SPEECH_REGION=your_azure_region
+
+# LINE Bot
+LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token
+LINE_CHANNEL_SECRET=your_line_channel_secret
+
+# 資料庫
+DATABASE_URL=your_database_url
+```
+
+### LINE Bot 設定說明
+1. 在 LINE Developers Console 建立 Bot
+2. 取得 Channel Access Token 和 Channel Secret
+3. 設定 Webhook URL：`https://your-domain.com/api/line/webhook`
+4. 啟用 Webhook 功能
+
 ## 開發原則
 
 ### 1. 職責分離

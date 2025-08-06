@@ -194,36 +194,8 @@ class OCRMenuItem(db.Model):
 # =============================================================================
 # 簡化系統模型（非合作店家）
 # 功能：支援拍照辨識的簡化訂單系統
+# 注意：此系統不再儲存資料庫，改為即時處理
 # =============================================================================
 
-class SimpleOrder(db.Model):
-    """簡化訂單模型（非合作店家）"""
-    __tablename__ = 'simple_orders'
-    
-    order_id = db.Column(db.String(50), primary_key=True)
-    user_language = db.Column(db.String(10), default='zh')
-    items = db.Column(db.JSON)  # 直接儲存訂單項目 JSON
-    total_amount = db.Column(db.Float, nullable=False)
-    voice_url = db.Column(db.String(200))  # 語音檔路徑
-    summary = db.Column(db.Text)  # 訂單摘要
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    status = db.Column(db.String(20), default='pending')
-    
-    def __repr__(self):
-        return f'<SimpleOrder {self.order_id}>'
-
-class SimpleMenuProcessing(db.Model):
-    """簡化菜單處理記錄"""
-    __tablename__ = 'simple_menu_processings'
-    
-    processing_id = db.Column(db.Integer, primary_key=True)
-    image_url = db.Column(db.String(200), nullable=False)
-    target_language = db.Column(db.String(10), default='en')
-    ocr_result = db.Column(db.JSON)  # OCR 辨識結果
-    menu_items = db.Column(db.JSON)  # 處理後的菜單項目
-    processing_time = db.Column(db.Float)  # 處理時間（秒）
-    status = db.Column(db.String(20), default='processing')
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    
-    def __repr__(self):
-        return f'<SimpleMenuProcessing {self.processing_id}>'
+# 移除 SimpleOrder 和 SimpleMenuProcessing 模型
+# 因為非合作店家改為即時處理，不需要資料庫儲存

@@ -1196,3 +1196,332 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
     except Exception as e:
         print(f"備用語音生成失敗：{e}")
         return None
+
+# =============================================================================
+# 新增：非合作店家專用函數
+# 功能：使用 Gemini API 生成訂單摘要和語音檔
+# =============================================================================
+
+def generate_order_summary_with_gemini(items, user_language='zh'):
+    """
+    使用 Gemini API 生成訂單摘要
+    輸入：訂單項目列表和使用者語言
+    輸出：中文摘要和使用者語言摘要
+    """
+    try:
+        # 構建訂單項目文字
+        items_text = ""
+        for i, item in enumerate(items, 1):
+            items_text += f"{i}. {item['name']} x{item['quantity']} = {item['subtotal']}元\n"
+        
+        # 構建 Gemini 提示詞
+        prompt = f"""
+        請將以下點餐項目轉換為中文訂單摘要，格式如下：
+        
+        點餐項目：
+        {items_text}
+        
+        請生成：
+        1. 中文訂單摘要（給店家聽的，要自然流暢）
+        2. 使用者語言版本（{user_language}，給使用者看的）
+        
+        要求：
+        - 中文摘要要適合店家聽，包含所有品項和數量
+        - 語言要自然，像是客人親自點餐
+        - 格式要清晰易讀
+        
+        請以 JSON 格式回傳：
+        {{
+            "chinese_summary": "中文摘要",
+            "user_summary": "使用者語言摘要"
+        }}
+        """
+        
+        # 呼叫 Gemini API
+        gemini_client = get_gemini_client()
+        if not gemini_client:
+            # 如果 Gemini API 不可用，使用預設格式
+            return {
+                "chinese_summary": f"我要點餐：{items_text}",
+                "user_summary": f"Order: {items_text}"
+            }
+        
+        response = gemini_client.generate_content(prompt)
+        
+        # 嘗試解析 JSON 回應
+        try:
+            import json
+            result = json.loads(response.text)
+            return result
+        except json.JSONDecodeError:
+            # 如果 JSON 解析失敗，使用預設格式
+            return {
+                "chinese_summary": f"我要點餐：{items_text}",
+                "user_summary": f"Order: {items_text}"
+            }
+        
+    except Exception as e:
+        print(f"Gemini API 訂單摘要生成失敗: {e}")
+        # 回傳預設格式
+        items_text = ""
+        for item in items:
+            items_text += f"{item['name']} x{item['quantity']} = {item['subtotal']}元\n"
+        
+        return {
+            "chinese_summary": f"我要點餐：{items_text}",
+            "user_summary": f"Order: {items_text}"
+        }
+
+def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
+    """
+    使用 Azure Speech 生成中文語音檔
+    輸入：訂單摘要、訂單ID、語速
+    輸出：語音檔URL
+    """
+    try:
+        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
+        import os
+        import tempfile
+        
+        # 取得 Azure Speech 配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech 配置不可用")
+            return None
+        
+        # 設定語音參數
+        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+        speech_config.speech_synthesis_speaking_rate = speech_rate  # 支援語速調整
+        
+        # 準備語音文字
+        chinese_text = order_summary.get('chinese_summary', '點餐摘要')
+        
+        # 確保輸出目錄存在
+        output_dir = "static/voice"
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # 生成語音檔路徑（包含語速資訊）
+        voice_filename = f"order_{order_id}_rate_{speech_rate}.wav"
+        voice_path = os.path.join(output_dir, voice_filename)
+        
+        # 設定音訊輸出
+        audio_config = AudioConfig(filename=voice_path)
+        
+        # 建立語音合成器
+        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        
+        # 生成語音
+        result = synthesizer.speak_text_async(chinese_text).get()
+        
+        if result.reason.name == "SynthesizingAudioCompleted":
+            print(f"語音檔生成成功: {voice_path}, 語速: {speech_rate}")
+            return f"/static/voice/{voice_filename}"
+        else:
+            print(f"語音生成失敗: {result.reason}")
+            return None
+            
+    except Exception as e:
+        print(f"Azure Speech 語音生成失敗: {e}")
+        return None
+
+# =============================================================================
+# LINE Bot 整合函數
+# 功能：發送訂單摘要和語音檔給使用者
+# =============================================================================
+
+def send_order_to_line_bot(user_id, order_data):
+    """
+    發送訂單摘要和語音檔給 LINE Bot 使用者
+    輸入：使用者ID和訂單資料
+    """
+    try:
+        import os
+        import requests
+        
+        # 取得 LINE Bot 設定
+        line_channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        line_channel_secret = os.getenv('LINE_CHANNEL_SECRET')
+        
+        if not line_channel_access_token:
+            print("警告: LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
+            return False
+        
+        # 準備訊息內容
+        chinese_summary = order_data.get('chinese_summary', '點餐摘要')
+        user_summary = order_data.get('user_summary', 'Order Summary')
+        voice_url = order_data.get('voice_url')
+        total_amount = order_data.get('total_amount', 0)
+        
+        # 構建文字訊息
+        text_message = f"""
+{user_summary}
+
+中文摘要（給店家聽）：
+{chinese_summary}
+
+總金額：{total_amount} 元
+        """.strip()
+        
+        # 準備 LINE Bot API 請求
+        line_api_url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {line_channel_access_token}'
+        }
+        
+        # 構建訊息陣列
+        messages = []
+        
+        # 1. 發送文字摘要
+        messages.append({
+            "type": "text",
+            "text": text_message
+        })
+        
+        # 2. 如果有語音檔，發送語音訊息
+        if voice_url and os.path.exists(voice_url.replace('/static', 'static')):
+            # 上傳語音檔到 LINE
+            voice_file_path = voice_url.replace('/static', 'static')
+            voice_message_id = upload_file_to_line(voice_file_path, line_channel_access_token)
+            
+            if voice_message_id:
+                messages.append({
+                    "type": "audio",
+                    "originalContentUrl": f"https://your-domain.com{voice_url}",
+                    "duration": 30000  # 預設30秒
+                })
+        
+        # 3. 發送語音控制按鈕
+        messages.append({
+            "type": "template",
+            "altText": "語音控制選項",
+            "template": {
+                "type": "buttons",
+                "title": "語音控制",
+                "text": "選擇語音播放選項",
+                "actions": [
+                    {
+                        "type": "postback",
+                        "label": "重新播放",
+                        "data": f"replay_voice:{order_data.get('order_id', '')}"
+                    },
+                    {
+                        "type": "postback", 
+                        "label": "慢速播放",
+                        "data": f"slow_voice:{order_data.get('order_id', '')}"
+                    },
+                    {
+                        "type": "postback",
+                        "label": "快速播放", 
+                        "data": f"fast_voice:{order_data.get('order_id', '')}"
+                    }
+                ]
+            }
+        })
+        
+        # 發送訊息
+        payload = {
+            "to": user_id,
+            "messages": messages
+        }
+        
+        response = requests.post(line_api_url, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            print(f"✅ 成功發送訂單到 LINE Bot，使用者: {user_id}")
+            return True
+        else:
+            print(f"❌ LINE Bot 發送失敗: {response.status_code} - {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ LINE Bot 整合失敗: {e}")
+        return False
+
+def upload_file_to_line(file_path, access_token):
+    """
+    上傳檔案到 LINE Bot
+    輸入：檔案路徑和存取權杖
+    輸出：檔案ID
+    """
+    try:
+        import requests
+        
+        # 上傳檔案
+        upload_url = "https://api.line.me/v2/bot/message/upload"
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        
+        with open(file_path, 'rb') as file:
+            files = {'file': file}
+            response = requests.post(upload_url, headers=headers, files=files)
+            
+        if response.status_code == 200:
+            result = response.json()
+            return result.get('messageId')
+        else:
+            print(f"檔案上傳失敗: {response.status_code}")
+            return None
+            
+    except Exception as e:
+        print(f"檔案上傳失敗: {e}")
+        return None
+
+def send_voice_with_rate(user_id, order_id, rate=1.0):
+    """
+    根據語速發送語音檔
+    輸入：使用者ID、訂單ID、語速
+    """
+    try:
+        import os
+        import requests
+        
+        # 取得 LINE Bot 設定
+        line_channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        
+        if not line_channel_access_token:
+            print("警告: LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
+            return False
+        
+        # 生成指定語速的語音檔
+        voice_url = generate_chinese_voice_with_azure(
+            {"chinese_summary": "重新生成語音"}, 
+            f"{order_id}_rate_{rate}",
+            rate
+        )
+        
+        if voice_url and os.path.exists(voice_url.replace('/static', 'static')):
+            # 發送語音訊息
+            line_api_url = "https://api.line.me/v2/bot/message/push"
+            headers = {
+                'Content-Type': 'application/json',
+                'Authorization': f'Bearer {line_channel_access_token}'
+            }
+            
+            payload = {
+                "to": user_id,
+                "messages": [
+                    {
+                        "type": "audio",
+                        "originalContentUrl": f"https://your-domain.com{voice_url}",
+                        "duration": 30000
+                    }
+                ]
+            }
+            
+            response = requests.post(line_api_url, headers=headers, json=payload)
+            
+            if response.status_code == 200:
+                print(f"✅ 成功發送語速語音，使用者: {user_id}, 語速: {rate}")
+                return True
+            else:
+                print(f"❌ 語速語音發送失敗: {response.status_code}")
+                return False
+        else:
+            print("❌ 語音檔生成失敗")
+            return False
+            
+    except Exception as e:
+        print(f"❌ 語速語音發送失敗: {e}")
+        return False
