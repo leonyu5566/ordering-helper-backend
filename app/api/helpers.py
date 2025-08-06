@@ -18,6 +18,11 @@ import json
 import requests
 import tempfile
 import uuid
+import time
+
+# Voice files 存放在 Cloud Run 唯一可寫的 /tmp/voices
+VOICE_DIR = "/tmp/voices"
+os.makedirs(VOICE_DIR, exist_ok=True)
 
 # Gemini API 設定（延遲初始化）
 def get_gemini_client():
@@ -64,6 +69,21 @@ def get_speech_config():
     except Exception as e:
         print(f"Azure Speech Service 配置失敗: {e}")
         return None
+
+def cleanup_old_voice_files(max_age=1800):
+    """刪除 30 分鐘以前的 WAV"""
+    try:
+        now = time.time()
+        for fn in os.listdir(VOICE_DIR):
+            full = os.path.join(VOICE_DIR, fn)
+            if os.path.isfile(full) and now - os.path.getmtime(full) > max_age:
+                try:
+                    os.remove(full)
+                    print(f"清理舊語音檔: {fn}")
+                except Exception as e:
+                    print(f"清理語音檔失敗 {fn}: {e}")
+    except Exception as e:
+        print(f"清理語音檔目錄失敗: {e}")
 
 def process_menu_with_gemini(image_path, target_language='en'):
     """
@@ -285,6 +305,8 @@ def generate_voice_order(order_id, speech_rate=1.0):
     """
     使用 Azure TTS 生成訂單語音
     """
+    # 先 cleanup
+    cleanup_old_voice_files()
     try:
         from ..models import Order, OrderItem, MenuItem
         
@@ -327,17 +349,15 @@ def generate_voice_order(order_id, speech_rate=1.0):
             speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
             speech_config.speech_synthesis_speaking_rate = speech_rate
             
-            # 生成語音檔案
-            audio_filename = f"temp_audio_{uuid.uuid4()}.wav"
-            audio_config = AudioConfig(filename=audio_filename)
+            # 直接存到 VOICE_DIR
+            filename = f"{uuid.uuid4()}.wav"
+            audio_path = os.path.join(VOICE_DIR, filename)
+            audio_config = AudioConfig(filename=audio_path)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
             
-            if result.reason == "SynthesizingAudioCompleted":
-                # 取得生成的音檔路徑
-                audio_path = audio_config.filename
-                print(f"語音生成成功: {audio_path}")
+            if result.reason == ResultReason.SynthesizingAudioCompleted:
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
@@ -355,6 +375,8 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
     """
     為臨時訂單生成中文語音檔
     """
+    # 每次呼叫前先清一次舊檔
+    cleanup_old_voice_files()
     try:
         # 建立中文訂單文字
         order_text = f"您好，我要點餐。"
@@ -377,19 +399,17 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             # 延遲導入 Azure Speech SDK
             from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
             
-            # 設定語音參數
+            # 設定語音參數、輸出到 /tmp/voices
             speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
             speech_config.speech_synthesis_speaking_rate = speech_rate
-            
-            # 生成語音檔案
-            audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
+            filename = f"{uuid.uuid4()}.wav"
+            audio_path = os.path.join(VOICE_DIR, filename)
+            audio_config = AudioConfig(filename=audio_path)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
             
-            if result.reason == "SynthesizingAudioCompleted":
-                # 取得生成的音檔路徑
-                audio_path = audio_config.filename
+            if result.reason == ResultReason.SynthesizingAudioCompleted:
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
@@ -407,6 +427,7 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
     """
     生成自定義語速的語音檔
     """
+    cleanup_old_voice_files()
     try:
         # 取得語音配置
         speech_config = get_speech_config()
@@ -421,16 +442,14 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
             # 設定語音參數
             speech_config.speech_synthesis_voice_name = voice_name
             speech_config.speech_synthesis_speaking_rate = speech_rate
-            
-            # 生成語音檔案
-            audio_config = AudioConfig(filename=f"temp_audio_{uuid.uuid4()}.wav")
+            filename = f"{uuid.uuid4()}.wav"
+            audio_path = os.path.join(VOICE_DIR, filename)
+            audio_config = AudioConfig(filename=audio_path)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
             
-            if result.reason == "SynthesizingAudioCompleted":
-                # 取得生成的音檔路徑
-                audio_path = audio_config.filename
+            if result.reason == ResultReason.SynthesizingAudioCompleted:
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
@@ -964,18 +983,20 @@ def send_voice_with_rate(user_id, order_id, rate, user_language):
         voice_path = generate_voice_order(order_id, rate)
         
         if voice_path and os.path.exists(voice_path):
+            # 構建語音檔 URL（使用環境變數或預設值）
+            fname = os.path.basename(voice_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
+            
             line_bot_api = get_line_bot_api()
             if line_bot_api:
                 line_bot_api.push_message(
                     user_id,
                     AudioSendMessage(
-                        original_content_url=f"file://{voice_path}",
+                        original_content_url=audio_url,
                         duration=30000
                     )
                 )
-            
-            # 清理語音檔案
-            os.remove(voice_path)
             
     except Exception as e:
         print(f"發送語音失敗：{e}")
@@ -985,7 +1006,7 @@ def send_temp_order_notification(temp_order, user_id, user_language):
     發送臨時訂單通知
     """
     from ..webhook.routes import get_line_bot_api
-    from linebot.models import TextSendMessage
+    from linebot.models import TextSendMessage, AudioSendMessage
     
     try:
         # 生成語音檔
@@ -993,12 +1014,17 @@ def send_temp_order_notification(temp_order, user_id, user_language):
         
         # 發送語音檔
         if voice_path and os.path.exists(voice_path):
+            # 構建語音檔 URL（使用環境變數或預設值）
+            fname = os.path.basename(voice_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
+            
             line_bot_api = get_line_bot_api()
             if line_bot_api:
                 line_bot_api.push_message(
                     user_id,
                     AudioSendMessage(
-                        original_content_url=f"file://{voice_path}",
+                        original_content_url=audio_url,
                         duration=30000
                     )
                 )
@@ -1014,10 +1040,6 @@ def send_temp_order_notification(temp_order, user_id, user_language):
         
         # 發送語音控制按鈕
         send_temp_voice_control_buttons(user_id, temp_order, user_language)
-        
-        # 清理語音檔案
-        if voice_path and os.path.exists(voice_path):
-            os.remove(voice_path)
             
     except Exception as e:
         print(f"發送臨時訂單通知失敗：{e}")
@@ -1381,12 +1403,12 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
     """
     使用 Azure Speech 生成中文語音檔
     輸入：訂單摘要、訂單ID、語速
-    輸出：語音檔URL
+    輸出：語音檔絕對路徑
     """
+    cleanup_old_voice_files()
     try:
-        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
+        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
         import os
-        import tempfile
         
         # 取得 Azure Speech 配置
         speech_config = get_speech_config()
@@ -1401,13 +1423,9 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         # 準備語音文字（優先使用 chinese_voice，如果沒有則使用 chinese_summary）
         chinese_text = order_summary.get('chinese_voice', order_summary.get('chinese_summary', '點餐摘要'))
         
-        # 確保輸出目錄存在
-        output_dir = "static/voice"
-        os.makedirs(output_dir, exist_ok=True)
-        
-        # 生成語音檔路徑（包含語速資訊）
-        voice_filename = f"order_{order_id}_rate_{speech_rate}.wav"
-        voice_path = os.path.join(output_dir, voice_filename)
+        # 生成語音檔路徑（存到 /tmp/voices）
+        filename = f"{uuid.uuid4()}.wav"
+        voice_path = os.path.join(VOICE_DIR, filename)
         
         # 設定音訊輸出
         audio_config = AudioConfig(filename=voice_path)
@@ -1418,9 +1436,9 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         # 生成語音
         result = synthesizer.speak_text_async(chinese_text).get()
         
-        if result.reason.name == "SynthesizingAudioCompleted":
+        if result.reason == ResultReason.SynthesizingAudioCompleted:
             print(f"語音檔生成成功: {voice_path}, 語速: {speech_rate}")
-            return f"/static/voice/{voice_filename}"
+            return voice_path
         else:
             print(f"語音生成失敗: {result.reason}")
             return None
@@ -1484,17 +1502,17 @@ def send_order_to_line_bot(user_id, order_data):
         })
         
         # 2. 如果有語音檔，發送語音訊息
-        if voice_url and os.path.exists(voice_url.replace('/static', 'static')):
-            # 上傳語音檔到 LINE
-            voice_file_path = voice_url.replace('/static', 'static')
-            voice_message_id = upload_file_to_line(voice_file_path, line_channel_access_token)
+        if voice_url and os.path.exists(voice_url):
+            # 構建語音檔 URL（使用環境變數或預設值）
+            fname = os.path.basename(voice_url)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
             
-            if voice_message_id:
-                messages.append({
-                    "type": "audio",
-                    "originalContentUrl": f"https://your-domain.com{voice_url}",
-                    "duration": 30000  # 預設30秒
-                })
+            messages.append({
+                "type": "audio",
+                "originalContentUrl": audio_url,
+                "duration": 30000  # 預設30秒
+            })
         
         # 3. 發送語音控制按鈕
         messages.append({

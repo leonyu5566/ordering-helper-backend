@@ -12,9 +12,9 @@
 # - 訂單語音生成
 # =============================================================================
 
-from flask import Blueprint, jsonify, request, send_file, current_app
+from flask import Blueprint, jsonify, request, send_file, current_app, send_from_directory
 from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, OCRMenu, OCRMenuItem, VoiceFile, Language
-from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file
+from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file, VOICE_DIR
 import json
 import os
 from werkzeug.utils import secure_filename
@@ -2029,3 +2029,13 @@ def test_line_bot():
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 500
+
+# =============================================================================
+# 語音檔案服務
+# 功能：提供語音檔案的靜態服務
+# =============================================================================
+
+@api_bp.route('/voices/<path:filename>')
+def serve_voice(filename):
+    """供外部（Line Bot）GET WAV 檔用"""
+    return send_from_directory(VOICE_DIR, filename, mimetype='audio/wav')
