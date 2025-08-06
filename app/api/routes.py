@@ -1081,6 +1081,69 @@ def health_check():
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
 
+@api_bp.route('/fix-database', methods=['POST', 'OPTIONS'])
+def fix_database():
+    """修復數據庫表結構"""
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        print("🔧 開始修復數據庫...")
+        
+        # 創建所有表
+        db.create_all()
+        
+        # 檢查 gemini_processing 表是否存在
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        
+        if 'gemini_processing' in existing_tables:
+            print("✅ gemini_processing 表已存在")
+            
+            # 檢查表結構
+            columns = inspector.get_columns('gemini_processing')
+            column_names = [col['name'] for col in columns]
+            
+            expected_columns = [
+                'processing_id', 'user_id', 'store_id', 'image_url', 
+                'ocr_result', 'structured_menu', 'status', 'created_at'
+            ]
+            
+            missing_columns = [col for col in expected_columns if col not in column_names]
+            
+            if missing_columns:
+                print(f"⚠️  缺少欄位: {missing_columns}")
+                return jsonify({
+                    'status': 'error',
+                    'message': f'表結構不完整，缺少欄位: {missing_columns}'
+                }), 500
+            else:
+                print("✅ 表結構正確")
+        else:
+            print("❌ gemini_processing 表不存在")
+            return jsonify({
+                'status': 'error',
+                'message': 'gemini_processing 表創建失敗'
+            }), 500
+        
+        print("🎉 數據庫修復完成")
+        response = jsonify({
+            'status': 'success',
+            'message': '數據庫修復完成'
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response
+        
+    except Exception as e:
+        print(f"❌ 修復數據庫時發生錯誤: {e}")
+        response = jsonify({
+            'status': 'error',
+            'message': f'修復失敗: {str(e)}'
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
 @api_bp.route('/stores', methods=['GET', 'OPTIONS'])
 def get_all_stores():
     """取得所有店家列表"""

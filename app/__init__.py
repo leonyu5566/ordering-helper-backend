@@ -61,6 +61,15 @@ def create_app():
     # 初始化資料庫
     db.init_app(app)
     
+    # 在應用啟動時自動創建資料庫表
+    with app.app_context():
+        try:
+            print("🔍 檢查並創建資料庫表...")
+            db.create_all()
+            print("✅ 資料庫表創建完成")
+        except Exception as e:
+            print(f"⚠️  資料庫表創建警告: {e}")
+    
     # 註冊 Blueprint
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(api_bp, url_prefix='/api')
