@@ -26,8 +26,8 @@ RUN apt-get update && \
 # 設定 Python 3.11 為預設版本
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
-# 升級 pip 以修復 html5lib 問題
-RUN python3 -m pip install --upgrade pip setuptools wheel
+# 使用官方 get-pip.py 重新安裝 pip 以修復 html5lib 問題
+RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3
 
 # 設定工作目錄
 WORKDIR /app
