@@ -364,8 +364,109 @@ def create_order():
             }
             simple_data['items'].append(simple_item)
         
-        # 呼叫 simple_order 函數
-        return simple_order_internal(simple_data)
+        # 處理簡單訂單邏輯
+        try:
+            items = simple_data['items']
+            user_language = simple_data.get('user_language', 'zh')
+            
+            if not items:
+                return jsonify({
+                    "success": False,
+                    "error": "沒有選擇任何商品"
+                }), 400
+            
+            # 驗證和計算
+            total_amount = 0
+            validated_items = []
+            
+            for i, item in enumerate(items):
+                name = item.get('name', f"項目 {i+1}")
+                quantity = int(item.get('quantity', 1))
+                price = float(item.get('price', 0))
+                
+                if quantity <= 0:
+                    return jsonify({
+                        "success": False,
+                        "error": f"項目 {i+1}: 數量必須大於 0"
+                    }), 400
+                
+                if price < 0:
+                    return jsonify({
+                        "success": False,
+                        "error": f"項目 {i+1}: 價格不能為負數"
+                    }), 400
+                
+                subtotal = price * quantity
+                total_amount += subtotal
+                
+                validated_items.append({
+                    'name': name,
+                    'quantity': quantity,
+                    'price': price,
+                    'subtotal': subtotal
+                })
+            
+            # 生成訂單ID
+            import datetime
+            order_id = f"simple_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+            
+            # 使用 Gemini API 生成訂單摘要
+            from .helpers import generate_order_summary_with_gemini
+            order_summary = generate_order_summary_with_gemini(validated_items, user_language)
+            
+            # 生成中文語音檔
+            voice_url = None
+            try:
+                from .helpers import generate_chinese_voice_with_azure
+                voice_url = generate_chinese_voice_with_azure(order_summary, order_id)
+            except Exception as e:
+                print(f"語音生成失敗: {e}")
+            
+            chinese_summary = order_summary.get('chinese_summary', '點餐摘要')
+            user_summary = order_summary.get('user_summary', f'Order: {int(total_amount)} 元')
+            
+            # 發送給 LINE Bot
+            line_user_id = simple_data.get('line_user_id')
+            if line_user_id:
+                try:
+                    from .helpers import send_order_to_line_bot
+                    order_data = {
+                        "order_id": order_id,
+                        "total_amount": total_amount,
+                        "voice_url": voice_url,
+                        "chinese_summary": chinese_summary,
+                        "user_summary": user_summary,
+                        "order_details": validated_items
+                    }
+                    send_success = send_order_to_line_bot(line_user_id, order_data)
+                    if send_success:
+                        print(f"✅ 成功發送訂單到 LINE Bot，使用者: {line_user_id}")
+                    else:
+                        print(f"⚠️ LINE Bot 發送失敗，使用者: {line_user_id}")
+                except Exception as e:
+                    print(f"❌ LINE Bot 發送異常: {e}")
+            
+            response = jsonify({
+                "success": True,
+                "order_id": order_id,
+                "total_amount": total_amount,
+                "voice_url": voice_url,
+                "chinese_summary": chinese_summary,
+                "user_summary": user_summary,
+                "order_details": validated_items,
+                "line_bot_sent": line_user_id is not None
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 201
+            
+        except Exception as e:
+            print(f"簡單訂單處理失敗：{e}")
+            response = jsonify({
+                "success": False,
+                "error": "訂單處理失敗"
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 500
 
     # 處理 line_user_id（可選）
     line_user_id = data.get('line_user_id')
