@@ -23,8 +23,7 @@ RUN apt-get update && \
     && rm -rf /var/lib/apt/lists/*
 
 # 設定 Python 3.11 為預設版本
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3 1
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
 # 設定工作目錄
 WORKDIR /app
