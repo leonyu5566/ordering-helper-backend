@@ -27,7 +27,7 @@ else:
     print("Environment file not found, using system environment variables")
 
 # 調試：檢查關鍵環境變數是否存在
-    key_vars = ['DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_DATABASE', 'LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET']
+key_vars = ['DB_USER', 'DB_PASSWORD', 'DB_HOST', 'DB_DATABASE', 'LINE_CHANNEL_ACCESS_TOKEN', 'LINE_CHANNEL_SECRET']
 for var in key_vars:
     if os.getenv(var):
         print(f"✓ {var} is set")

@@ -340,6 +340,33 @@ def create_order():
             "received_data": list(data.keys())
         }), 400
 
+    # 檢查是否為非合作店家訂單（包含臨時菜單項目）
+    has_temp_items = any(
+        str(item.get('menu_item_id') or item.get('id') or '').startswith('temp_')
+        for item in data.get('items', [])
+    )
+    
+    # 如果是非合作店家訂單，重定向到 simple_order
+    if has_temp_items:
+        print("檢測到臨時菜單項目，重定向到 simple_order")
+        # 重構資料格式以符合 simple_order 的要求
+        simple_data = {
+            'items': [],
+            'user_language': data.get('language', 'zh'),
+            'line_user_id': data.get('line_user_id')
+        }
+        
+        for item in data.get('items', []):
+            simple_item = {
+                'name': item.get('item_name') or item.get('name') or item.get('original_name') or '未知項目',
+                'quantity': item.get('quantity') or item.get('qty') or 1,
+                'price': item.get('price') or item.get('price_small') or 0
+            }
+            simple_data['items'].append(simple_item)
+        
+        # 呼叫 simple_order 函數
+        return simple_order_internal(simple_data)
+
     # 處理 line_user_id（可選）
     line_user_id = data.get('line_user_id')
     if not line_user_id:
@@ -409,111 +436,30 @@ def create_order():
             validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
             continue
         
-        # 檢查是否為臨時菜單項目（以 temp_ 開頭）
-        if menu_item_id.startswith('temp_'):
-            # 處理臨時菜單項目
-            price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
-            item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
-            
-            try:
-                price = float(price)
-                if price < 0:
-                    validation_errors.append(f"項目 {i+1}: 價格不能為負數")
-                    continue
-            except (ValueError, TypeError):
-                validation_errors.append(f"項目 {i+1}: 價格格式錯誤，必須是數字")
-                continue
-            
-            subtotal = int(price * quantity)
-            total_amount += subtotal
-            
-            # 為臨時項目創建一個臨時的 MenuItem 記錄
-            try:
-                # 檢查是否已經有對應的臨時菜單項目
-                temp_menu_item = MenuItem.query.filter_by(item_name=item_name).first()
-                
-                if not temp_menu_item:
-                    # 創建新的臨時菜單項目
-                    from app.models import Menu, Store
-                    
-                    # 確保店家存在，如果不存在則創建預設店家
-                    store_id = data.get('store_id')
-                    if not store_id:
-                        # 如果沒有 store_id，創建一個預設店家
-                        default_store = Store.query.filter_by(store_name='預設店家').first()
-                        if not default_store:
-                            default_store = Store(
-                                store_name='預設店家',
-                                partner_level=0,  # 非合作店家
-                                created_at=datetime.datetime.utcnow()
-                            )
-                            db.session.add(default_store)
-                            db.session.flush()
-                        store_id = default_store.store_id
-                        # 更新請求資料中的 store_id
-                        data['store_id'] = store_id
-                    
-                    # 找到或創建一個臨時菜單
-                    temp_menu = Menu.query.filter_by(store_id=store_id).first()
-                    if not temp_menu:
-                        temp_menu = Menu(store_id=store_id, version=1)
-                        db.session.add(temp_menu)
-                        db.session.flush()
-                    
-                    temp_menu_item = MenuItem(
-                        menu_id=temp_menu.menu_id,
-                        item_name=item_name,
-                        price_small=int(price),
-                        price_big=int(price)  # 使用相同價格
-                    )
-                    db.session.add(temp_menu_item)
-                    db.session.flush()  # 獲取 menu_item_id
-                
-                # 使用臨時菜單項目的 ID
-                order_items_to_create.append(OrderItem(
-                    menu_item_id=temp_menu_item.menu_item_id,
-                    quantity_small=quantity,
-                    subtotal=subtotal
-                ))
-                
-                # 建立訂單明細供確認
-                order_details.append({
-                    'menu_item_id': temp_menu_item.menu_item_id,
-                    'item_name': item_name,
-                    'quantity': quantity,
-                    'price': price,
-                    'subtotal': subtotal,
-                    'is_temp': True
-                })
-                
-            except Exception as e:
-                validation_errors.append(f"項目 {i+1}: 創建臨時菜單項目失敗 - {str(e)}")
-                continue
-        else:
-            # 處理正式菜單項目
-            menu_item = MenuItem.query.get(menu_item_id)
-            if not menu_item:
-                validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
-                continue
-            
-            subtotal = menu_item.price_small * quantity
-            total_amount += subtotal
-            
-            order_items_to_create.append(OrderItem(
-                menu_item_id=menu_item.menu_item_id,
-                quantity_small=quantity,
-                subtotal=subtotal
-            ))
-            
-            # 建立訂單明細供確認
-            order_details.append({
-                'menu_item_id': menu_item.menu_item_id,
-                'item_name': menu_item.item_name,
-                'quantity': quantity,
-                'price': menu_item.price_small,
-                'subtotal': subtotal,
-                'is_temp': False
-            })
+        # 處理正式菜單項目（合作店家）
+        menu_item = MenuItem.query.get(menu_item_id)
+        if not menu_item:
+            validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
+            continue
+        
+        subtotal = menu_item.price_small * quantity
+        total_amount += subtotal
+        
+        order_items_to_create.append(OrderItem(
+            menu_item_id=menu_item.menu_item_id,
+            quantity_small=quantity,
+            subtotal=subtotal
+        ))
+        
+        # 建立訂單明細供確認
+        order_details.append({
+            'menu_item_id': menu_item.menu_item_id,
+            'item_name': menu_item.item_name,
+            'quantity': quantity,
+            'price': menu_item.price_small,
+            'subtotal': subtotal,
+            'is_temp': False
+        })
 
     if validation_errors:
         return jsonify({
@@ -532,20 +478,10 @@ def create_order():
         # 確保 store_id 有值
         store_id = data.get('store_id')
         if not store_id:
-            # 如果沒有 store_id，創建一個預設店家
-            from app.models import Store
-            default_store = Store.query.filter_by(store_name='預設店家').first()
-            if not default_store:
-                default_store = Store(
-                    store_name='預設店家',
-                    partner_level=0,  # 非合作店家
-                    created_at=datetime.datetime.utcnow()
-                )
-                db.session.add(default_store)
-                db.session.flush()
-            store_id = default_store.store_id
-            # 更新請求資料中的 store_id
-            data['store_id'] = store_id
+            return jsonify({
+                "error": "缺少店家ID",
+                "received_data": list(data.keys())
+            }), 400
         
         new_order = Order(
             user_id=user.user_id,
