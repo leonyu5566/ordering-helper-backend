@@ -22,7 +22,7 @@ RUN apt-get update && \
         libcurl4 \
         libgomp1 \
         libatomic1 \
-        libffi8 \
+        libffi-dev \
         libasound2 \
         libogg0 \
         libvorbis0a \
