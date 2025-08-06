@@ -1090,11 +1090,26 @@ def fix_database():
     try:
         print("🔧 開始修復數據庫...")
         
+        # 檢查現有表
+        from sqlalchemy import inspect, text
+        inspector = inspect(db.engine)
+        existing_tables = inspector.get_table_names()
+        
+        # 如果有問題的表，先刪除
+        problematic_tables = ['store_translations', 'gemini_processing']
+        for table in problematic_tables:
+            if table in existing_tables:
+                print(f"🗑️  刪除有問題的表: {table}")
+                db.session.execute(text(f"DROP TABLE IF EXISTS {table}"))
+        
+        db.session.commit()
+        print("✅ 已清理有問題的表")
+        
         # 創建所有表
         db.create_all()
+        print("✅ 已重新創建所有表")
         
         # 檢查 gemini_processing 表是否存在
-        from sqlalchemy import inspect
         inspector = inspect(db.engine)
         existing_tables = inspector.get_table_names()
         
