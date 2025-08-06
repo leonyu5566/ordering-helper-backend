@@ -839,7 +839,17 @@ def get_order_voice(order_id):
         voice_path = generate_voice_order(order_id, speech_rate)
         
         if voice_path and os.path.exists(voice_path):
-            return send_file(voice_path, as_attachment=True, download_name=f"order_{order_id}.wav")
+            # 構建語音檔 URL
+            fname = os.path.basename(voice_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
+            
+            return jsonify({
+                "success": True,
+                "voice_url": audio_url,
+                "filename": fname,
+                "message": "語音檔生成成功"
+            })
         else:
             return jsonify({"error": "語音檔生成失敗"}), 500
             
@@ -966,7 +976,17 @@ def generate_custom_voice():
         voice_path = generate_voice_with_custom_rate(text, speech_rate, voice_name)
         
         if voice_path and os.path.exists(voice_path):
-            return send_file(voice_path, as_attachment=True, download_name=f"custom_voice_{uuid.uuid4()}.wav")
+            # 構建語音檔 URL
+            fname = os.path.basename(voice_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
+            
+            return jsonify({
+                "success": True,
+                "voice_url": audio_url,
+                "filename": fname,
+                "message": "自定義語音檔生成成功"
+            })
         else:
             return jsonify({"error": "語音檔生成失敗"}), 500
             

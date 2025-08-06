@@ -1599,6 +1599,8 @@ def send_voice_with_rate(user_id, order_id, rate=1.0):
     try:
         import os
         import requests
+        from ..webhook.routes import get_line_bot_api
+        from linebot.models import AudioSendMessage
         
         # 取得 LINE Bot 設定
         line_channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
@@ -1608,38 +1610,28 @@ def send_voice_with_rate(user_id, order_id, rate=1.0):
             return False
         
         # 生成指定語速的語音檔
-        voice_url = generate_chinese_voice_with_azure(
-            {"chinese_summary": "重新生成語音"}, 
-            f"{order_id}_rate_{rate}",
-            rate
-        )
+        voice_path = generate_voice_order(order_id, rate)
         
-        if voice_url and os.path.exists(voice_url.replace('/static', 'static')):
-            # 發送語音訊息
-            line_api_url = "https://api.line.me/v2/bot/message/push"
-            headers = {
-                'Content-Type': 'application/json',
-                'Authorization': f'Bearer {line_channel_access_token}'
-            }
+        if voice_path and os.path.exists(voice_path):
+            # 構建語音檔 URL
+            fname = os.path.basename(voice_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
             
-            payload = {
-                "to": user_id,
-                "messages": [
-                    {
-                        "type": "audio",
-                        "originalContentUrl": f"https://your-domain.com{voice_url}",
-                        "duration": 30000
-                    }
-                ]
-            }
-            
-            response = requests.post(line_api_url, headers=headers, json=payload)
-            
-            if response.status_code == 200:
+            # 使用 LINE Bot API 發送語音
+            line_bot_api = get_line_bot_api()
+            if line_bot_api:
+                line_bot_api.push_message(
+                    user_id,
+                    AudioSendMessage(
+                        original_content_url=audio_url,
+                        duration=30000
+                    )
+                )
                 print(f"✅ 成功發送語速語音，使用者: {user_id}, 語速: {rate}")
                 return True
             else:
-                print(f"❌ 語速語音發送失敗: {response.status_code}")
+                print("❌ LINE Bot API 不可用")
                 return False
         else:
             print("❌ 語音檔生成失敗")
