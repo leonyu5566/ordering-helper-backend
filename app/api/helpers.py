@@ -293,15 +293,24 @@ def generate_voice_order(order_id, speech_rate=1.0):
         if not order:
             return None
         
-        # 建立中文訂單文字
-        order_text = f"您好，我要點餐。"
+        # 建立自然的中文訂單文字
+        items_for_voice = []
         
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                order_text += f" {menu_item.item_name} {item.quantity_small}份，"
+                # 為語音準備：自然的中文表達
+                if item.quantity_small == 1:
+                    items_for_voice.append(f"{menu_item.item_name}一份")
+                else:
+                    items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
         
-        order_text += f"總共{order.total_amount}元，謝謝。"
+        # 生成自然的中文語音
+        if len(items_for_voice) == 1:
+            order_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
+        else:
+            voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
+            order_text = f"老闆，我要{voice_items}，謝謝。"
         
         # 取得語音配置
         speech_config = get_speech_config()
@@ -693,23 +702,36 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     store = Store.query.get(order.store_id)
     user = User.query.get(order.user_id)
     
-    # 1. 中文語音內容
-    chinese_voice_text = f"您好，我要點餐。"
+    # 1. 中文語音內容（改善格式，更自然）
+    items_for_voice = []
+    items_for_summary = []
+    
     for item in order.items:
         menu_item = MenuItem.query.get(item.menu_item_id)
         if menu_item:
-            chinese_voice_text += f" {menu_item.item_name} {item.quantity_small}份，"
-    chinese_voice_text += f"總共{order.total_amount}元，謝謝。"
+            # 為語音準備：自然的中文表達
+            if item.quantity_small == 1:
+                items_for_voice.append(f"{menu_item.item_name}一份")
+            else:
+                items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
+            
+            # 為摘要準備：清晰的格式
+            items_for_summary.append(f"{menu_item.item_name} x{item.quantity_small}")
     
-    # 2. 中文點餐紀錄
+    # 生成自然的中文語音
+    if len(items_for_voice) == 1:
+        chinese_voice_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
+    else:
+        voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
+        chinese_voice_text = f"老闆，我要{voice_items}，謝謝。"
+    
+    # 2. 中文點餐紀錄（改善格式）
     chinese_summary = f"訂單編號：{order.order_id}\n"
     chinese_summary += f"店家：{store.store_name}\n"
     chinese_summary += "訂購項目：\n"
     
-    for item in order.items:
-        menu_item = MenuItem.query.get(item.menu_item_id)
-        if menu_item:
-            chinese_summary += f"- {menu_item.item_name} x{item.quantity_small} (${item.subtotal})\n"
+    for item_summary in items_for_summary:
+        chinese_summary += f"- {item_summary}\n"
     
     chinese_summary += f"總金額：${order.total_amount}"
     
@@ -1175,15 +1197,24 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
         if not order:
             return None
         
-        # 建立中文訂單文字
-        order_text = f"您好，我要點餐。"
+        # 建立自然的中文訂單文字
+        items_for_voice = []
         
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                order_text += f" {menu_item.item_name} {item.quantity_small}份，"
+                # 為語音準備：自然的中文表達
+                if item.quantity_small == 1:
+                    items_for_voice.append(f"{menu_item.item_name}一份")
+                else:
+                    items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
         
-        order_text += f"總共{order.total_amount}元，謝謝。"
+        # 生成自然的中文語音
+        if len(items_for_voice) == 1:
+            order_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
+        else:
+            voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
+            order_text = f"老闆，我要{voice_items}，謝謝。"
         
         # 返回文字而非音檔
         print(f"使用備用語音生成，文字內容: {order_text}")
@@ -1209,40 +1240,60 @@ def generate_order_summary_with_gemini(items, user_language='zh'):
     輸出：中文摘要和使用者語言摘要
     """
     try:
-        # 構建訂單項目文字
+        # 構建訂單項目文字（改善格式）
         items_text = ""
-        for i, item in enumerate(items, 1):
-            items_text += f"{i}. {item['name']} x{item['quantity']} = {item['subtotal']}元\n"
+        total_amount = 0
+        for item in items:
+            name = item['name']
+            quantity = item['quantity']
+            subtotal = item['subtotal']
+            total_amount += subtotal
+            items_text += f"{name} x{quantity}、"
         
-        # 構建 Gemini 提示詞
+        # 移除最後一個頓號
+        if items_text.endswith('、'):
+            items_text = items_text[:-1]
+        
+        # 構建 Gemini 提示詞（改善提示詞工程）
         prompt = f"""
-        請將以下點餐項目轉換為中文訂單摘要，格式如下：
-        
-        點餐項目：
-        {items_text}
-        
-        請生成：
-        1. 中文訂單摘要（給店家聽的，要自然流暢）
-        2. 使用者語言版本（{user_language}，給使用者看的）
-        
-        要求：
-        - 中文摘要要適合店家聽，包含所有品項和數量
-        - 語言要自然，像是客人親自點餐
-        - 格式要清晰易讀
-        
-        請以 JSON 格式回傳：
-        {{
-            "chinese_summary": "中文摘要",
-            "user_summary": "使用者語言摘要"
-        }}
+你是一個專業的點餐助手。請根據以下點餐項目生成自然的中文語音和訂單摘要。
+
+點餐項目：{items_text}
+總金額：{total_amount}元
+
+請生成：
+
+1. **中文語音內容**（給店家聽的，要自然流暢）：
+   - 格式：老闆，我要[品項1]一份、[品項2]一杯，謝謝。
+   - 要求：語言要自然，像是客人親自點餐
+   - 範例：老闆，我要經典夏威夷奶醬義大利麵一份，謝謝。
+
+2. **中文訂單摘要**（給使用者看的）：
+   - 格式：[品項1] x [數量]、[品項2] x [數量]
+   - 要求：清晰列出所有品項和數量
+   - 範例：經典夏威夷奶醬義大利麵 x 1
+
+3. **使用者語言摘要**（{user_language}）：
+   - 格式：Order: [item1] x [qty], [item2] x [qty]
+   - 要求：使用使用者選擇的語言
+
+請以 JSON 格式回傳：
+{{
+    "chinese_voice": "老闆，我要經典夏威夷奶醬義大利麵一份，謝謝。",
+    "chinese_summary": "經典夏威夷奶醬義大利麵 x 1",
+    "user_summary": "Order: Classic Hawaiian Cream Pasta x 1"
+}}
         """
         
         # 呼叫 Gemini API
         gemini_client = get_gemini_client()
         if not gemini_client:
-            # 如果 Gemini API 不可用，使用預設格式
+            # 如果 Gemini API 不可用，使用改善的預設格式
+            chinese_voice = f"老闆，我要{items_text}，謝謝。"
+            chinese_summary = items_text.replace('、', '、').replace('x', ' x ')
             return {
-                "chinese_summary": f"我要點餐：{items_text}",
+                "chinese_voice": chinese_voice,
+                "chinese_summary": chinese_summary,
                 "user_summary": f"Order: {items_text}"
             }
         
@@ -1252,23 +1303,44 @@ def generate_order_summary_with_gemini(items, user_language='zh'):
         try:
             import json
             result = json.loads(response.text)
+            
+            # 確保回傳格式正確
+            if 'chinese_voice' not in result:
+                result['chinese_voice'] = f"老闆，我要{items_text}，謝謝。"
+            if 'chinese_summary' not in result:
+                result['chinese_summary'] = items_text.replace('、', '、').replace('x', ' x ')
+            if 'user_summary' not in result:
+                result['user_summary'] = f"Order: {items_text}"
+            
             return result
         except json.JSONDecodeError:
-            # 如果 JSON 解析失敗，使用預設格式
+            # 如果 JSON 解析失敗，使用改善的預設格式
+            chinese_voice = f"老闆，我要{items_text}，謝謝。"
+            chinese_summary = items_text.replace('、', '、').replace('x', ' x ')
             return {
-                "chinese_summary": f"我要點餐：{items_text}",
+                "chinese_voice": chinese_voice,
+                "chinese_summary": chinese_summary,
                 "user_summary": f"Order: {items_text}"
             }
         
     except Exception as e:
         print(f"Gemini API 訂單摘要生成失敗: {e}")
-        # 回傳預設格式
+        # 回傳改善的預設格式
         items_text = ""
         for item in items:
-            items_text += f"{item['name']} x{item['quantity']} = {item['subtotal']}元\n"
+            name = item['name']
+            quantity = item['quantity']
+            items_text += f"{name} x{quantity}、"
+        
+        if items_text.endswith('、'):
+            items_text = items_text[:-1]
+        
+        chinese_voice = f"老闆，我要{items_text}，謝謝。"
+        chinese_summary = items_text.replace('、', '、').replace('x', ' x ')
         
         return {
-            "chinese_summary": f"我要點餐：{items_text}",
+            "chinese_voice": chinese_voice,
+            "chinese_summary": chinese_summary,
             "user_summary": f"Order: {items_text}"
         }
 
@@ -1293,8 +1365,8 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
         speech_config.speech_synthesis_speaking_rate = speech_rate  # 支援語速調整
         
-        # 準備語音文字
-        chinese_text = order_summary.get('chinese_summary', '點餐摘要')
+        # 準備語音文字（優先使用 chinese_voice，如果沒有則使用 chinese_summary）
+        chinese_text = order_summary.get('chinese_voice', order_summary.get('chinese_summary', '點餐摘要'))
         
         # 確保輸出目錄存在
         output_dir = "static/voice"

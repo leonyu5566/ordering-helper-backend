@@ -1654,23 +1654,16 @@ def simple_order():
         except Exception as e:
             print(f"語音生成失敗: {e}")
         
-        # 生成使用者語言版本的訂單摘要
-        user_summary_items = []
-        for item in validated_items:
-            user_summary_items.append(f"{item['name']} x{item['quantity']} = {item['subtotal']}元")
-        
-        user_summary = f"""
-Order Summary:
-{chr(10).join(user_summary_items)}
-Total Amount: {total_amount} 元
-        """.strip()
+        # 使用 Gemini API 生成的摘要
+        chinese_summary = order_summary.get('chinese_summary', '點餐摘要')
+        user_summary = order_summary.get('user_summary', f'Order: {total_amount} 元')
         
         # 準備訂單資料
         order_data = {
             "order_id": order_id,
             "total_amount": total_amount,
             "voice_url": voice_url,
-            "chinese_summary": order_summary.get('chinese_summary', '點餐摘要'),
+            "chinese_summary": chinese_summary,
             "user_summary": user_summary,
             "order_details": validated_items
         }
@@ -1693,7 +1686,7 @@ Total Amount: {total_amount} 元
             "order_id": order_id,
             "total_amount": total_amount,
             "voice_url": voice_url,
-            "chinese_summary": order_summary.get('chinese_summary', '點餐摘要'),
+            "chinese_summary": chinese_summary,
             "user_summary": user_summary,
             "order_details": validated_items,
             "line_bot_sent": line_user_id is not None
