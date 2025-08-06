@@ -12,7 +12,7 @@
 # - 訂單語音生成
 # =============================================================================
 
-from flask import Blueprint, jsonify, request, send_file
+from flask import Blueprint, jsonify, request, send_file, current_app
 from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, GeminiProcessing, VoiceFile, Language
 from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file
 import json
@@ -1303,7 +1303,7 @@ def upload_menu_image():
         print(f"OCR處理失敗：{e}")
         response = jsonify({
             'error': '檔案處理失敗',
-            'details': str(e) if app.debug else '請稍後再試'
+            'details': str(e) if current_app.debug else '請稍後再試'
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 422

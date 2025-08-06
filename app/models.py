@@ -94,11 +94,11 @@ class Store(db.Model):
 
 class StoreTranslation(db.Model):
     __tablename__ = 'store_translations'
-    store_translation_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    lang_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
-    description_trans = db.Column(db.Text)  # 翻譯後的店家簡介
-    reviews = db.Column(db.Text)  # 翻譯後的評論
+    language_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
+    description = db.Column(db.Text)  # 翻譯後的店家簡介
+    translated_summary = db.Column(db.Text)  # 翻譯後的評論摘要
 
 class Menu(db.Model):
     __tablename__ = 'menus'
