@@ -96,7 +96,7 @@ class StoreTranslation(db.Model):
     __tablename__ = 'store_translations'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    language_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
+    lang_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
     description = db.Column(db.Text)  # 翻譯後的店家簡介
     translated_summary = db.Column(db.Text)  # 翻譯後的評論摘要
 

@@ -62,7 +62,7 @@ def check_and_fix_database_compatibility():
                 column_names = [col['name'] for col in columns]
                 
                 # 檢查是否符合同事的資料庫結構
-                expected_columns = ['id', 'store_id', 'language_code', 'description', 'translated_summary']
+                expected_columns = ['id', 'store_id', 'lang_code', 'description', 'translated_summary']
                 missing_columns = [col for col in expected_columns if col not in column_names]
                 
                 if missing_columns:
