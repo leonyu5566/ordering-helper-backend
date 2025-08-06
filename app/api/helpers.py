@@ -321,11 +321,23 @@ def generate_voice_order(order_id, speech_rate=1.0):
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                # 為語音準備：自然的中文表達
-                if item.quantity_small == 1:
-                    items_for_voice.append(f"{menu_item.item_name}一份")
+                # 改進：根據菜名類型選擇合適的量詞
+                item_name = menu_item.item_name
+                quantity = item.quantity_small
+                
+                # 判斷是飲料還是餐點
+                if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                    # 飲料類用「杯」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一杯")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}杯")
                 else:
-                    items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
+                    # 餐點類用「份」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一份")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}份")
         
         # 生成自然的中文語音
         if len(items_for_voice) == 1:
@@ -387,7 +399,20 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             # 使用原始中文菜名
             original_name = item.get('original_name', '')
             quantity = item.get('quantity', 1)
-            order_text += f" {original_name} {quantity}份，"
+            
+            # 改進：根據菜名類型選擇合適的量詞
+            if any(keyword in original_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                # 飲料類用「杯」
+                if quantity == 1:
+                    order_text += f" {original_name}一杯，"
+                else:
+                    order_text += f" {original_name}{quantity}杯，"
+            else:
+                # 餐點類用「份」
+                if quantity == 1:
+                    order_text += f" {original_name}一份，"
+                else:
+                    order_text += f" {original_name}{quantity}份，"
         
         order_text += f"總共{int(temp_order['total_amount'])}元，謝謝。"
         
@@ -879,9 +904,8 @@ def send_complete_order_notification(order_id):
             )
             print(f"{user.preferred_lang} 語訂單摘要已發送到 LINE")
         
-        # 5. 發送語速控制按鈕
-        send_voice_control_buttons(user.line_user_id, order_id, user.preferred_lang)
-        print("語速控制按鈕已發送到 LINE")
+        # 5. 語速控制卡片已移除（節省成本）
+        print("語速控制卡片已移除")
         
         # 6. 不立即清理語音檔案，讓靜態路由服務
         # 語音檔案會在30分鐘後由cleanup_old_voice_files自動清理
@@ -892,119 +916,7 @@ def send_complete_order_notification(order_id):
         import traceback
         traceback.print_exc()
 
-def send_voice_control_buttons(user_id, order_id, user_language):
-    """
-    發送語音控制按鈕
-    """
-    from ..webhook.routes import get_line_bot_api
-    from linebot.models import (
-        TextSendMessage, QuickReply, QuickReplyButton, MessageAction
-    )
-    
-    # 根據使用者語言建立按鈕文字
-    button_texts = {
-        "zh": {
-            "title": "🎤 語音控制",
-            "slow": "慢速播放 (0.7x)",
-            "normal": "正常播放 (1.0x)",
-            "fast": "快速播放 (1.3x)",
-            "replay": "重新播放"
-        },
-        "en": {
-            "title": "🎤 Voice Control",
-            "slow": "Slow Play (0.7x)",
-            "normal": "Normal Play (1.0x)",
-            "fast": "Fast Play (1.3x)",
-            "replay": "Replay"
-        },
-        "ja": {
-            "title": "🎤 音声制御",
-            "slow": "スロー再生 (0.7x)",
-            "normal": "通常再生 (1.0x)",
-            "fast": "高速再生 (1.3x)",
-            "replay": "再再生"
-        },
-        "ko": {
-            "title": "🎤 음성 제어",
-            "slow": "느린 재생 (0.7x)",
-            "normal": "일반 재생 (1.0x)",
-            "fast": "빠른 재생 (1.3x)",
-            "replay": "다시 재생"
-        }
-    }
-    
-    texts = button_texts.get(user_language, button_texts["zh"])
-    
-    try:
-        line_bot_api = get_line_bot_api()
-        if line_bot_api:
-            line_bot_api.push_message(
-                user_id,
-                TextSendMessage(
-                    text=texts["title"],
-                    quick_reply=QuickReply(
-                        items=[
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["slow"],
-                                    text=f"voice_slow_{order_id}"
-                                )
-                            ),
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["normal"],
-                                    text=f"voice_normal_{order_id}"
-                                )
-                            ),
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["fast"],
-                                    text=f"voice_fast_{order_id}"
-                                )
-                            ),
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["replay"],
-                                    text=f"voice_replay_{order_id}"
-                                )
-                            )
-                        ]
-                    )
-                )
-            )
-    except Exception as e:
-        print(f"發送語音控制按鈕失敗：{e}")
-
-def send_voice_with_rate(user_id, order_id, rate, user_language):
-    """
-    根據指定語速發送語音
-    """
-    from ..webhook.routes import get_line_bot_api
-    from linebot.models import AudioSendMessage
-    
-    try:
-        # 生成指定語速的語音檔
-        voice_path = generate_voice_order(order_id, rate)
-        
-        if voice_path and os.path.exists(voice_path):
-            # 構建語音檔 URL（使用環境變數或預設值）
-            fname = os.path.basename(voice_path)
-            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
-            audio_url = f"{base_url}/api/voices/{fname}"
-            print(f"[Webhook] Reply with voice URL: {audio_url}")
-            
-            line_bot_api = get_line_bot_api()
-            if line_bot_api:
-                line_bot_api.push_message(
-                    user_id,
-                    AudioSendMessage(
-                        original_content_url=audio_url,
-                        duration=30000
-                    )
-                )
-            
-    except Exception as e:
-        print(f"發送語音失敗：{e}")
+# 語速控制卡片相關函數已移除（節省成本）
 
 def send_temp_order_notification(temp_order, user_id, user_language):
     """
@@ -1044,94 +956,12 @@ def send_temp_order_notification(temp_order, user_id, user_language):
                 TextSendMessage(text=summary)
             )
         
-        # 發送語音控制按鈕
-        send_temp_voice_control_buttons(user_id, temp_order, user_language)
+        # 語速控制卡片已移除（節省成本）
             
     except Exception as e:
         print(f"發送臨時訂單通知失敗：{e}")
 
-def send_temp_voice_control_buttons(user_id, temp_order, user_language):
-    """
-    發送臨時訂單的語音控制按鈕
-    """
-    from ..webhook.routes import get_line_bot_api
-    from linebot.models import (
-        TextSendMessage, QuickReply, QuickReplyButton, MessageAction
-    )
-    
-    # 根據使用者語言建立按鈕文字
-    button_texts = {
-        "zh": {
-            "title": "🎤 語音控制",
-            "slow": "慢速播放 (0.7x)",
-            "normal": "正常播放 (1.0x)",
-            "fast": "快速播放 (1.3x)",
-            "replay": "重新播放"
-        },
-        "en": {
-            "title": "🎤 Voice Control",
-            "slow": "Slow Play (0.7x)",
-            "normal": "Normal Play (1.0x)",
-            "fast": "Fast Play (1.3x)",
-            "replay": "Replay"
-        },
-        "ja": {
-            "title": "🎤 音声制御",
-            "slow": "スロー再生 (0.7x)",
-            "normal": "通常再生 (1.0x)",
-            "fast": "高速再生 (1.3x)",
-            "replay": "再再生"
-        },
-        "ko": {
-            "title": "🎤 음성 제어",
-            "slow": "느린 재생 (0.7x)",
-            "normal": "일반 재생 (1.0x)",
-            "fast": "빠른 재생 (1.3x)",
-            "replay": "다시 재생"
-        }
-    }
-    
-    texts = button_texts.get(user_language, button_texts["zh"])
-    
-    try:
-        line_bot_api = get_line_bot_api()
-        if line_bot_api:
-            line_bot_api.push_message(
-                user_id,
-                TextSendMessage(
-                    text=texts["title"],
-                    quick_reply=QuickReply(
-                        items=[
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["slow"],
-                                    text=f"temp_voice_slow_{temp_order['order_id']}"
-                                )
-                            ),
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["normal"],
-                                    text=f"temp_voice_normal_{temp_order['order_id']}"
-                                )
-                            ),
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["fast"],
-                                    text=f"temp_voice_fast_{temp_order['order_id']}"
-                                )
-                            ),
-                            QuickReplyButton(
-                                action=MessageAction(
-                                    label=texts["replay"],
-                                    text=f"temp_voice_replay_{temp_order['order_id']}"
-                                )
-                            )
-                        ]
-                    )
-                )
-            )
-    except Exception as e:
-        print(f"發送臨時訂單語音控制按鈕失敗：{e}")
+# 臨時訂單語速控制卡片相關函數已移除（節省成本）
 
 def get_nearby_stores_with_translations(latitude, longitude, user_language='zh', radius_km=10):
     """
@@ -1231,11 +1061,23 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                # 為語音準備：自然的中文表達
-                if item.quantity_small == 1:
-                    items_for_voice.append(f"{menu_item.item_name}一份")
+                # 改進：根據菜名類型選擇合適的量詞
+                item_name = menu_item.item_name
+                quantity = item.quantity_small
+                
+                # 判斷是飲料還是餐點
+                if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                    # 飲料類用「杯」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一杯")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}杯")
                 else:
-                    items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
+                    # 餐點類用「份」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一份")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}份")
         
         # 生成自然的中文語音
         if len(items_for_voice) == 1:
@@ -1522,33 +1364,7 @@ def send_order_to_line_bot(user_id, order_data):
                 "duration": 30000  # 預設30秒
             })
         
-        # 3. 發送語音控制按鈕
-        messages.append({
-            "type": "template",
-            "altText": "語音控制選項",
-            "template": {
-                "type": "buttons",
-                "title": "語音控制",
-                "text": "選擇語音播放選項",
-                "actions": [
-                    {
-                        "type": "postback",
-                        "label": "重新播放",
-                        "data": f"replay_voice:{order_data.get('order_id', '')}"
-                    },
-                    {
-                        "type": "postback", 
-                        "label": "慢速播放",
-                        "data": f"slow_voice:{order_data.get('order_id', '')}"
-                    },
-                    {
-                        "type": "postback",
-                        "label": "快速播放", 
-                        "data": f"fast_voice:{order_data.get('order_id', '')}"
-                    }
-                ]
-            }
-        })
+        # 3. 語速控制卡片已移除（節省成本）
         
         # 發送訊息
         payload = {
