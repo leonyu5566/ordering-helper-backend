@@ -20,6 +20,7 @@ import os
 from werkzeug.utils import secure_filename
 import datetime
 import uuid
+import time
 
 # =============================================================================
 # CORS 處理函數
@@ -167,28 +168,26 @@ def process_menu_ocr():
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
-    """處理菜單圖片 OCR 並生成動態菜單（非合作店家）"""
-    # 檢查是否有檔案（支援 'file' 和 'image' 參數）
-    file = None
-    if 'file' in request.files:
-        file = request.files['file']
-        print("使用 'file' 參數")
-    elif 'image' in request.files:
-        file = request.files['image']
-        print("使用 'image' 參數")
-    else:
-        print("錯誤：沒有找到 'file' 或 'image' 欄位")
-        print(f"可用的檔案欄位: {list(request.files.keys())}")
-        return jsonify({
-            "error": "沒有上傳檔案",
-            "message": "請使用 'file' 或 'image' 參數上傳檔案",
-            "available_fields": list(request.files.keys())
-        }), 400
-    if file.filename == '':
-        return jsonify({"error": "沒有選擇檔案"}), 400
     
+    # 檢查是否有檔案
+    if 'image' not in request.files:
+        response = jsonify({'error': '沒有上傳檔案'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
+    
+    file = request.files['image']
+    
+    # 檢查檔案名稱
+    if file.filename == '':
+        response = jsonify({'error': '沒有選擇檔案'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
+    
+    # 檢查檔案格式
     if not allowed_file(file.filename):
-        return jsonify({"error": "不支援的檔案格式"}), 400
+        response = jsonify({'error': '不支援的檔案格式'})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
     
     # 取得參數
     store_id = request.form.get('store_id', type=int)
@@ -196,21 +195,16 @@ def process_menu_ocr():
     target_lang = request.form.get('lang', 'en')
     
     if not store_id:
-        return jsonify({"error": "需要提供店家ID"}), 400
+        response = jsonify({"error": "需要提供店家ID"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
     
     try:
         # 儲存上傳的檔案
         filepath = save_uploaded_file(file)
         
-        # 建立 Gemini 處理記錄
-        processing = GeminiProcessing(
-            user_id=user_id or 1,  # 如果沒有使用者ID，使用預設值
-            store_id=store_id,
-            image_url=filepath,
-            status='processing'
-        )
-        db.session.add(processing)
-        db.session.commit()
+        # 生成唯一的處理 ID（不使用資料庫）
+        processing_id = int(time.time() * 1000)  # 使用時間戳作為 ID
         
         # 使用 Gemini API 處理圖片
         print("開始使用 Gemini API 處理圖片...")
@@ -218,12 +212,6 @@ def process_menu_ocr():
         
         # 檢查處理結果
         if result and result.get('success', False):
-            # 更新處理狀態
-            processing.status = 'completed'
-            processing.ocr_result = json.dumps(result, ensure_ascii=False)
-            processing.structured_menu = json.dumps(result, ensure_ascii=False)
-            db.session.commit()
-            
             # 生成動態菜單資料
             menu_items = result.get('menu_items', [])
             dynamic_menu = []
@@ -232,8 +220,8 @@ def process_menu_ocr():
                 # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
                 # 並提供前端需要的所有必要欄位
                 dynamic_menu.append({
-                    'temp_id': f"temp_{processing.processing_id}_{i}",
-                    'id': f"temp_{processing.processing_id}_{i}",  # 前端可能需要 id 欄位
+                    'temp_id': f"temp_{processing_id}_{i}",
+                    'id': f"temp_{processing_id}_{i}",  # 前端可能需要 id 欄位
                     'original_name': str(item.get('original_name', '') or ''),
                     'translated_name': str(item.get('translated_name', '') or ''),
                     'en_name': str(item.get('translated_name', '') or ''),  # 英語名稱
@@ -246,12 +234,12 @@ def process_menu_ocr():
                     'imageUrl': '/static/images/default-dish.png',  # 前端可能用這個欄位名
                     'inventory': 999,  # 庫存數量
                     'available': True,  # 是否可購買
-                    'processing_id': processing.processing_id
+                    'processing_id': processing_id
                 })
             
             response = jsonify({
                 "message": "菜單處理成功",
-                "processing_id": processing.processing_id,
+                "processing_id": processing_id,
                 "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
@@ -263,7 +251,7 @@ def process_menu_ocr():
             # 加入 API 回應的除錯 log
             print(f"🎉 API 成功回應 201 Created")
             print(f"📊 回應統計:")
-            print(f"  - 處理ID: {processing.processing_id}")
+            print(f"  - 處理ID: {processing_id}")
             print(f"  - 菜單項目數: {len(dynamic_menu)}")
             print(f"  - 目標語言: {target_lang}")
             print(f"  - 店家資訊: {result.get('store_info', {})}")
@@ -271,10 +259,6 @@ def process_menu_ocr():
             
             return response, 201
         else:
-            # 處理失敗 - 只有在真正的錯誤時才返回 422
-            processing.status = 'failed'
-            db.session.commit()
-            
             # 檢查是否是 JSON 解析錯誤或其他可恢復的錯誤
             error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
             processing_notes = result.get('processing_notes', '')
@@ -285,7 +269,7 @@ def process_menu_ocr():
                 print(f"🔍 錯誤詳情:")
                 print(f"  - 錯誤訊息: {error_message}")
                 print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing.processing_id}")
+                print(f"  - 處理ID: {processing_id}")
                 
                 response = jsonify({
                     "error": error_message,
@@ -299,7 +283,7 @@ def process_menu_ocr():
                 print(f"🔍 錯誤詳情:")
                 print(f"  - 錯誤訊息: {error_message}")
                 print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing.processing_id}")
+                print(f"  - 處理ID: {processing_id}")
                 
                 response = jsonify({
                     "error": error_message,
@@ -307,10 +291,15 @@ def process_menu_ocr():
                 })
                 response.headers.add('Access-Control-Allow-Origin', '*')
                 return response, 500
-    
+                
     except Exception as e:
-        print(f"OCR處理失敗：{e}")
-        return jsonify({"error": "處理過程中發生錯誤"}), 500
+        print(f"❌ 處理過程中發生錯誤: {e}")
+        response = jsonify({
+            "error": "處理過程中發生錯誤",
+            "details": str(e) if current_app.debug else '請稍後再試'
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
 
 @api_bp.route('/orders', methods=['POST', 'OPTIONS'])
 def create_order():
@@ -1280,17 +1269,9 @@ def upload_menu_image():
         filepath = save_uploaded_file(file)
         print(f"檔案已儲存到: {filepath}")
         
-        # 建立 Gemini 處理記錄
-        print("建立處理記錄...")
-        processing = GeminiProcessing(
-            user_id=user_id or 1,  # 如果沒有使用者ID，使用預設值
-            store_id=store_id,
-            image_url=filepath,
-            status='processing'
-        )
-        db.session.add(processing)
-        db.session.commit()
-        print(f"處理記錄已建立，ID: {processing.processing_id}")
+        # 生成唯一的處理 ID（不使用資料庫）
+        processing_id = int(time.time() * 1000)  # 使用時間戳作為 ID
+        print(f"處理記錄已建立，ID: {processing_id}")
         
         # 使用 Gemini API 處理圖片
         print("開始使用 Gemini API 處理圖片...")
@@ -1298,11 +1279,6 @@ def upload_menu_image():
         
         # 檢查處理結果
         if result and result.get('success', False):
-            # 更新處理狀態
-            processing.status = 'completed'
-            processing.ocr_result = json.dumps(result, ensure_ascii=False)
-            processing.structured_menu = json.dumps(result, ensure_ascii=False)
-            db.session.commit()
             
             # 生成動態菜單資料
             menu_items = result.get('menu_items', [])
@@ -1312,8 +1288,8 @@ def upload_menu_image():
                 # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
                 # 並提供前端需要的所有必要欄位
                 dynamic_menu.append({
-                    'temp_id': f"temp_{processing.processing_id}_{i}",
-                    'id': f"temp_{processing.processing_id}_{i}",  # 前端可能需要 id 欄位
+                    'temp_id': f"temp_{processing_id}_{i}",
+                    'id': f"temp_{processing_id}_{i}",  # 前端可能需要 id 欄位
                     'original_name': str(item.get('original_name', '') or ''),
                     'translated_name': str(item.get('translated_name', '') or ''),
                     'en_name': str(item.get('translated_name', '') or ''),  # 英語名稱
@@ -1326,12 +1302,12 @@ def upload_menu_image():
                     'imageUrl': '/static/images/default-dish.png',  # 前端可能用這個欄位名
                     'inventory': 999,  # 庫存數量
                     'available': True,  # 是否可購買
-                    'processing_id': processing.processing_id
+                    'processing_id': processing_id
                 })
             
             response = jsonify({
                 "message": "菜單處理成功",
-                "processing_id": processing.processing_id,
+                "processing_id": processing_id,
                 "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
@@ -1343,7 +1319,7 @@ def upload_menu_image():
             # 加入 API 回應的除錯 log
             print(f"🎉 API 成功回應 201 Created")
             print(f"📊 回應統計:")
-            print(f"  - 處理ID: {processing.processing_id}")
+            print(f"  - 處理ID: {processing_id}")
             print(f"  - 菜單項目數: {len(dynamic_menu)}")
             print(f"  - 目標語言: {target_lang}")
             print(f"  - 店家資訊: {result.get('store_info', {})}")
@@ -1351,9 +1327,6 @@ def upload_menu_image():
             
             return response, 201
         else:
-            # 處理失敗 - 只有在真正的錯誤時才返回 422
-            processing.status = 'failed'
-            db.session.commit()
             
             # 檢查是否是 JSON 解析錯誤或其他可恢復的錯誤
             error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
@@ -1365,7 +1338,7 @@ def upload_menu_image():
                 print(f"🔍 錯誤詳情:")
                 print(f"  - 錯誤訊息: {error_message}")
                 print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing.processing_id}")
+                print(f"  - 處理ID: {processing_id}")
                 
                 response = jsonify({
                     "error": error_message,
@@ -1379,7 +1352,7 @@ def upload_menu_image():
                 print(f"🔍 錯誤詳情:")
                 print(f"  - 錯誤訊息: {error_message}")
                 print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing.processing_id}")
+                print(f"  - 處理ID: {processing_id}")
                 
                 response = jsonify({
                     "error": error_message,
