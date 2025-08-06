@@ -1095,52 +1095,63 @@ def fix_database():
         inspector = inspect(db.engine)
         existing_tables = inspector.get_table_names()
         
-        # 只創建 gemini_processing 表
-        if 'gemini_processing' not in existing_tables:
-            print("🔧 創建 gemini_processing 表...")
-            
-            # 直接執行 SQL 創建表
-            create_table_sql = """
-            CREATE TABLE gemini_processing (
-                processing_id BIGINT NOT NULL AUTO_INCREMENT,
-                user_id BIGINT NOT NULL,
-                store_id INTEGER NOT NULL,
-                image_url VARCHAR(500) NOT NULL,
-                ocr_result TEXT,
-                structured_menu TEXT,
-                status VARCHAR(20) DEFAULT 'processing',
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (processing_id),
-                FOREIGN KEY (user_id) REFERENCES users (user_id),
-                FOREIGN KEY (store_id) REFERENCES stores (store_id)
-            )
-            """
-            
-            db.session.execute(text(create_table_sql))
-            db.session.commit()
-            print("✅ gemini_processing 表創建成功")
-        else:
-            print("✅ gemini_processing 表已存在")
-            
-            # 檢查表結構
-            columns = inspector.get_columns('gemini_processing')
-            column_names = [col['name'] for col in columns]
-            
-            expected_columns = [
-                'processing_id', 'user_id', 'store_id', 'image_url', 
-                'ocr_result', 'structured_menu', 'status', 'created_at'
-            ]
-            
-            missing_columns = [col for col in expected_columns if col not in column_names]
-            
-            if missing_columns:
-                print(f"⚠️  缺少欄位: {missing_columns}")
-                return jsonify({
-                    'status': 'error',
-                    'message': f'表結構不完整，缺少欄位: {missing_columns}'
-                }), 500
+        # 檢查並創建必要的表
+        required_tables = ['gemini_processing']
+        
+        for table_name in required_tables:
+            if table_name not in existing_tables:
+                print(f"🔧 創建 {table_name} 表...")
+                
+                if table_name == 'gemini_processing':
+                    # 直接執行 SQL 創建表
+                    create_table_sql = """
+                    CREATE TABLE gemini_processing (
+                        processing_id BIGINT NOT NULL AUTO_INCREMENT,
+                        user_id BIGINT NOT NULL,
+                        store_id INTEGER NOT NULL,
+                        image_url VARCHAR(500) NOT NULL,
+                        ocr_result TEXT,
+                        structured_menu TEXT,
+                        status VARCHAR(20) DEFAULT 'processing',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (processing_id),
+                        FOREIGN KEY (user_id) REFERENCES users (user_id),
+                        FOREIGN KEY (store_id) REFERENCES stores (store_id)
+                    )
+                    """
+                    
+                    db.session.execute(text(create_table_sql))
+                    db.session.commit()
+                    print(f"✅ {table_name} 表創建成功")
+                else:
+                    print(f"❌ 不支援創建 {table_name} 表")
+                    return jsonify({
+                        'status': 'error',
+                        'message': f'不支援創建 {table_name} 表'
+                    }), 500
             else:
-                print("✅ 表結構正確")
+                print(f"✅ {table_name} 表已存在")
+                
+                # 檢查表結構
+                columns = inspector.get_columns(table_name)
+                column_names = [col['name'] for col in columns]
+                
+                if table_name == 'gemini_processing':
+                    expected_columns = [
+                        'processing_id', 'user_id', 'store_id', 'image_url', 
+                        'ocr_result', 'structured_menu', 'status', 'created_at'
+                    ]
+                    
+                    missing_columns = [col for col in expected_columns if col not in column_names]
+                    
+                    if missing_columns:
+                        print(f"⚠️  {table_name} 表缺少欄位: {missing_columns}")
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'{table_name} 表結構不完整，缺少欄位: {missing_columns}'
+                        }), 500
+                    else:
+                        print(f"✅ {table_name} 表結構正確")
         
         print("🎉 數據庫修復完成")
         response = jsonify({
