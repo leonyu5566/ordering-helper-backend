@@ -365,7 +365,7 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             quantity = item.get('quantity', 1)
             order_text += f" {original_name} {quantity}份，"
         
-        order_text += f"總共{temp_order['total_amount']}元，謝謝。"
+        order_text += f"總共{int(temp_order['total_amount'])}元，謝謝。"
         
         # 取得語音配置
         speech_config = get_speech_config()
@@ -1273,7 +1273,7 @@ def generate_order_summary_with_gemini(items, user_language='zh'):
 ## 點餐項目詳情：
 {json.dumps(item_details, ensure_ascii=False, indent=2)}
 
-## 總金額：{total_amount}元
+## 總金額：{int(total_amount)}元
 
 請生成：
 
@@ -1464,7 +1464,7 @@ def send_order_to_line_bot(user_id, order_data):
 中文摘要（給店家聽）：
 {chinese_summary}
 
-總金額：{total_amount} 元
+總金額：{int(total_amount)} 元
         """.strip()
         
         # 準備 LINE Bot API 請求

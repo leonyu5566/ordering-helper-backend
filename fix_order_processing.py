@@ -203,7 +203,7 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             if menu_item:
                 order_text += f" {menu_item.item_name} {item.quantity_small}份，"
         
-        order_text += f"總共{order.total_amount}元，謝謝。"
+        order_text += f"總共{int(order.total_amount)}元，謝謝。"
         
         # 返回文字而非音檔
         return {

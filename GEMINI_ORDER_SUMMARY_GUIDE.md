@@ -175,7 +175,7 @@ prompt = f"""
 ## 點餐項目詳情：
 {json.dumps(item_details, ensure_ascii=False, indent=2)}
 
-## 總金額：{total_amount}元
+## 總金額：{int(total_amount)}元
 
 請生成：
 

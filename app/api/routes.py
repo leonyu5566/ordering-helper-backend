@@ -1665,7 +1665,7 @@ def simple_order():
         
         # 使用 Gemini API 生成的摘要
         chinese_summary = order_summary.get('chinese_summary', '點餐摘要')
-        user_summary = order_summary.get('user_summary', f'Order: {total_amount} 元')
+        user_summary = order_summary.get('user_summary', f'Order: {int(total_amount)} 元')
         
         # 準備訂單資料
         order_data = {
