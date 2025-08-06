@@ -2058,4 +2058,5 @@ def test_line_bot():
 @api_bp.route('/voices/<path:filename>')
 def serve_voice(filename):
     """供外部（Line Bot）GET WAV 檔用"""
+    from .helpers import VOICE_DIR
     return send_from_directory(VOICE_DIR, filename, mimetype='audio/wav')

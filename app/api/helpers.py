@@ -342,7 +342,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
         
         try:
             # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
             import uuid
             
             # 設定語音參數
@@ -352,12 +352,14 @@ def generate_voice_order(order_id, speech_rate=1.0):
             # 直接存到 VOICE_DIR
             filename = f"{uuid.uuid4()}.wav"
             audio_path = os.path.join(VOICE_DIR, filename)
+            print(f"[TTS] Will save to {audio_path}")
             audio_config = AudioConfig(filename=audio_path)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
             
             if result.reason == ResultReason.SynthesizingAudioCompleted:
+                print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
@@ -397,19 +399,21 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
         
         try:
             # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
             
             # 設定語音參數、輸出到 /tmp/voices
             speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
             speech_config.speech_synthesis_speaking_rate = speech_rate
             filename = f"{uuid.uuid4()}.wav"
             audio_path = os.path.join(VOICE_DIR, filename)
+            print(f"[TTS] Will save to {audio_path}")
             audio_config = AudioConfig(filename=audio_path)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
             
             if result.reason == ResultReason.SynthesizingAudioCompleted:
+                print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
@@ -437,19 +441,21 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
         
         try:
             # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
             
             # 設定語音參數
             speech_config.speech_synthesis_voice_name = voice_name
             speech_config.speech_synthesis_speaking_rate = speech_rate
             filename = f"{uuid.uuid4()}.wav"
             audio_path = os.path.join(VOICE_DIR, filename)
+            print(f"[TTS] Will save to {audio_path}")
             audio_config = AudioConfig(filename=audio_path)
             synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
             result = synthesizer.speak_text_async(order_text).get()
             
             if result.reason == ResultReason.SynthesizingAudioCompleted:
+                print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
                 print(f"語音生成失敗：{result.reason}")
@@ -826,17 +832,21 @@ def send_complete_order_notification(order_id):
             # 成功生成語音檔
             print(f"語音檔生成成功: {voice_result}")
             try:
-                with open(voice_result, 'rb') as audio_file:
-                    line_bot_api = get_line_bot_api()
-                    if line_bot_api:
-                        line_bot_api.push_message(
-                            user.line_user_id,
-                            AudioSendMessage(
-                                original_content_url=f"file://{voice_result}",
-                                duration=30000  # 預設30秒
-                            )
+                # 構建正確的HTTPS URL
+                fname = os.path.basename(voice_result)
+                base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+                audio_url = f"{base_url}/api/voices/{fname}"
+                
+                line_bot_api = get_line_bot_api()
+                if line_bot_api:
+                    line_bot_api.push_message(
+                        user.line_user_id,
+                        AudioSendMessage(
+                            original_content_url=audio_url,
+                            duration=30000  # 預設30秒
                         )
-                        print("語音檔已發送到 LINE")
+                    )
+                    print(f"語音檔已發送到 LINE: {audio_url}")
             except Exception as e:
                 print(f"發送語音檔失敗: {e}")
         elif voice_result and isinstance(voice_result, dict):
@@ -873,14 +883,8 @@ def send_complete_order_notification(order_id):
         send_voice_control_buttons(user.line_user_id, order_id, user.preferred_lang)
         print("語速控制按鈕已發送到 LINE")
         
-        # 6. 清理語音檔案
-        if voice_result and isinstance(voice_result, str) and os.path.exists(voice_result):
-            try:
-                os.remove(voice_result)
-                print(f"語音檔案已清理: {voice_result}")
-            except Exception as e:
-                print(f"清理語音檔案失敗: {e}")
-        
+        # 6. 不立即清理語音檔案，讓靜態路由服務
+        # 語音檔案會在30分鐘後由cleanup_old_voice_files自動清理
         print(f"訂單通知發送完成: {order_id}")
             
     except Exception as e:
@@ -987,6 +991,7 @@ def send_voice_with_rate(user_id, order_id, rate, user_language):
             fname = os.path.basename(voice_path)
             base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
             audio_url = f"{base_url}/api/voices/{fname}"
+            print(f"[Webhook] Reply with voice URL: {audio_url}")
             
             line_bot_api = get_line_bot_api()
             if line_bot_api:
@@ -1018,6 +1023,7 @@ def send_temp_order_notification(temp_order, user_id, user_language):
             fname = os.path.basename(voice_path)
             base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
             audio_url = f"{base_url}/api/voices/{fname}"
+            print(f"[Webhook] Reply with voice URL: {audio_url}")
             
             line_bot_api = get_line_bot_api()
             if line_bot_api:
@@ -1426,6 +1432,7 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         # 生成語音檔路徑（存到 /tmp/voices）
         filename = f"{uuid.uuid4()}.wav"
         voice_path = os.path.join(VOICE_DIR, filename)
+        print(f"[TTS] Will save to {voice_path}")
         
         # 設定音訊輸出
         audio_config = AudioConfig(filename=voice_path)
@@ -1437,7 +1444,7 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         result = synthesizer.speak_text_async(chinese_text).get()
         
         if result.reason == ResultReason.SynthesizingAudioCompleted:
-            print(f"語音檔生成成功: {voice_path}, 語速: {speech_rate}")
+            print(f"[TTS] Success, file exists? {os.path.exists(voice_path)}")
             return voice_path
         else:
             print(f"語音生成失敗: {result.reason}")
@@ -1507,6 +1514,7 @@ def send_order_to_line_bot(user_id, order_data):
             fname = os.path.basename(voice_url)
             base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
             audio_url = f"{base_url}/api/voices/{fname}"
+            print(f"[Webhook] Reply with voice URL: {audio_url}")
             
             messages.append({
                 "type": "audio",
@@ -1617,6 +1625,7 @@ def send_voice_with_rate(user_id, order_id, rate=1.0):
             fname = os.path.basename(voice_path)
             base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
             audio_url = f"{base_url}/api/voices/{fname}"
+            print(f"[Webhook] Reply with voice URL: {audio_url}")
             
             # 使用 LINE Bot API 發送語音
             line_bot_api = get_line_bot_api()
