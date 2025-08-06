@@ -308,6 +308,14 @@ def normalize_order_text_for_tts(text):
     """
     import re
     
+    def number_to_chinese(num):
+        """將阿拉伯數字轉換為中文數字"""
+        chinese_numbers = {
+            1: '一', 2: '二', 3: '三', 4: '四', 5: '五',
+            6: '六', 7: '七', 8: '八', 9: '九', 10: '十'
+        }
+        return chinese_numbers.get(num, str(num))
+    
     def repl(match):
         item_name = match.group(1).strip()
         quantity = int(match.group(2))
@@ -323,16 +331,20 @@ def normalize_order_text_for_tts(text):
             if quantity == 1:
                 return f"{item_name}一杯"
             else:
-                return f"{item_name}{quantity}杯"
+                chinese_quantity = number_to_chinese(quantity)
+                return f"{item_name}{chinese_quantity}杯"
         else:
             if quantity == 1:
                 return f"{item_name}一份"
             else:
-                return f"{item_name}{quantity}份"
+                chinese_quantity = number_to_chinese(quantity)
+                return f"{item_name}{chinese_quantity}份"
     
-    # 匹配模式：菜名 + x + 數量
+    # 匹配模式：菜名 + x + 數量（更精確的匹配）
     # 支援 x1, X1, *1, ×1 等多種格式
-    pattern = r'(\S+?)\s*[xX*×]\s*(\d+)'
+    # 確保 x 前後有適當的間隔，避免誤匹配
+    # 使用更精確的匹配，確保菜名包含中文字符
+    pattern = r'([\u4e00-\u9fff]+(?:\s*[\u4e00-\u9fff]+)*)\s*[xX*×]\s*(\d+)\b'
     normalized_text = re.sub(pattern, repl, text)
     
     return normalized_text
@@ -523,6 +535,10 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
     """
     cleanup_old_voice_files()
     try:
+        # 應用文本預處理（確保沒有遺漏的 x1 格式）
+        order_text = normalize_order_text_for_tts(order_text)
+        print(f"[TTS] 自定義語音預處理後的文本: {order_text}")
+        
         # 取得語音配置
         speech_config = get_speech_config()
         if not speech_config:
@@ -1338,6 +1354,10 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         
         # 準備語音文字（優先使用 chinese_voice，如果沒有則使用 chinese_summary）
         chinese_text = order_summary.get('chinese_voice', order_summary.get('chinese_summary', '點餐摘要'))
+        
+        # 應用文本預處理（確保沒有遺漏的 x1 格式）
+        chinese_text = normalize_order_text_for_tts(chinese_text)
+        print(f"[TTS] Azure 語音預處理後的文本: {chinese_text}")
         
         # 生成語音檔路徑（存到 /tmp/voices）
         filename = f"{uuid.uuid4()}.wav"
