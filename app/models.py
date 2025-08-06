@@ -167,6 +167,40 @@ class GeminiProcessing(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
 
 # =============================================================================
+# OCR 處理模型（符合同事的資料庫結構）
+# 功能：支援非合作店家的菜單圖片辨識
+# =============================================================================
+
+class OCRMenu(db.Model):
+    """OCR 菜單主檔（符合同事的資料庫結構）"""
+    __tablename__ = 'ocr_menus'
+    
+    ocr_menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
+    store_name = db.Column(db.String(100))  # 非合作店家名稱
+    upload_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    
+    # 關聯到菜單項目
+    items = db.relationship('OCRMenuItem', backref='ocr_menu', lazy=True, cascade="all, delete-orphan")
+    
+    def __repr__(self):
+        return f'<OCRMenu {self.ocr_menu_id}>'
+
+class OCRMenuItem(db.Model):
+    """OCR 菜單品項（符合同事的資料庫結構）"""
+    __tablename__ = 'ocr_menu_items'
+    
+    ocr_menu_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    ocr_menu_id = db.Column(db.BigInteger, db.ForeignKey('ocr_menus.ocr_menu_id'), nullable=False)
+    item_name = db.Column(db.String(100), nullable=False)  # 品項名稱
+    price_big = db.Column(db.Integer)  # 大份量價格
+    price_small = db.Column(db.Integer, nullable=False)  # 小份量價格
+    translated_desc = db.Column(db.Text)  # 翻譯後介紹
+    
+    def __repr__(self):
+        return f'<OCRMenuItem {self.ocr_menu_item_id}>'
+
+# =============================================================================
 # 簡化系統模型（非合作店家）
 # 功能：支援拍照辨識的簡化訂單系統
 # =============================================================================

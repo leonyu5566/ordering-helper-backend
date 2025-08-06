@@ -203,43 +203,62 @@ def process_menu_ocr():
         # 儲存上傳的檔案
         filepath = save_uploaded_file(file)
         
-        # 生成唯一的處理 ID（不使用資料庫）
-        processing_id = int(time.time() * 1000)  # 使用時間戳作為 ID
+        # 建立 OCR 菜單記錄（符合同事的資料庫結構）
+        from app.models import OCRMenu, OCRMenuItem
         
-        # 使用 Gemini API 處理圖片
+        # 先處理圖片獲取店家資訊
         print("開始使用 Gemini API 處理圖片...")
         result = process_menu_with_gemini(filepath, target_lang)
         
         # 檢查處理結果
         if result and result.get('success', False):
-            # 生成動態菜單資料
+            # 建立 OCR 菜單記錄
+            ocr_menu = OCRMenu(
+                user_id=user_id or 1,
+                store_name=result.get('store_info', {}).get('name', '臨時店家')
+            )
+            db.session.add(ocr_menu)
+            db.session.flush()  # 獲取 ocr_menu_id
+            # 儲存菜單項目到資料庫
             menu_items = result.get('menu_items', [])
             dynamic_menu = []
             
             for i, item in enumerate(menu_items):
-                # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
-                # 並提供前端需要的所有必要欄位
+                # 儲存到 ocr_menu_items 表
+                ocr_menu_item = OCRMenuItem(
+                    ocr_menu_id=ocr_menu.ocr_menu_id,
+                    item_name=str(item.get('original_name', '') or ''),
+                    price_small=item.get('price', 0),
+                    price_big=item.get('price', 0),  # 使用相同價格
+                    translated_desc=str(item.get('translated_name', '') or '')
+                )
+                db.session.add(ocr_menu_item)
+                
+                # 生成動態菜單資料（保持前端相容性）
                 dynamic_menu.append({
-                    'temp_id': f"temp_{processing_id}_{i}",
-                    'id': f"temp_{processing_id}_{i}",  # 前端可能需要 id 欄位
+                    'temp_id': f"temp_{ocr_menu.ocr_menu_id}_{i}",
+                    'id': f"temp_{ocr_menu.ocr_menu_id}_{i}",
                     'original_name': str(item.get('original_name', '') or ''),
                     'translated_name': str(item.get('translated_name', '') or ''),
-                    'en_name': str(item.get('translated_name', '') or ''),  # 英語名稱
+                    'en_name': str(item.get('translated_name', '') or ''),
                     'price': item.get('price', 0),
-                    'price_small': item.get('price', 0),  # 小份價格
-                    'price_large': item.get('price', 0),  # 大份價格
+                    'price_small': item.get('price', 0),
+                    'price_large': item.get('price', 0),
                     'description': str(item.get('description', '') or ''),
                     'category': str(item.get('category', '') or '其他'),
-                    'image_url': '/static/images/default-dish.png',  # 預設圖片
-                    'imageUrl': '/static/images/default-dish.png',  # 前端可能用這個欄位名
-                    'inventory': 999,  # 庫存數量
-                    'available': True,  # 是否可購買
-                    'processing_id': processing_id
+                    'image_url': '/static/images/default-dish.png',
+                    'imageUrl': '/static/images/default-dish.png',
+                    'inventory': 999,
+                    'available': True,
+                    'processing_id': ocr_menu.ocr_menu_id
                 })
+            
+            # 提交資料庫變更
+            db.session.commit()
             
             response = jsonify({
                 "message": "菜單處理成功",
-                "processing_id": processing_id,
+                "processing_id": ocr_menu.ocr_menu_id,
                 "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
@@ -251,7 +270,7 @@ def process_menu_ocr():
             # 加入 API 回應的除錯 log
             print(f"🎉 API 成功回應 201 Created")
             print(f"📊 回應統計:")
-            print(f"  - 處理ID: {processing_id}")
+            print(f"  - 處理ID: {ocr_menu.ocr_menu_id}")
             print(f"  - 菜單項目數: {len(dynamic_menu)}")
             print(f"  - 目標語言: {target_lang}")
             print(f"  - 店家資訊: {result.get('store_info', {})}")
@@ -269,7 +288,7 @@ def process_menu_ocr():
                 print(f"🔍 錯誤詳情:")
                 print(f"  - 錯誤訊息: {error_message}")
                 print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing_id}")
+                print(f"  - 處理ID: 無")
                 
                 response = jsonify({
                     "error": error_message,
@@ -283,7 +302,7 @@ def process_menu_ocr():
                 print(f"🔍 錯誤詳情:")
                 print(f"  - 錯誤訊息: {error_message}")
                 print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing_id}")
+                print(f"  - 處理ID: 無")
                 
                 response = jsonify({
                     "error": error_message,
