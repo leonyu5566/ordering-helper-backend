@@ -17,8 +17,17 @@ RUN apt-get update && \
         python3.11-dev \
         python3.11-distutils \
         python3-pip \
+        # Azure Speech SDK 必要依賴
         libssl1.1 \
+        libcurl4 \
+        libgomp1 \
+        libatomic1 \
+        libffi8 \
         libasound2 \
+        libogg0 \
+        libvorbis0a \
+        sox \
+        # 其他必要套件
         libpthread-stubs0-dev \
         gunicorn \
     && rm -rf /var/lib/apt/lists/*
