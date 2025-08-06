@@ -1352,7 +1352,7 @@ def upload_menu_image():
             return response, 400
         
         # 取得參數
-        store_id = request.form.get('store_id', type=int)
+        store_id = request.form.get('store_id')  # 移除 type=int，接受字串
         user_id = request.form.get('user_id', type=int)
         target_lang = request.form.get('lang', 'en')
         
