@@ -7,20 +7,24 @@ ENV DEBIAN_FRONTEND=noninteractive
 # 安裝 Python 3.11 和必要系統庫
 RUN apt-get update && \
     apt-get install -y \
+        software-properties-common \
+        ca-certificates \
+        curl \
+    && add-apt-repository ppa:deadsnakes/ppa -y \
+    && apt-get update && \
+    apt-get install -y \
         python3.11 \
-        python3.11-pip \
         python3.11-dev \
+        python3-pip \
         libssl1.1 \
         libasound2 \
         libpthread-stubs0-dev \
-        ca-certificates \
-        curl \
         gunicorn \
     && rm -rf /var/lib/apt/lists/*
 
 # 設定 Python 3.11 為預設版本
 RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1 && \
-    update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3.11 1
+    update-alternatives --install /usr/bin/pip3 pip3 /usr/bin/pip3 1
 
 # 設定工作目錄
 WORKDIR /app
