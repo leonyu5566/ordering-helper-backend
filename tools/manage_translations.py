@@ -42,19 +42,7 @@ def init_languages():
 def add_menu_translation(menu_item_id, lang_code, translated_name, description=None):
     """新增菜單翻譯"""
     try:
-        # 檢查菜單項目是否存在
-        menu_item = MenuItem.query.get(menu_item_id)
-        if not menu_item:
-            print(f"❌ 找不到菜單項目 ID: {menu_item_id}")
-            return False
-        
-        # 檢查語言是否存在
-        language = Language.query.get(lang_code)
-        if not language:
-            print(f"❌ 不支援的語言代碼: {lang_code}")
-            return False
-        
-        # 檢查是否已有翻譯
+        # 檢查是否已存在翻譯
         existing = MenuTranslation.query.filter_by(
             menu_item_id=menu_item_id,
             lang_code=lang_code
@@ -62,27 +50,25 @@ def add_menu_translation(menu_item_id, lang_code, translated_name, description=N
         
         if existing:
             # 更新現有翻譯
-            existing.item_name_trans = translated_name
-            existing.description = description
-            print(f"🔄 更新菜單翻譯：{menu_item.item_name} → {translated_name} ({lang_code})")
+            existing.description = translated_name
+            if description:
+                existing.description = description
+            db.session.commit()
+            print(f"✅ 更新菜單翻譯: {translated_name}")
         else:
             # 新增翻譯
-            translation = MenuTranslation(
+            new_translation = MenuTranslation(
                 menu_item_id=menu_item_id,
                 lang_code=lang_code,
-                item_name_trans=translated_name,
-                description=description
+                description=translated_name
             )
-            db.session.add(translation)
-            print(f"✅ 新增菜單翻譯：{menu_item.item_name} → {translated_name} ({lang_code})")
-        
-        db.session.commit()
-        return True
-        
+            db.session.add(new_translation)
+            db.session.commit()
+            print(f"✅ 新增菜單翻譯: {translated_name}")
+            
     except Exception as e:
-        print(f"❌ 新增菜單翻譯失敗：{e}")
+        print(f"❌ 新增菜單翻譯失敗: {e}")
         db.session.rollback()
-        return False
 
 def add_store_translation(store_id, lang_code, description_trans=None, reviews=None):
     """新增店家翻譯"""
@@ -102,23 +88,23 @@ def add_store_translation(store_id, lang_code, description_trans=None, reviews=N
         # 檢查是否已有翻譯
         existing = StoreTranslation.query.filter_by(
             store_id=store_id,
-            lang_code=lang_code
+            language_code=lang_code
         ).first()
         
         if existing:
             # 更新現有翻譯
             if description_trans:
-                existing.description_trans = description_trans
+                existing.description = description_trans
             if reviews:
-                existing.reviews = reviews
+                existing.translated_summary = reviews
             print(f"🔄 更新店家翻譯：{store.store_name} ({lang_code})")
         else:
             # 新增翻譯
             translation = StoreTranslation(
                 store_id=store_id,
-                lang_code=lang_code,
-                description_trans=description_trans,
-                reviews=reviews
+                language_code=lang_code,
+                description=description_trans,
+                translated_summary=reviews
             )
             db.session.add(translation)
             print(f"✅ 新增店家翻譯：{store.store_name} ({lang_code})")
@@ -131,32 +117,24 @@ def add_store_translation(store_id, lang_code, description_trans=None, reviews=N
         db.session.rollback()
         return False
 
-def list_menu_translations(menu_item_id=None):
-    """列出菜單翻譯"""
-    if menu_item_id:
-        translations = MenuTranslation.query.filter_by(menu_item_id=menu_item_id).all()
-        if not translations:
-            print(f"❌ 找不到菜單項目 {menu_item_id} 的翻譯")
-            return
-        
-        menu_item = MenuItem.query.get(menu_item_id)
-        print(f"\n📋 菜單項目翻譯：{menu_item.item_name}")
-        print("-" * 50)
-    else:
+def list_menu_translations():
+    """列出所有菜單翻譯"""
+    try:
         translations = MenuTranslation.query.all()
-        print(f"\n📋 所有菜單翻譯（共 {len(translations)} 筆）")
-        print("-" * 50)
-    
-    for trans in translations:
-        menu_item = MenuItem.query.get(trans.menu_item_id)
-        language = Language.query.get(trans.lang_code)
-        print(f"ID: {trans.menu_translation_id}")
-        print(f"菜單項目: {menu_item.item_name}")
-        print(f"語言: {language.lang_name} ({trans.lang_code})")
-        print(f"翻譯: {trans.item_name_trans}")
-        if trans.description:
-            print(f"描述: {trans.description}")
-        print("-" * 30)
+        print(f"\n📋 菜單翻譯列表 (共 {len(translations)} 筆):")
+        print("-" * 60)
+        
+        for trans in translations:
+            menu_item = MenuItem.query.get(trans.menu_item_id)
+            item_name = menu_item.item_name if menu_item else "未知項目"
+            print(f"翻譯: {trans.description}")
+            print(f"  原始: {item_name}")
+            print(f"  語言: {trans.lang_code}")
+            print(f"  項目ID: {trans.menu_item_id}")
+            print("-" * 30)
+            
+    except Exception as e:
+        print(f"❌ 列出菜單翻譯失敗: {e}")
 
 def list_store_translations(store_id=None):
     """列出店家翻譯"""
@@ -176,14 +154,14 @@ def list_store_translations(store_id=None):
     
     for trans in translations:
         store = Store.query.get(trans.store_id)
-        language = Language.query.get(trans.lang_code)
-        print(f"ID: {trans.store_translation_id}")
+        language = Language.query.get(trans.language_code)
+        print(f"ID: {trans.id}")
         print(f"店家: {store.store_name}")
-        print(f"語言: {language.lang_name} ({trans.lang_code})")
-        if trans.description_trans:
-            print(f"描述翻譯: {trans.description_trans}")
-        if trans.reviews:
-            print(f"評論翻譯: {trans.reviews}")
+        print(f"語言: {language.lang_name} ({trans.language_code})")
+        if trans.description:
+            print(f"描述翻譯: {trans.description}")
+        if trans.translated_summary:
+            print(f"評論翻譯: {trans.translated_summary}")
         print("-" * 30)
 
 def bulk_translate_menu_items(store_id, target_language):
@@ -218,7 +196,7 @@ def bulk_translate_menu_items(store_id, target_language):
             translation = MenuTranslation(
                 menu_item_id=item.menu_item_id,
                 lang_code=target_language,
-                item_name_trans=translated_name
+                description=translated_name
             )
             db.session.add(translation)
             success_count += 1
@@ -269,11 +247,7 @@ def main():
                 reviews = input("請輸入評論翻譯 (可選): ") or None
                 add_store_translation(store_id, lang_code, description_trans, reviews)
             elif choice == '4':
-                menu_item_id = input("請輸入菜單項目 ID (留空顯示全部): ").strip()
-                if menu_item_id:
-                    list_menu_translations(int(menu_item_id))
-                else:
-                    list_menu_translations()
+                list_menu_translations()
             elif choice == '5':
                 store_id = input("請輸入店家 ID (留空顯示全部): ").strip()
                 if store_id:

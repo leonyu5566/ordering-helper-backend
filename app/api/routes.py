@@ -407,7 +407,6 @@ def create_order():
                 })
             
             # 生成訂單ID
-            import datetime
             order_id = f"simple_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
             
             # 使用 Gemini API 生成訂單摘要
@@ -497,8 +496,7 @@ def create_order():
             # 為訪客創建臨時使用者
             user = User(
                 line_user_id=line_user_id,
-                preferred_lang=preferred_lang,
-                created_at=datetime.datetime.utcnow()
+                preferred_lang=preferred_lang
             )
             db.session.add(user)
             db.session.flush()  # 先產生 user_id，但不提交
@@ -673,8 +671,7 @@ def create_temp_order():
                 # 為訪客創建臨時使用者
                 user = User(
                     line_user_id=line_user_id,
-                    preferred_lang=preferred_lang,
-                    created_at=datetime.datetime.utcnow()
+                    preferred_lang=preferred_lang
                 )
                 db.session.add(user)
                 db.session.flush()  # 先產生 user_id，但不提交
@@ -1780,7 +1777,6 @@ def simple_order():
             })
         
         # 生成訂單ID（用於檔案命名）
-        import datetime
         order_id = f"simple_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         
         # 使用 Gemini API 生成訂單摘要

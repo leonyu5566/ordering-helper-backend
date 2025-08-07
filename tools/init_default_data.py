@@ -38,7 +38,6 @@ def init_default_data():
             default_store = Store(
                 store_name='預設店家',
                 partner_level=0,  # 非合作店家
-                created_at=datetime.datetime.utcnow()
             )
             db.session.add(default_store)
             db.session.flush()
@@ -54,7 +53,6 @@ def init_default_data():
             default_menu = Menu(
                 store_id=default_store.store_id,
                 version=1,
-                created_at=datetime.datetime.utcnow()
             )
             db.session.add(default_menu)
             db.session.flush()
@@ -91,7 +89,6 @@ def init_default_data():
                     item_name=item_data['item_name'],
                     price_small=item_data['price_small'],
                     price_big=item_data['price_big'],
-                    created_at=datetime.datetime.utcnow()
                 )
                 db.session.add(menu_item)
             

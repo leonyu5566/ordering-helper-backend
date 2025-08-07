@@ -392,7 +392,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
             if menu_item:
                 # 改進：根據菜名類型選擇合適的量詞
                 item_name = menu_item.item_name
-                quantity = item.quantity_small
+                quantity = item.quantity
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
@@ -595,7 +595,7 @@ def create_order_summary(order_id, user_language='zh'):
     for item in order.items:
         menu_item = MenuItem.query.get(item.menu_item_id)
         if menu_item:
-            chinese_summary += f"- {menu_item.item_name} x{item.quantity_small}\n"
+            chinese_summary += f"- {menu_item.item_name} x{item.quantity}\n"
     
     chinese_summary += f"總金額：${order.total_amount}"
     
@@ -609,7 +609,7 @@ def create_order_summary(order_id, user_language='zh'):
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                translated_summary += f"- {menu_item.item_name} x{item.quantity_small}\n"
+                translated_summary += f"- {menu_item.item_name} x{item.quantity}\n"
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
@@ -763,62 +763,79 @@ def translate_text_with_fallback(text, target_language='en'):
         print(f"AI翻譯失敗：{e}")
         return text  # 如果翻譯失敗，回傳原文
 
-def translate_menu_items_with_db_fallback(menu_items, target_language='en'):
-    """
-    翻譯菜單項目（優先使用資料庫翻譯）
-    """
+def translate_menu_items_with_db_fallback(menu_items, target_language):
+    """翻譯菜單項目，優先使用資料庫翻譯，失敗時使用 AI 翻譯"""
     translated_items = []
     
     for item in menu_items:
-        # 先嘗試從資料庫取得翻譯
-        db_translation = get_menu_translation_from_db(item.menu_item_id, target_language)
+        # 嘗試從資料庫獲取翻譯
+        db_translation = None
+        try:
+            db_translation = MenuTranslation.query.filter_by(
+                menu_item_id=item.menu_item_id,
+                lang_code=target_language
+            ).first()
+        except Exception as e:
+            print(f"資料庫翻譯查詢失敗: {e}")
         
-        if db_translation and db_translation.item_name_trans:
-            # 使用資料庫翻譯
-            translated_name = db_translation.item_name_trans
-            translated_description = db_translation.description
+        # 如果資料庫有翻譯，使用資料庫翻譯
+        if db_translation and db_translation.description:
+            translated_name = db_translation.description
+            translation_source = 'database'
         else:
-            # 使用AI翻譯
-            translated_name = translate_text_with_fallback(item.item_name, target_language)
-            translated_description = translate_text_with_fallback(item.description, target_language) if item.description else None
+            # 使用 AI 翻譯
+            try:
+                translated_name = translate_text_with_fallback(item.item_name, target_language)
+                translation_source = 'ai'
+            except Exception as e:
+                print(f"AI 翻譯失敗: {e}")
+                translated_name = item.item_name
+                translation_source = 'original'
         
         translated_item = {
             'menu_item_id': item.menu_item_id,
-            'original_name': str(item.item_name or ''),
-            'translated_name': str(translated_name or ''),
-            'price_small': int(item.price_small) if item.price_small is not None else 0,
-            'price_large': int(item.price_big) if item.price_big is not None else 0,
-            'price': int(item.price_small) if item.price_small is not None else 0,  # 向前相容
-            'description': str(item.description or ''),
-            'translated_description': str(translated_description or ''),
-            'translation_source': 'database' if db_translation and db_translation.item_name_trans else 'ai'
+            'original_name': item.item_name,
+            'translated_name': translated_name,
+            'price_small': item.price_small,
+            'price_big': item.price_big,
+            'translation_source': translation_source
         }
         translated_items.append(translated_item)
     
     return translated_items
 
-def translate_store_info_with_db_fallback(store, target_language='en'):
-    """
-    翻譯店家資訊（優先使用資料庫翻譯）
-    """
-    # 先嘗試從資料庫取得翻譯
-    db_translation = get_store_translation_from_db(store.store_id, target_language)
+def translate_store_info_with_db_fallback(store, target_language):
+    """翻譯店家資訊，優先使用資料庫翻譯，失敗時使用 AI 翻譯"""
+    # 嘗試從資料庫獲取翻譯
+    db_translation = None
+    try:
+        db_translation = StoreTranslation.query.filter_by(
+            store_id=store.store_id,
+            language_code=target_language
+        ).first()
+    except Exception as e:
+        print(f"店家翻譯查詢失敗: {e}")
     
-    if db_translation:
-        # 使用資料庫翻譯
-        translated_name = db_translation.description_trans or store.store_name
-        translated_reviews = db_translation.reviews
+    # 如果資料庫有翻譯，使用資料庫翻譯
+    if db_translation and db_translation.description:
+        translated_name = db_translation.description
+        translation_source = 'database'
     else:
-        # 使用AI翻譯
-        translated_name = translate_text_with_fallback(store.store_name, target_language)
-        translated_reviews = translate_text_with_fallback(store.review_summary, target_language) if store.review_summary else None
+        # 使用 AI 翻譯
+        try:
+            translated_name = translate_text_with_fallback(store.store_name, target_language)
+            translation_source = 'ai'
+        except Exception as e:
+            print(f"AI 翻譯失敗: {e}")
+            translated_name = store.store_name
+            translation_source = 'original'
     
     return {
         'store_id': store.store_id,
-        'original_name': str(store.store_name or ''),
-        'translated_name': str(translated_name or ''),
-        'translated_reviews': str(translated_reviews or ''),
-        'translation_source': 'database' if db_translation else 'ai'
+        'original_name': store.store_name,
+        'translated_name': translated_name,
+        'translated_reviews': translate_text_with_fallback(store.review_summary, target_language) if store.review_summary else None,
+        'translation_source': translation_source
     }
 
 def create_complete_order_confirmation(order_id, user_language='zh'):
@@ -842,13 +859,13 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         menu_item = MenuItem.query.get(item.menu_item_id)
         if menu_item:
             # 為語音準備：自然的中文表達
-            if item.quantity_small == 1:
+            if item.quantity == 1:
                 items_for_voice.append(f"{menu_item.item_name}一份")
             else:
-                items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
+                items_for_voice.append(f"{menu_item.item_name}{item.quantity}份")
             
             # 為摘要準備：清晰的格式
-            items_for_summary.append(f"{menu_item.item_name} x{item.quantity_small}")
+            items_for_summary.append(f"{menu_item.item_name} x{item.quantity}")
     
     # 生成自然的中文語音
     if len(items_for_voice) == 1:
@@ -887,7 +904,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
                 else:
                     translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
                 
-                translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
+                translated_summary += f"- {translated_name} x{item.quantity} (${item.subtotal})\n"
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
@@ -1145,7 +1162,7 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             if menu_item:
                 # 改進：根據菜名類型選擇合適的量詞
                 item_name = menu_item.item_name
-                quantity = item.quantity_small
+                quantity = item.quantity
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):

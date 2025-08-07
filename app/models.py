@@ -34,7 +34,7 @@ db = SQLAlchemy()
 # =============================================================================
 class Language(db.Model):
     __tablename__ = 'languages'
-    lang_code = db.Column(db.String(5), primary_key=True)
+    lang_code = db.Column(db.String(10), primary_key=True)
     lang_name = db.Column(db.String(50), nullable=False)
 
 # =============================================================================
@@ -45,15 +45,17 @@ class Language(db.Model):
 # - user_id：使用者唯一識別碼
 # - line_user_id：LINE 平台的使用者 ID
 # - preferred_lang：使用者偏好的語言（關聯到 Language 模型）
-# - created_at：帳號建立時間
+# - created_at：帳號建立時間（資料庫自動設定）
+# - state：使用者狀態（normal, blocked 等）
 # 關聯：與 Language 模型建立外鍵關聯
 # =============================================================================
 class User(db.Model):
     __tablename__ = 'users'
     user_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     line_user_id = db.Column(db.String(100), unique=True, nullable=False)
-    preferred_lang = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    preferred_lang = db.Column(db.String(10), db.ForeignKey('languages.lang_code'), nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    state = db.Column(db.String(50), default='normal')
 
 # =============================================================================
 # 店家模型區塊
@@ -68,17 +70,18 @@ class User(db.Model):
 # - review_summary：評論摘要
 # - top_dish_1-5：熱門菜色
 # - main_photo_url：店家招牌照片 URL
-# - created_at：店家資料建立時間
+# - created_at：店家資料建立時間（資料庫自動設定）
+# - latitude/longitude：向後相容的座標欄位
 # 關聯：與 Menu 模型建立一對多關聯（一個店家可以有多個菜單）
 # =============================================================================
 class Store(db.Model):
     __tablename__ = 'stores'
-    store_id = db.Column(db.Integer, primary_key=True)
+    store_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_name = db.Column(db.String(100), nullable=False)
-    partner_level = db.Column(db.SmallInteger, nullable=False, default=0)  # 0=非合作, 1=合作, 2=VIP
-    gps_lat = db.Column(db.Float)  # 店家緯度
-    gps_lng = db.Column(db.Float)  # 店家經度
-    place_id = db.Column(db.String(100))  # Google Places ID
+    partner_level = db.Column(db.Integer, nullable=False, default=0)  # 0=非合作, 1=合作, 2=VIP
+    gps_lat = db.Column(db.Double)  # 店家緯度
+    gps_lng = db.Column(db.Double)  # 店家經度
+    place_id = db.Column(db.String(255))  # Google Places ID
     review_summary = db.Column(db.Text)  # 評論摘要
     top_dish_1 = db.Column(db.String(100))  # 熱門菜色1
     top_dish_2 = db.Column(db.String(100))  # 熱門菜色2
@@ -86,17 +89,17 @@ class Store(db.Model):
     top_dish_4 = db.Column(db.String(100))  # 熱門菜色4
     top_dish_5 = db.Column(db.String(100))  # 熱門菜色5
     main_photo_url = db.Column(db.String(255))  # 店家招牌照片
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-    # 新增的欄位（用於向後相容）
-    latitude = db.Column(db.Float)  # 店家緯度（向後相容）
-    longitude = db.Column(db.Float)  # 店家經度（向後相容）
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    # 向後相容的欄位（用於向後相容）
+    latitude = db.Column(db.Numeric(10,8))  # 店家緯度（向後相容）
+    longitude = db.Column(db.Numeric(11,8))  # 店家經度（向後相容）
     menus = db.relationship('Menu', backref='store', lazy=True)
 
 class StoreTranslation(db.Model):
     __tablename__ = 'store_translations'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    language_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
+    language_code = db.Column(db.String(10), db.ForeignKey('languages.lang_code'), nullable=False)
     description = db.Column(db.Text)  # 翻譯後的店家簡介
     translated_summary = db.Column(db.Text)  # 翻譯後的評論摘要
 
@@ -104,8 +107,10 @@ class Menu(db.Model):
     __tablename__ = 'menus'
     menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
+    template_id = db.Column(db.Integer, db.ForeignKey('menu_templates.template_id'))
     version = db.Column(db.Integer, nullable=False, default=1)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    effective_date = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     items = db.relationship('MenuItem', backref='menu', lazy=True, cascade="all, delete-orphan")
 
 class MenuItem(db.Model):
@@ -115,24 +120,22 @@ class MenuItem(db.Model):
     item_name = db.Column(db.String(100), nullable=False) # 這是中文菜品名
     price_big = db.Column(db.Integer)
     price_small = db.Column(db.Integer, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     translations = db.relationship('MenuTranslation', backref='menu_item', lazy=True, cascade="all, delete-orphan")
 
 class MenuTranslation(db.Model):
     __tablename__ = 'menu_translations'
     menu_translation_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
-    lang_code = db.Column(db.String(5), db.ForeignKey('languages.lang_code'), nullable=False)
-    item_name_trans = db.Column(db.String(100)) # 翻譯後的菜品名
-    description = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    lang_code = db.Column(db.String(10), db.ForeignKey('languages.lang_code'), nullable=False)
+    description = db.Column(db.Text)  # 翻譯後的菜品描述
 
 class Order(db.Model):
     __tablename__ = 'orders'
     order_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    order_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    order_time = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     total_amount = db.Column(db.Integer, nullable=False, default=0)
     status = db.Column(db.String(20), default='pending')  # pending, completed, cancelled
     items = db.relationship('OrderItem', backref='order', lazy=True, cascade="all, delete-orphan")
@@ -153,9 +156,7 @@ class VoiceFile(db.Model):
     file_url = db.Column(db.String(500), nullable=False)  # 語音檔案 URL
     file_type = db.Column(db.String(10), default='mp3')  # mp3, wav
     speech_rate = db.Column(db.Float, default=1.0)  # 語速倍率
-    created_at = db.Column(db.DateTime, default=datetime.datetime.utcnow)
-
-
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
 
 # =============================================================================
 # OCR 處理模型（符合同事的資料庫結構）
@@ -169,7 +170,7 @@ class OCRMenu(db.Model):
     ocr_menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
     store_name = db.Column(db.String(100))  # 非合作店家名稱
-    upload_time = db.Column(db.DateTime, default=datetime.datetime.utcnow)
+    upload_time = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     
     # 關聯到菜單項目
     items = db.relationship('OCRMenuItem', backref='ocr_menu', lazy=True, cascade="all, delete-orphan")
