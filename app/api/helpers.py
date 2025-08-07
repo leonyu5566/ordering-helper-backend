@@ -786,8 +786,9 @@ def translate_menu_items_with_db_fallback(menu_items, target_language='en'):
             'menu_item_id': item.menu_item_id,
             'original_name': str(item.item_name or ''),
             'translated_name': str(translated_name or ''),
-            'price_small': item.price_small,
-            'price_large': item.price_large,
+            'price_small': int(item.price_small) if item.price_small is not None else 0,
+            'price_large': int(item.price_big) if item.price_big is not None else 0,
+            'price': int(item.price_small) if item.price_small is not None else 0,  # 向前相容
             'description': str(item.description or ''),
             'translated_description': str(translated_description or ''),
             'translation_source': 'database' if db_translation and db_translation.item_name_trans else 'ai'
