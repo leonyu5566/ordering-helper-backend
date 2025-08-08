@@ -1476,7 +1476,7 @@ def generate_user_language_order_summary(user_language_items, total_amount, user
         
     except Exception as e:
         print(f"使用者語言訂單摘要生成失敗: {e}")
-        return "Order Summary"
+        return "點餐摘要"
 
 def generate_chinese_voice_text(chinese_items):
     """
@@ -1552,7 +1552,7 @@ def generate_fallback_order_summary(items, user_language):
         return {
             "chinese_voice": "老闆，我要點餐，謝謝。",
             "chinese_summary": "點餐摘要",
-            "user_summary": "Order Summary"
+            "user_summary": "點餐摘要"
         }
 
 def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
@@ -1649,7 +1649,7 @@ def send_order_to_line_bot(user_id, order_data):
         # 準備訊息內容
         chinese_summary = order_data.get('chinese_summary') \
                      or order_data.get('zh_summary', '點餐摘要')
-        user_summary = order_data.get('user_summary', 'Order Summary')
+        user_summary = order_data.get('user_summary', '點餐摘要')
         voice_url = order_data.get('voice_url')
         total_amount = order_data.get('total_amount', 0)
         
@@ -1917,7 +1917,7 @@ def generate_user_language_order_summary(user_items: List[Dict], total_amount: f
         
     except Exception as e:
         print(f"使用者語言訂單摘要生成失敗: {e}")
-        return "Order Summary"
+        return "點餐摘要"
 
 def build_chinese_voice_text(zh_items: List[Dict]) -> str:
     """
@@ -2227,7 +2227,9 @@ def build_order_message(zh_summary: str, user_summary: str, total: int, audio_ur
     
     # 使用者語言摘要在第一行
     if user_summary and user_summary != zh_summary:
-        text_parts.append(f"{detect_lang(user_summary)} 摘要：{user_summary}")
+        # 根據使用者語言顯示對應的語言標籤
+        lang_label = get_language_label(user_summary)
+        text_parts.append(f"{lang_label} 摘要：{user_summary}")
     
     # 中文摘要（給店家聽）
     text_parts.append(f"中文摘要（給店家聽）：{zh_summary}")
@@ -2236,7 +2238,7 @@ def build_order_message(zh_summary: str, user_summary: str, total: int, audio_ur
     total_twd = int(round(total))
     text_parts.append(f"總金額：{total_twd} 元")
     
-    text = "Order Summary\n\n" + "\n\n".join(text_parts)
+    text = "\n\n".join(text_parts)
     messages = [{"type": "text", "text": text}]
     
     # 3. audio_url 必須是 https 且可存取，否則不要附加
@@ -2258,6 +2260,22 @@ def detect_lang(text: str) -> str:
         return "中文"
     elif any(c.isalpha() for c in text) and not contains_cjk(text):
         return "English"
+    else:
+        return "摘要"
+
+def get_language_label(text: str) -> str:
+    """根據文字內容返回對應的語言標籤"""
+    if contains_cjk(text):
+        return "中文"
+    elif any(c.isalpha() for c in text) and not contains_cjk(text):
+        # 檢查是否包含日文字符
+        if any('\u3040' <= char <= '\u309F' or '\u30A0' <= char <= '\u30FF' for char in text):
+            return "日本語"
+        # 檢查是否包含韓文字符
+        elif any('\uAC00' <= char <= '\uD7AF' for char in text):
+            return "한국어"
+        else:
+            return "English"
     else:
         return "摘要"
 
