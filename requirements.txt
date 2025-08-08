@@ -20,3 +20,6 @@ pydantic==2.5.0
 
 # 記憶體監控
 psutil==5.9.6
+
+# Google Cloud Storage (用於語音檔上傳)
+google-cloud-storage==2.10.0

@@ -50,5 +50,7 @@ app = create_app()
 # 注意：正式上線時務必關閉 debug 模式
 # =============================================================================
 if __name__ == '__main__':
-    app.run(debug=True, port=5002)
+    # Cloud Run 需要監聽 PORT=8080
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port, debug=False)
 

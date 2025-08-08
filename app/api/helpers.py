@@ -17,7 +17,6 @@ from pydantic import BaseModel
 import logging
 import re
 import datetime
-from google.cloud import storage
 from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
 import tempfile
 
@@ -2344,7 +2343,6 @@ def generate_and_upload_audio_to_gcs(text: str, order_id: str) -> str | None:
     try:
         import os
         import tempfile
-        from google.cloud import storage
         from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
         
         # 1. 生成語音檔
@@ -2379,8 +2377,10 @@ def generate_and_upload_audio_to_gcs(text: str, order_id: str) -> str | None:
             os.unlink(temp_path)
             return None
         
-        # 2. 上傳到 GCS
+        # 2. 上傳到 GCS（可選功能，如果 GCS 不可用則跳過）
         try:
+            from google.cloud import storage
+            
             # 初始化 GCS 客戶端
             storage_client = storage.Client()
             
@@ -2407,6 +2407,11 @@ def generate_and_upload_audio_to_gcs(text: str, order_id: str) -> str | None:
             logging.info(f"✅ 語音檔已上傳到 GCS: {public_url}")
             return public_url
             
+        except ImportError:
+            logging.warning("Google Cloud Storage 不可用，跳過 GCS 上傳")
+            # 清理臨時檔案
+            os.unlink(temp_path)
+            return None
         except Exception as e:
             logging.error(f"❌ GCS 上傳失敗: {e}")
             # 清理臨時檔案

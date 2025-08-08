@@ -1057,10 +1057,26 @@ def health_check():
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
     
+    try:
+        # 檢查資料庫連線
+        from ..models import db
+        db.session.execute("SELECT 1")
+        db_status = "connected"
+    except Exception as e:
+        db_status = f"error: {str(e)}"
+    
     response = jsonify({
         'status': 'healthy',
         'message': 'API is running',
-        'timestamp': datetime.datetime.now().isoformat()
+        'timestamp': datetime.datetime.now().isoformat(),
+        'database': db_status,
+        'environment': {
+            'db_user': bool(os.getenv('DB_USER')),
+            'db_host': bool(os.getenv('DB_HOST')),
+            'line_token': bool(os.getenv('LINE_CHANNEL_ACCESS_TOKEN')),
+            'gemini_key': bool(os.getenv('GEMINI_API_KEY')),
+            'azure_speech': bool(os.getenv('AZURE_SPEECH_KEY'))
+        }
     })
     response.headers.add('Access-Control-Allow-Origin', '*')
     return response
