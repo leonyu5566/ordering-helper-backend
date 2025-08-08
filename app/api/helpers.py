@@ -2204,8 +2204,11 @@ def send_complete_order_notification_optimized(order_id):
 
 def build_order_message(zh_summary: str, user_summary: str, total: int, audio_url: str | None) -> list:
     """
-    建立訂單訊息（嚴謹檢查版本）
-    按照 GPT 建議：確保摘要不為 None，audio_url 必須是 HTTPS
+    建立訂單訊息（修正版本）
+    解決問題：
+    1. 使用者語言摘要在第一行
+    2. 金額去除小數點
+    3. 語音檔上傳問題處理
     """
     import logging
     
@@ -2219,13 +2222,21 @@ def build_order_message(zh_summary: str, user_summary: str, total: int, audio_ur
         logging.warning("User summary missing, fallback to zh_summary")
         user_summary = zh_summary
     
-    # 2. 構建文字訊息
-    text = (
-        "Order Summary\n\n"
-        f"中文摘要（給店家聽）：{zh_summary}\n\n"
-        f"{detect_lang(user_summary)} 摘要：{user_summary}\n\n"
-        f"總金額：{total} 元"
-    )
+    # 2. 構建文字訊息（修正排序：使用者語言摘要在前）
+    text_parts = []
+    
+    # 使用者語言摘要在第一行
+    if user_summary and user_summary != zh_summary:
+        text_parts.append(f"{detect_lang(user_summary)} 摘要：{user_summary}")
+    
+    # 中文摘要（給店家聽）
+    text_parts.append(f"中文摘要（給店家聽）：{zh_summary}")
+    
+    # 總金額（修正：去除小數點）
+    total_twd = int(round(total))
+    text_parts.append(f"總金額：{total_twd} 元")
+    
+    text = "Order Summary\n\n" + "\n\n".join(text_parts)
     messages = [{"type": "text", "text": text}]
     
     # 3. audio_url 必須是 https 且可存取，否則不要附加
@@ -2338,12 +2349,12 @@ def send_order_to_line_bot_fixed(user_id, order_data):
 def generate_and_upload_audio_to_gcs(text: str, order_id: str) -> str | None:
     """
     生成語音檔並上傳到 GCS，返回公開 HTTPS URL
-    解決 TTS 檔案沒有公開網址的問題
+    修正版本：解決 GCS bucket 不存在和權限問題
     """
     try:
         import os
         import tempfile
-        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
+        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
         
         # 1. 生成語音檔
         speech_config = get_speech_config()
@@ -2377,16 +2388,31 @@ def generate_and_upload_audio_to_gcs(text: str, order_id: str) -> str | None:
             os.unlink(temp_path)
             return None
         
-        # 2. 上傳到 GCS（可選功能，如果 GCS 不可用則跳過）
+        # 2. 上傳到 GCS（修正版本）
         try:
             from google.cloud import storage
             
             # 初始化 GCS 客戶端
             storage_client = storage.Client()
             
-            # 取得 bucket（需要設定環境變數）
+            # 取得 bucket（修正 bucket 名稱）
             bucket_name = os.getenv('GCS_BUCKET_NAME', 'ordering-helper-voice-files')
+            
+            # 檢查 bucket 是否存在，如果不存在則創建
             bucket = storage_client.bucket(bucket_name)
+            if not bucket.exists():
+                logging.warning(f"❌ GCS bucket '{bucket_name}' 不存在，嘗試創建...")
+                try:
+                    # 創建 bucket（需要適當的權限）
+                    bucket = storage_client.create_bucket(bucket_name, location='asia-east1')
+                    logging.info(f"✅ 成功創建 GCS bucket: {bucket_name}")
+                except Exception as create_error:
+                    logging.error(f"❌ 無法創建 GCS bucket: {create_error}")
+                    # 清理臨時檔案
+                    os.unlink(temp_path)
+                    return None
+            else:
+                logging.info(f"✅ GCS bucket '{bucket_name}' 已存在")
             
             # 生成 blob 名稱
             blob_name = f"voices/{order_id}_{os.path.basename(temp_path)}"
