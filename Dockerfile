@@ -57,6 +57,7 @@ RUN mkdir -p /tmp/voices && chmod 755 /tmp/voices
 ENV FLASK_APP=run.py
 ENV FLASK_ENV=production
 ENV PYTHONPATH=/app
+ENV PYTHONWARNINGS=ignore
 
 # 暴露端口
 EXPOSE 8080

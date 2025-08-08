@@ -453,7 +453,6 @@ def generate_voice_order(order_id, speech_rate=1.0):
         try:
             # 延遲導入 Azure Speech SDK
             from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
-            import uuid
             
             # 設定語音參數
             speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"

@@ -325,145 +325,9 @@ def create_order():
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
-    """建立訂單（合作店家）"""
-    data = request.get_json()
-    if not data:
-        return jsonify({"error": "請求資料為空"}), 400
     
-    # 檢查必要欄位
-    required_fields = ['store_id', 'items']
-    missing_fields = [field for field in required_fields if field not in data]
-    if missing_fields:
-        return jsonify({
-            "error": "訂單資料不完整",
-            "missing_fields": missing_fields,
-            "received_data": list(data.keys())
-        }), 400
-
-    # 檢查是否為非合作店家訂單（包含臨時菜單項目或沒有 menu_item_id）
-    has_temp_items = any(
-        str(item.get('menu_item_id') or item.get('id') or '').startswith('temp_')
-        for item in data.get('items', [])
-    )
-    
-    # 檢查是否有項目缺少 menu_item_id（舊格式）
-    has_legacy_items = any(
-        not (item.get('menu_item_id') or item.get('id'))
-        for item in data.get('items', [])
-    )
-    
-    # 如果是非合作店家訂單或舊格式訂單，重定向到雙語處理
-    if has_temp_items or has_legacy_items:
-        print("檢測到臨時菜單項目，重定向到 simple_order")
-        # 重構資料格式以符合 simple_order 的要求
-        simple_data = {
-            'items': [],
-            'lang': data.get('language', 'zh-TW'),
-            'line_user_id': data.get('line_user_id')
-        }
-        
-        for item in data.get('items', []):
-            # 防呆轉換器：把舊格式轉成新 nested name 格式
-            item_name = item.get('item_name') or item.get('name') or item.get('original_name') or '未知項目'
-            
-            # 檢查是否已經是新的雙語格式
-            if isinstance(item_name, dict) and 'original' in item_name and 'translated' in item_name:
-                # 已經是新格式
-                simple_item = {
-                    'name': item_name,
-                    'quantity': item.get('quantity') or item.get('qty') or 1,
-                    'price': item.get('price') or item.get('price_small') or 0
-                }
-            else:
-                # 舊格式，轉換成新格式
-                simple_item = {
-                    'name': {
-                        'original': item_name,
-                        'translated': item_name
-                    },
-                    'quantity': item.get('quantity') or item.get('qty') or 1,
-                    'price': item.get('price') or item.get('price_small') or 0
-                }
-            
-            simple_data['items'].append(simple_item)
-        
-        # 使用新的雙語訂單處理邏輯
-        try:
-            from .helpers import OrderRequest, process_order_with_dual_language, synthesize_azure_tts
-            order_request = OrderRequest(**simple_data)
-            
-            # 處理雙語訂單
-            order_result = process_order_with_dual_language(order_request)
-            if not order_result:
-                return jsonify({
-                    "success": False,
-                    "error": "訂單處理失敗"
-                }), 500
-            
-            # 生成語音檔
-            voice_url = None
-            voice_duration = 0
-            try:
-                # 使用同步版本的語音生成
-                from .helpers import generate_chinese_voice_with_azure
-                voice_url = generate_chinese_voice_with_azure(order_result['voice_text'], f"dual_{uuid.uuid4().hex[:8]}")
-            except Exception as e:
-                print(f"語音生成失敗: {e}")
-            
-            # 準備回應資料
-            response_data = {
-                "success": True,
-                "order_id": f"dual_{uuid.uuid4().hex[:8]}",
-                "total_amount": order_result['total_amount'],
-                "voice_url": voice_url,
-                "voice_duration": voice_duration,
-                "zh_summary": order_result['zh_summary'],
-                "user_summary": order_result['user_summary'],
-                "voice_text": order_result['voice_text'],
-                "order_details": order_result['items']
-            }
-            
-            # 發送給 LINE Bot（如果提供了使用者ID）
-            if order_request.line_user_id:
-                try:
-                    from .helpers import send_order_to_line_bot
-                    line_data = {
-                        "order_id": response_data['order_id'],
-                        "total_amount": response_data['total_amount'],
-                        "voice_url": response_data['voice_url'],
-                        "zh_summary": response_data['zh_summary'],
-                        "user_summary": response_data['user_summary']
-                    }
-                    send_success = send_order_to_line_bot(order_request.line_user_id, line_data)
-                    if send_success:
-                        print(f"✅ 成功發送訂單到 LINE Bot，使用者: {order_request.line_user_id}")
-                    else:
-                        print(f"⚠️ LINE Bot 發送失敗，使用者: {order_request.line_user_id}")
-                except Exception as e:
-                    print(f"❌ LINE Bot 發送異常: {e}")
-            
-            response = jsonify(response_data)
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            return response, 201
-            
-        except Exception as e:
-            print(f"雙語訂單處理失敗：{e}")
-            response = jsonify({
-                "success": False,
-                "error": "訂單處理失敗"
-            })
-            response.headers.add('Access-Control-Allow-Origin', '*')
-            return response, 500
-
-    # 處理 line_user_id（可選）
-    line_user_id = data.get('line_user_id')
-    if not line_user_id:
-        # 為非 LINE 入口生成臨時 ID
-        import uuid
-        line_user_id = f"guest_{uuid.uuid4().hex[:8]}"
-        guest_mode = True
-    else:
-        guest_mode = False
+    # 直接轉發到 simple_order 以確保向後相容性
+    return simple_order()
 
     # 查找或創建使用者
     user = User.query.filter_by(line_user_id=line_user_id).first()
@@ -704,7 +568,6 @@ def create_temp_order():
         line_user_id = data.get('line_user_id')
         if not line_user_id:
             # 為非 LINE 入口生成臨時 ID
-            import uuid
             line_user_id = f"guest_{uuid.uuid4().hex[:8]}"
             guest_mode = True
         else:
@@ -1776,6 +1639,46 @@ def simple_order():
                 "success": False,
                 "error": "請求資料為空"
             }), 400
+        
+        # 檢查是否為舊格式訂單，如果是則轉換為新格式
+        if 'store_id' in data and 'items' in data:
+            # 舊格式訂單，需要轉換
+            print("檢測到舊格式訂單，進行格式轉換")
+            
+            # 重構資料格式以符合新格式的要求
+            simple_data = {
+                'items': [],
+                'lang': data.get('language', 'zh-TW'),
+                'line_user_id': data.get('line_user_id')
+            }
+            
+            for item in data.get('items', []):
+                # 防呆轉換器：把舊格式轉成新 nested name 格式
+                item_name = item.get('item_name') or item.get('name') or item.get('original_name') or '未知項目'
+                
+                # 檢查是否已經是新的雙語格式
+                if isinstance(item_name, dict) and 'original' in item_name and 'translated' in item_name:
+                    # 已經是新格式
+                    simple_item = {
+                        'name': item_name,
+                        'quantity': item.get('quantity') or item.get('qty') or 1,
+                        'price': item.get('price') or item.get('price_small') or 0
+                    }
+                else:
+                    # 舊格式，轉換成新格式
+                    simple_item = {
+                        'name': {
+                            'original': item_name,
+                            'translated': item_name
+                        },
+                        'quantity': item.get('quantity') or item.get('qty') or 1,
+                        'price': item.get('price') or item.get('price_small') or 0
+                    }
+                
+                simple_data['items'].append(simple_item)
+            
+            # 使用轉換後的資料
+            data = simple_data
         
         # 使用 Pydantic 模型驗證請求資料
         try:
