@@ -1569,13 +1569,14 @@ def send_order_to_line_bot(user_id, order_data):
             print(f"❌ 無效的 userId: {user_id}")
             return False
         
-        # 檢查是否為測試假值
-        if user_id == "U1234567890abcdef" or not re.match(r'^U[0-9a-f]{32}$', user_id):
-            print(f"⚠️ 檢測到測試假值或無效格式的 userId: {user_id}")
+        # 檢查是否為測試假值或無效格式
+        if not re.match(r'^U[0-9a-f]{32}$', user_id):
+            print(f"⚠️ 檢測到無效格式的 userId: {user_id}")
             return False
         
         # 準備訊息內容
-        chinese_summary = order_data.get('chinese_summary', '點餐摘要')
+        chinese_summary = order_data.get('chinese_summary') \
+                     or order_data.get('zh_summary', '點餐摘要')
         user_summary = order_data.get('user_summary', 'Order Summary')
         voice_url = order_data.get('voice_url')
         total_amount = order_data.get('total_amount', 0)

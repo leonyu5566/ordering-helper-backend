@@ -1775,8 +1775,8 @@ def simple_order():
             # 繼續執行，不影響語音生成和摘要功能
         
         # 生成語音檔
-        voice_url = None
-        voice_duration = 0
+        voice_url: str | None = None
+        voice_duration: int = 0
         try:
             # 使用同步版本的語音生成
             from .helpers import generate_chinese_voice_with_azure
@@ -1795,6 +1795,7 @@ def simple_order():
             "user_summary": order_result['user_summary'],
             "voice_text": order_result['voice_text'],  # 確保包含語音文字
             "chinese_voice": order_result['voice_text'],  # 兼容舊版前端
+            "chinese_summary": order_result['zh_summary'],  # 新增：兼容 LINE Bot 的欄位命名
             "order_details": order_result['items']
         }
         
@@ -1807,6 +1808,7 @@ def simple_order():
                     "total_amount": response_data['total_amount'],
                     "voice_url": response_data['voice_url'],
                     "zh_summary": response_data['zh_summary'],
+                    "chinese_summary": response_data['chinese_summary'],  # 新增：確保 LINE Bot 能收到正確欄位
                     "user_summary": response_data['user_summary']
                 }
                 send_success = send_order_to_line_bot(order_request.line_user_id, line_data)
