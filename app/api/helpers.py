@@ -14,6 +14,7 @@ import json
 import requests
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
+import logging
 
 # =============================================================================
 # Pydantic 模型定義
@@ -1649,6 +1650,9 @@ def process_order_with_dual_language(order_request: OrderRequest):
     按照GPT建議：從源頭就同時保留 original_name 與 translated_name
     """
     try:
+        # 添加調試日誌
+        logging.warning("🛰️ payload=%s", json.dumps(order_request.dict(), ensure_ascii=False))
+        
         # 分離中文訂單和使用者語言訂單
         zh_items = []  # 中文訂單項目（使用原始中文菜名）
         user_items = []  # 使用者語言訂單項目（根據語言選擇菜名）
@@ -1684,6 +1688,10 @@ def process_order_with_dual_language(order_request: OrderRequest):
                     'price': item.price,
                     'subtotal': subtotal
                 })
+        
+        # 添加調試日誌
+        logging.warning("🎯 zh_items=%s", zh_items)
+        logging.warning("🎯 user_items=%s", user_items)
         
         # 生成中文訂單摘要（使用原始中文菜名）
         zh_summary = generate_chinese_order_summary(zh_items, total_amount)
