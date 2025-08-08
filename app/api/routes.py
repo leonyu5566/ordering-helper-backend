@@ -495,50 +495,120 @@ def create_order():
     
     for i, item_data in enumerate(data['items']):
         # 支援多種欄位名稱格式
-        menu_item_id = item_data.get('menu_item_id') or item_data.get('id') or item_data.get('menu_item_id')
+        menu_item_id = item_data.get('menu_item_id') or item_data.get('id')
         quantity = item_data.get('quantity') or item_data.get('qty') or item_data.get('quantity_small')
         
-        if not menu_item_id:
-            validation_errors.append(f"項目 {i+1}: 缺少 menu_item_id 或 id 欄位")
-            continue
+        # 檢查是否為臨時菜單項目（以 temp_ 開頭）
+        if menu_item_id and menu_item_id.startswith('temp_'):
+            # 處理臨時菜單項目
+            price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
+            item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
             
-        if not quantity:
-            validation_errors.append(f"項目 {i+1}: 缺少 quantity 或 qty 欄位")
-            continue
-        
-        try:
-            quantity = int(quantity)
-            if quantity <= 0:
-                validation_errors.append(f"項目 {i+1}: 數量必須大於 0")
+            # 驗證數量
+            if not quantity:
+                validation_errors.append(f"項目 {i+1}: 缺少 quantity 或 qty 欄位")
                 continue
-        except (ValueError, TypeError):
-            validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
-            continue
-        
-        # 處理正式菜單項目（合作店家）
-        menu_item = MenuItem.query.get(menu_item_id)
-        if not menu_item:
-            validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
-            continue
-        
-        subtotal = menu_item.price_small * quantity
-        total_amount += subtotal
-        
-        order_items_to_create.append(OrderItem(
-            menu_item_id=menu_item.menu_item_id,
-            quantity_small=quantity,
-            subtotal=subtotal
-        ))
-        
-        # 建立訂單明細供確認
-        order_details.append({
-            'menu_item_id': menu_item.menu_item_id,
-            'item_name': menu_item.item_name,
-            'quantity': quantity,
-            'price': menu_item.price_small,
-            'subtotal': subtotal,
-            'is_temp': False
-        })
+            
+            try:
+                quantity = int(quantity)
+                if quantity <= 0:
+                    validation_errors.append(f"項目 {i+1}: 數量必須大於 0")
+                    continue
+            except (ValueError, TypeError):
+                validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
+                continue
+            
+            # 計算小計
+            subtotal = int(price) * quantity
+            total_amount += subtotal
+            
+            # 為臨時項目創建一個臨時的 MenuItem 記錄
+            try:
+                # 檢查是否已經有對應的臨時菜單項目
+                temp_menu_item = MenuItem.query.filter_by(item_name=item_name).first()
+                
+                if not temp_menu_item:
+                    # 創建新的臨時菜單項目
+                    from app.models import Menu
+                    
+                    # 找到或創建一個臨時菜單
+                    temp_menu = Menu.query.filter_by(store_id=data['store_id']).first()
+                    if not temp_menu:
+                        temp_menu = Menu(store_id=data['store_id'], version=1)
+                        db.session.add(temp_menu)
+                        db.session.flush()
+                    
+                    temp_menu_item = MenuItem(
+                        menu_id=temp_menu.menu_id,
+                        item_name=item_name,
+                        price_small=int(price),
+                        price_big=int(price)  # 使用相同價格
+                    )
+                    db.session.add(temp_menu_item)
+                    db.session.flush()  # 獲取 menu_item_id
+                
+                # 使用臨時菜單項目的 ID
+                order_items_to_create.append(OrderItem(
+                    menu_item_id=temp_menu_item.menu_item_id,
+                    quantity_small=quantity,
+                    subtotal=subtotal
+                ))
+                
+                # 建立訂單明細供確認
+                order_details.append({
+                    'menu_item_id': temp_menu_item.menu_item_id,
+                    'item_name': item_name,
+                    'quantity': quantity,
+                    'price': int(price),
+                    'subtotal': subtotal,
+                    'is_temp': True
+                })
+                
+            except Exception as e:
+                validation_errors.append(f"項目 {i+1}: 創建臨時菜單項目失敗 - {str(e)}")
+                continue
+        else:
+            # 處理正式菜單項目（合作店家）
+            if not menu_item_id:
+                validation_errors.append(f"項目 {i+1}: 缺少 menu_item_id 或 id 欄位")
+                continue
+                
+            if not quantity:
+                validation_errors.append(f"項目 {i+1}: 缺少 quantity 或 qty 欄位")
+                continue
+            
+            try:
+                quantity = int(quantity)
+                if quantity <= 0:
+                    validation_errors.append(f"項目 {i+1}: 數量必須大於 0")
+                    continue
+            except (ValueError, TypeError):
+                validation_errors.append(f"項目 {i+1}: 數量格式錯誤，必須是整數")
+                continue
+            
+            menu_item = MenuItem.query.get(menu_item_id)
+            if not menu_item:
+                validation_errors.append(f"項目 {i+1}: 找不到菜單項目 ID {menu_item_id}")
+                continue
+            
+            subtotal = menu_item.price_small * quantity
+            total_amount += subtotal
+            
+            order_items_to_create.append(OrderItem(
+                menu_item_id=menu_item.menu_item_id,
+                quantity_small=quantity,
+                subtotal=subtotal
+            ))
+            
+            # 建立訂單明細供確認
+            order_details.append({
+                'menu_item_id': menu_item.menu_item_id,
+                'item_name': menu_item.item_name,
+                'quantity': quantity,
+                'price': menu_item.price_small,
+                'subtotal': subtotal,
+                'is_temp': False
+            })
 
     if validation_errors:
         return jsonify({
