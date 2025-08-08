@@ -34,7 +34,9 @@ db = SQLAlchemy()
 # =============================================================================
 class Language(db.Model):
     __tablename__ = 'languages'
-    lang_code = db.Column(db.String(10), primary_key=True)
+    line_lang_code = db.Column(db.String(10), primary_key=True)
+    translation_lang_code = db.Column(db.String(5), nullable=False)
+    stt_lang_code = db.Column(db.String(15), nullable=False)
     lang_name = db.Column(db.String(50), nullable=False)
 
 # =============================================================================
@@ -53,7 +55,7 @@ class User(db.Model):
     __tablename__ = 'users'
     user_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     line_user_id = db.Column(db.String(100), unique=True, nullable=False)
-    preferred_lang = db.Column(db.String(10), db.ForeignKey('languages.lang_code'), nullable=False)
+    preferred_lang = db.Column(db.String(10), db.ForeignKey('languages.line_lang_code'), nullable=False)
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     state = db.Column(db.String(50), default='normal')
 
@@ -99,24 +101,24 @@ class StoreTranslation(db.Model):
     __tablename__ = 'store_translations'
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    language_code = db.Column(db.String(10), db.ForeignKey('languages.lang_code'), nullable=False)
+    language_code = db.Column(db.String(10), db.ForeignKey('languages.line_lang_code'), nullable=False)
     description = db.Column(db.Text)  # 翻譯後的店家簡介
     translated_summary = db.Column(db.Text)  # 翻譯後的評論摘要
 
 class Menu(db.Model):
     __tablename__ = 'menus'
-    menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    menu_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=False)
-    template_id = db.Column(db.Integer, db.ForeignKey('menu_templates.template_id'))
+    template_id = db.Column(db.Integer)  # 暫時移除外鍵引用，因為 menu_templates 表格不存在
     version = db.Column(db.Integer, nullable=False, default=1)
-    effective_date = db.Column(db.DateTime, nullable=False)
+    effective_date = db.Column(db.DateTime, nullable=False, server_default=db.func.current_timestamp())
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     items = db.relationship('MenuItem', backref='menu', lazy=True, cascade="all, delete-orphan")
 
 class MenuItem(db.Model):
     __tablename__ = 'menu_items'
-    menu_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    menu_id = db.Column(db.BigInteger, db.ForeignKey('menus.menu_id'), nullable=False)
+    menu_item_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    menu_id = db.Column(db.Integer, db.ForeignKey('menus.menu_id'), nullable=False)
     item_name = db.Column(db.String(100), nullable=False) # 這是中文菜品名
     price_big = db.Column(db.Integer)
     price_small = db.Column(db.Integer, nullable=False)
@@ -125,9 +127,9 @@ class MenuItem(db.Model):
 
 class MenuTranslation(db.Model):
     __tablename__ = 'menu_translations'
-    menu_translation_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
-    lang_code = db.Column(db.String(10), db.ForeignKey('languages.lang_code'), nullable=False)
+    menu_translation_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    menu_item_id = db.Column(db.Integer, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
+    lang_code = db.Column(db.String(10), db.ForeignKey('languages.line_lang_code'), nullable=False)
     description = db.Column(db.Text)  # 翻譯後的菜品描述
 
 class Order(db.Model):

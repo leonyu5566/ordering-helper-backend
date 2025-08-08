@@ -1828,7 +1828,8 @@ def process_order_with_dual_language(order_request: OrderRequest):
                 'name': item.name.original,
                 'quantity': item.quantity,
                 'price': item.price,
-                'subtotal': subtotal
+                'subtotal': subtotal,
+                'menu_item_id': getattr(item, 'menu_item_id', None)  # 添加 menu_item_id 支援
             })
             
             # 使用者語言訂單項目（根據語言選擇菜名）
@@ -1839,7 +1840,8 @@ def process_order_with_dual_language(order_request: OrderRequest):
                     'name': item.name.original,
                     'quantity': item.quantity,
                     'price': item.price,
-                    'subtotal': subtotal
+                    'subtotal': subtotal,
+                    'menu_item_id': getattr(item, 'menu_item_id', None)  # 添加 menu_item_id 支援
                 })
             else:
                 # 其他語言使用者使用翻譯菜名
@@ -1847,7 +1849,8 @@ def process_order_with_dual_language(order_request: OrderRequest):
                     'name': item.name.translated,
                     'quantity': item.quantity,
                     'price': item.price,
-                    'subtotal': subtotal
+                    'subtotal': subtotal,
+                    'menu_item_id': getattr(item, 'menu_item_id', None)  # 添加 menu_item_id 支援
                 })
         
         # 添加調試日誌
@@ -1869,6 +1872,8 @@ def process_order_with_dual_language(order_request: OrderRequest):
             "user_summary": user_summary,
             "voice_text": voice_text,
             "total_amount": total_amount,
+            "zh_items": zh_items,  # 直接返回 zh_items 陣列
+            "user_items": user_items,  # 直接返回 user_items 陣列
             "items": {
                 "zh_items": zh_items,
                 "user_items": user_items

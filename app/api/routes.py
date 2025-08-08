@@ -1657,18 +1657,18 @@ def simple_order():
                 # 防呆轉換器：使用新的安全本地化菜名建立函數
                 from .helpers import safe_build_localised_name
                 
-                item_name = item.get('item_name') or item.get('name') or item.get('original_name') or '未知項目'
-                
-                # 檢查是否已經是新的雙語格式
-                if isinstance(item_name, dict) and 'original' in item_name and 'translated' in item_name:
-                    # 已經是新格式
+                # 檢查是否已經是新的雙語格式（name 是巢狀物件）
+                if 'name' in item and isinstance(item['name'], dict) and 'original' in item['name'] and 'translated' in item['name']:
+                    # 已經是新格式，直接使用
                     simple_item = {
-                        'name': item_name,
+                        'name': item['name'],
                         'quantity': item.get('quantity') or item.get('qty') or 1,
                         'price': item.get('price') or item.get('price_small') or 0
                     }
                 else:
                     # 舊格式，使用安全本地化菜名建立函數
+                    item_name = item.get('item_name') or item.get('name') or item.get('original_name') or '未知項目'
+                    
                     # 優先使用 OCR 取得的中文菜名
                     ocr_name = item.get('ocr_name') or item.get('original_name')
                     raw_name = item.get('translated_name') or item.get('name') or item_name
@@ -1729,7 +1729,8 @@ def simple_order():
             if not store:
                 store = Store(
                     store_name='預設店家',
-                    partner_level=0
+                    store_address='預設地址',
+                    store_phone='預設電話'
                 )
                 db.session.add(store)
                 db.session.flush()
@@ -1738,18 +1739,19 @@ def simple_order():
             order = Order(
                 user_id=user.user_id,
                 store_id=store.store_id,
-                total_amount=int(order_result['total_amount']),
+                order_date=datetime.datetime.now(),
+                total_amount=order_result['total_amount'],
                 status='pending'
             )
             db.session.add(order)
             db.session.flush()
             
             # 創建訂單項目
-            for item in order_result['items']['zh_items']:
+            for item in order_result['zh_items']:
                 order_item = OrderItem(
                     order_id=order.order_id,
-                    menu_item_id=1,  # 使用預設菜單項目ID
-                    quantity_small=item['quantity'],
+                    menu_item_id=item.get('menu_item_id'),
+                    quantity_small=item['quantity'],  # 使用正確的欄位名稱
                     subtotal=item['subtotal'],
                     original_name=item['name'],  # 保存中文菜名
                     translated_name=item['name']  # 暫時使用相同名稱
@@ -1757,87 +1759,47 @@ def simple_order():
                 db.session.add(order_item)
             
             db.session.commit()
-            print(f"✅ 訂單已保存到資料庫，訂單ID: {order.order_id}")
+            
+            # 生成語音檔案
+            try:
+                voice_file_path = generate_voice_order(order.order_id)
+                if voice_file_path:
+                    print(f"✅ 成功生成語音檔案: {voice_file_path}")
+            except Exception as e:
+                print(f"⚠️ 語音生成失敗: {e}")
+            
+            # 發送到 LINE Bot
+            try:
+                from .helpers import send_order_to_line_bot
+                send_order_to_line_bot(line_user_id, {
+                    'order_id': order.order_id,
+                    'items': order_result['zh_items'],
+                    'total_amount': order_result['total_amount']
+                })
+                print(f"✅ 成功發送訂單到 LINE Bot，使用者: {line_user_id}")
+            except Exception as e:
+                print(f"⚠️ LINE Bot 發送失敗: {e}")
+            
+            return jsonify({
+                "success": True,
+                "order_id": order.order_id,
+                "message": "訂單建立成功",
+                "total_amount": order_result['total_amount'],
+                "items_count": len(order_result['zh_items'])
+            }), 201
             
         except Exception as e:
             db.session.rollback()
-            print(f"❌ 保存訂單到資料庫失敗: {e}")
-            # 繼續執行，不影響語音生成和摘要功能
-        
-        # 生成語音檔
-        voice_url: str | None = None
-        voice_duration: int = 0
-        try:
-            # 使用同步版本的語音生成
-            from .helpers import generate_chinese_voice_with_azure
-            voice_url = generate_chinese_voice_with_azure(order_result['voice_text'], f"dual_{uuid.uuid4().hex[:8]}")
+            return jsonify({
+                "success": False,
+                "error": f"資料庫操作失敗: {str(e)}"
+            }), 500
             
-            # 如果有語音檔，保存到資料庫
-            if voice_url and 'order' in locals():
-                try:
-                    from ..models import VoiceFile
-                    voice_file = VoiceFile(
-                        order_id=order.order_id,
-                        file_path=voice_url,
-                        voice_text=order_result['voice_text'],
-                        created_at=datetime.datetime.utcnow()
-                    )
-                    db.session.add(voice_file)
-                    db.session.commit()
-                    print(f"✅ 語音檔案記錄已保存到資料庫")
-                except Exception as e:
-                    print(f"⚠️ 保存語音檔案記錄失敗: {e}")
-                    
-        except Exception as e:
-            print(f"語音生成失敗: {e}")
-        
-        # 準備回應資料
-        response_data = {
-            "success": True,
-            "order_id": f"dual_{uuid.uuid4().hex[:8]}",
-            "total_amount": order_result['total_amount'],
-            "voice_url": voice_url,
-            "voice_duration": voice_duration,
-            "zh_summary": order_result['zh_summary'],
-            "user_summary": order_result['user_summary'],
-            "voice_text": order_result['voice_text'],  # 確保包含語音文字
-            "chinese_voice": order_result['voice_text'],  # 兼容舊版前端
-            "chinese_summary": order_result['zh_summary'],  # 新增：兼容 LINE Bot 的欄位命名
-            "order_details": order_result['items']
-        }
-        
-        # 發送給 LINE Bot（如果提供了使用者ID）
-        if order_request.line_user_id:
-            try:
-                from .helpers import send_order_to_line_bot
-                line_data = {
-                    "order_id": response_data['order_id'],
-                    "total_amount": response_data['total_amount'],
-                    "voice_url": response_data['voice_url'],
-                    "zh_summary": response_data['zh_summary'],
-                    "chinese_summary": response_data['chinese_summary'],  # 新增：確保 LINE Bot 能收到正確欄位
-                    "user_summary": response_data['user_summary']
-                }
-                send_success = send_order_to_line_bot(order_request.line_user_id, line_data)
-                if send_success:
-                    print(f"✅ 成功發送訂單到 LINE Bot，使用者: {order_request.line_user_id}")
-                else:
-                    print(f"⚠️ LINE Bot 發送失敗，使用者: {order_request.line_user_id}")
-            except Exception as e:
-                print(f"❌ LINE Bot 發送異常: {e}")
-        
-        response = jsonify(response_data)
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 201
-    
     except Exception as e:
-        print(f"雙語訂單處理失敗：{e}")
-        response = jsonify({
+        return jsonify({
             "success": False,
-            "error": "訂單處理失敗"
-        })
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 500
+            "error": f"處理請求時發生錯誤: {str(e)}"
+        }), 500
 
 @api_bp.route('/voice/control', methods=['POST', 'OPTIONS'])
 def voice_control():

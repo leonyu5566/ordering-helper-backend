@@ -50,5 +50,5 @@ app = create_app()
 # 注意：正式上線時務必關閉 debug 模式
 # =============================================================================
 if __name__ == '__main__':
-    app.run(debug=True, port=5001)
+    app.run(debug=True, port=5002)
 
