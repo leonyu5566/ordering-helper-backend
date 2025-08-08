@@ -101,6 +101,7 @@ class OrderItemRequest(BaseModel):
     name: LocalisedName  # 雙語菜名
     quantity: int  # 數量
     price: float  # 價格
+    menu_item_id: Optional[int] = None  # 可選的菜單項目 ID（OCR 菜單可能為 None）
 
 class OrderRequest(BaseModel):
     """訂單請求模型"""
@@ -1823,13 +1824,17 @@ def process_order_with_dual_language(order_request: OrderRequest):
                 logging.warning("🔄 檢測到欄位顛倒，交換 original 和 translated")
                 item.name.original, item.name.translated = item.name.translated, item.name.original
             
+            # 檢查是否為非合作店家的 OCR 菜單項目
+            # 對於 OCR 菜單，不傳遞 menu_item_id，讓後端自動創建
+            menu_item_id = getattr(item, 'menu_item_id', None)
+            
             # 中文訂單項目（使用原始中文菜名）
             zh_items.append({
                 'name': item.name.original,
                 'quantity': item.quantity,
                 'price': item.price,
                 'subtotal': subtotal,
-                'menu_item_id': getattr(item, 'menu_item_id', None)  # 添加 menu_item_id 支援
+                'menu_item_id': menu_item_id  # 可能為 None（OCR 菜單）
             })
             
             # 使用者語言訂單項目（根據語言選擇菜名）
@@ -1841,7 +1846,7 @@ def process_order_with_dual_language(order_request: OrderRequest):
                     'quantity': item.quantity,
                     'price': item.price,
                     'subtotal': subtotal,
-                    'menu_item_id': getattr(item, 'menu_item_id', None)  # 添加 menu_item_id 支援
+                    'menu_item_id': menu_item_id  # 可能為 None（OCR 菜單）
                 })
             else:
                 # 其他語言使用者使用翻譯菜名
@@ -1850,7 +1855,7 @@ def process_order_with_dual_language(order_request: OrderRequest):
                     'quantity': item.quantity,
                     'price': item.price,
                     'subtotal': subtotal,
-                    'menu_item_id': getattr(item, 'menu_item_id', None)  # 添加 menu_item_id 支援
+                    'menu_item_id': menu_item_id  # 可能為 None（OCR 菜單）
                 })
         
         # 添加調試日誌

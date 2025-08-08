@@ -1710,7 +1710,7 @@ def simple_order():
         
         # 保存訂單到資料庫
         try:
-            from ..models import User, Store, Order, OrderItem
+            from ..models import User, Store, Order, OrderItem, Menu, MenuItem
             import datetime
             
             # 查找或創建使用者
@@ -1733,8 +1733,7 @@ def simple_order():
             if not store:
                 store = Store(
                     store_name='預設店家',
-                    store_address='預設地址',
-                    store_phone='預設電話'
+                    partner_level=0  # 非合作店家
                 )
                 db.session.add(store)
                 db.session.flush()
@@ -1743,19 +1742,57 @@ def simple_order():
             order = Order(
                 user_id=user.user_id,
                 store_id=store.store_id,
-                order_time=datetime.datetime.now(),  # 使用正確的欄位名稱
+                order_time=datetime.datetime.now(),
                 total_amount=order_result['total_amount'],
                 status='pending'
             )
             db.session.add(order)
             db.session.flush()
             
-            # 創建訂單項目
+            # 創建訂單項目 - 修改以確保 menu_item_id 不為 NULL
             for item in order_result['zh_items']:
+                # 檢查是否有有效的 menu_item_id
+                menu_item_id = item.get('menu_item_id')
+                
+                # 如果沒有有效的 menu_item_id，為非合作店家創建臨時 MenuItem
+                if not menu_item_id:
+                    try:
+                        # 查找或創建菜單
+                        menu = Menu.query.filter_by(store_id=store.store_id).first()
+                        if not menu:
+                            menu = Menu(
+                                store_id=store.store_id,
+                                version=1,
+                                effective_date=datetime.datetime.now()
+                            )
+                            db.session.add(menu)
+                            db.session.flush()
+                        
+                        # 創建臨時菜單項目
+                        temp_menu_item = MenuItem(
+                            menu_id=menu.menu_id,
+                            item_name=item.get('name', '臨時項目'),
+                            price_small=int(item.get('price', 0)),
+                            price_big=int(item.get('price', 0))
+                        )
+                        db.session.add(temp_menu_item)
+                        db.session.flush()  # 獲取 menu_item_id
+                        
+                        # 使用新創建的 menu_item_id
+                        menu_item_id = temp_menu_item.menu_item_id
+                        
+                        print(f"✅ 為非合作店家創建臨時菜單項目: {temp_menu_item.menu_item_id}")
+                        
+                    except Exception as e:
+                        print(f"❌ 創建臨時菜單項目失敗: {e}")
+                        # 如果創建失敗，跳過這個項目
+                        continue
+                
+                # 創建訂單項目（確保 menu_item_id 不為 NULL）
                 order_item = OrderItem(
                     order_id=order.order_id,
-                    menu_item_id=item.get('menu_item_id'),
-                    quantity_small=item['quantity'],  # 使用正確的欄位名稱
+                    menu_item_id=menu_item_id,  # 現在確保不為 NULL
+                    quantity_small=item['quantity'],
                     subtotal=item['subtotal'],
                     original_name=item.get('name', ''),  # 保存原始中文菜名
                     translated_name=item.get('name', '')  # 暫時使用相同名稱
