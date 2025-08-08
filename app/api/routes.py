@@ -1755,17 +1755,6 @@ def simple_order():
                 )
                 db.session.add(order_item)
             
-            # 保存語音檔案記錄
-            if voice_url:
-                from ..models import VoiceFile
-                voice_file = VoiceFile(
-                    order_id=order.order_id,
-                    file_path=voice_url,
-                    voice_text=order_result['voice_text'],
-                    created_at=datetime.datetime.utcnow()
-                )
-                db.session.add(voice_file)
-            
             db.session.commit()
             print(f"✅ 訂單已保存到資料庫，訂單ID: {order.order_id}")
             
@@ -1781,6 +1770,23 @@ def simple_order():
             # 使用同步版本的語音生成
             from .helpers import generate_chinese_voice_with_azure
             voice_url = generate_chinese_voice_with_azure(order_result['voice_text'], f"dual_{uuid.uuid4().hex[:8]}")
+            
+            # 如果有語音檔，保存到資料庫
+            if voice_url and 'order' in locals():
+                try:
+                    from ..models import VoiceFile
+                    voice_file = VoiceFile(
+                        order_id=order.order_id,
+                        file_path=voice_url,
+                        voice_text=order_result['voice_text'],
+                        created_at=datetime.datetime.utcnow()
+                    )
+                    db.session.add(voice_file)
+                    db.session.commit()
+                    print(f"✅ 語音檔案記錄已保存到資料庫")
+                except Exception as e:
+                    print(f"⚠️ 保存語音檔案記錄失敗: {e}")
+                    
         except Exception as e:
             print(f"語音生成失敗: {e}")
         
