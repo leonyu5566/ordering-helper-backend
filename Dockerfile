@@ -62,5 +62,5 @@ ENV PYTHONWARNINGS=ignore
 # 暴露端口
 EXPOSE 8080
 
-# 啟動命令 - 調整記憶體和超時設定
-CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "120", "--graceful-timeout", "30", "--max-requests", "1000", "--max-requests-jitter", "100", "run:app"] 
+# 啟動命令 - 優化記憶體使用，減少 worker 數量，增加超時時間
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "1", "--timeout", "300", "--graceful-timeout", "60", "--max-requests", "500", "--max-requests-jitter", "50", "--preload", "--worker-class", "sync", "run:app"] 

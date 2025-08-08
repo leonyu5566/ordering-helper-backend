@@ -17,3 +17,6 @@ langchain==0.1.0
 langchain-community==0.0.10
 faiss-cpu==1.7.4
 pydantic==2.5.0
+
+# 記憶體監控
+psutil==5.9.6

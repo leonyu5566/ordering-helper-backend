@@ -677,7 +677,8 @@ def create_temp_order():
         # 只在非訪客模式下發送 LINE 通知
         if not guest_mode:
             try:
-                send_complete_order_notification(temp_order_id)
+                from .helpers import send_complete_order_notification_optimized
+                send_complete_order_notification_optimized(temp_order_id)
             except Exception as e:
                 print(f"LINE 通知發送失敗: {e}")
         
@@ -1666,10 +1667,14 @@ def simple_order():
                     }
                 else:
                     # 舊格式，轉換成新格式
+                    # 檢查是否有原始中文菜名和翻譯菜名
+                    original_name = item.get('original_name') or item_name
+                    translated_name = item.get('translated_name') or item.get('name') or item_name
+                    
                     simple_item = {
                         'name': {
-                            'original': item_name,
-                            'translated': item_name
+                            'original': original_name,
+                            'translated': translated_name
                         },
                         'quantity': item.get('quantity') or item.get('qty') or 1,
                         'price': item.get('price') or item.get('price_small') or 0
@@ -1697,6 +1702,77 @@ def simple_order():
                 "success": False,
                 "error": "訂單處理失敗"
             }), 500
+        
+        # 保存訂單到資料庫
+        try:
+            from ..models import User, Store, Order, OrderItem
+            import datetime
+            
+            # 查找或創建使用者
+            line_user_id = order_request.line_user_id
+            if not line_user_id:
+                line_user_id = f"guest_{uuid.uuid4().hex[:8]}"
+            
+            user = User.query.filter_by(line_user_id=line_user_id).first()
+            if not user:
+                # 創建新使用者
+                user = User(
+                    line_user_id=line_user_id,
+                    preferred_lang=order_request.lang
+                )
+                db.session.add(user)
+                db.session.flush()
+            
+            # 查找或創建預設店家
+            store = Store.query.filter_by(store_name='預設店家').first()
+            if not store:
+                store = Store(
+                    store_name='預設店家',
+                    partner_level=0
+                )
+                db.session.add(store)
+                db.session.flush()
+            
+            # 創建訂單
+            order = Order(
+                user_id=user.user_id,
+                store_id=store.store_id,
+                total_amount=int(order_result['total_amount']),
+                status='pending'
+            )
+            db.session.add(order)
+            db.session.flush()
+            
+            # 創建訂單項目
+            for item in order_result['items']['zh_items']:
+                order_item = OrderItem(
+                    order_id=order.order_id,
+                    menu_item_id=1,  # 使用預設菜單項目ID
+                    quantity_small=item['quantity'],
+                    subtotal=item['subtotal'],
+                    original_name=item['name'],  # 保存中文菜名
+                    translated_name=item['name']  # 暫時使用相同名稱
+                )
+                db.session.add(order_item)
+            
+            # 保存語音檔案記錄
+            if voice_url:
+                from ..models import VoiceFile
+                voice_file = VoiceFile(
+                    order_id=order.order_id,
+                    file_path=voice_url,
+                    voice_text=order_result['voice_text'],
+                    created_at=datetime.datetime.utcnow()
+                )
+                db.session.add(voice_file)
+            
+            db.session.commit()
+            print(f"✅ 訂單已保存到資料庫，訂單ID: {order.order_id}")
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ 保存訂單到資料庫失敗: {e}")
+            # 繼續執行，不影響語音生成和摘要功能
         
         # 生成語音檔
         voice_url = None
@@ -1978,5 +2054,38 @@ def test_line_bot():
 @api_bp.route('/voices/<path:filename>')
 def serve_voice(filename):
     """供外部（Line Bot）GET WAV 檔用"""
-    from .helpers import VOICE_DIR
-    return send_from_directory(VOICE_DIR, filename, mimetype='audio/wav')
+    try:
+        from .helpers import VOICE_DIR
+        import os
+        
+        # 安全性檢查：只允許 .wav 檔案
+        if not filename.endswith('.wav'):
+            return jsonify({"error": "不支援的檔案格式"}), 400
+        
+        # 防止路徑遍歷攻擊
+        if '..' in filename or '/' in filename:
+            return jsonify({"error": "無效的檔案名稱"}), 400
+        
+        # 構建完整檔案路徑
+        file_path = os.path.join(VOICE_DIR, filename)
+        
+        # 檢查檔案是否存在
+        if not os.path.exists(file_path):
+            return jsonify({"error": "語音檔案不存在"}), 404
+        
+        # 檢查檔案大小
+        file_size = os.path.getsize(file_path)
+        if file_size == 0:
+            return jsonify({"error": "語音檔案為空"}), 404
+        
+        # 設定適當的 headers
+        response = send_from_directory(VOICE_DIR, filename, mimetype='audio/wav')
+        response.headers['Cache-Control'] = 'public, max-age=1800'  # 30分鐘快取
+        response.headers['Content-Length'] = str(file_size)
+        
+        print(f"提供語音檔案: {filename}, 大小: {file_size} bytes")
+        return response
+        
+    except Exception as e:
+        print(f"提供語音檔案失敗: {e}")
+        return jsonify({"error": "語音檔案服務失敗"}), 500

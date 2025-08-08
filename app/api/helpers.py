@@ -95,18 +95,32 @@ def get_speech_config():
         print(f"Azure Speech Service 配置失敗: {e}")
         return None
 
-def cleanup_old_voice_files(max_age=1800):
-    """刪除 30 分鐘以前的 WAV"""
+def cleanup_old_voice_files(max_age=3600):
+    """刪除 60 分鐘以前的 WAV（延長清理時間）"""
     try:
+        import time
         now = time.time()
+        cleaned_count = 0
+        
+        # 確保目錄存在
+        os.makedirs(VOICE_DIR, exist_ok=True)
+        
         for fn in os.listdir(VOICE_DIR):
+            if not fn.endswith('.wav'):
+                continue
+                
             full = os.path.join(VOICE_DIR, fn)
             if os.path.isfile(full) and now - os.path.getmtime(full) > max_age:
                 try:
                     os.remove(full)
+                    cleaned_count += 1
                     print(f"清理舊語音檔: {fn}")
                 except Exception as e:
                     print(f"清理語音檔失敗 {fn}: {e}")
+        
+        if cleaned_count > 0:
+            print(f"總共清理了 {cleaned_count} 個舊語音檔案")
+            
     except Exception as e:
         print(f"清理語音檔目錄失敗: {e}")
 
@@ -399,14 +413,16 @@ def generate_voice_order(order_id, speech_rate=1.0):
     """
     使用 Azure TTS 生成訂單語音
     """
-    # 先 cleanup
-    cleanup_old_voice_files()
+    # 先 cleanup（延長清理時間）
+    cleanup_old_voice_files(3600)  # 60分鐘
+    
     try:
         from ..models import Order, OrderItem, MenuItem
         
         # 取得訂單資訊
         order = Order.query.get(order_id)
         if not order:
+            print(f"找不到訂單: {order_id}")
             return None
         
         # 建立自然的中文訂單文字
@@ -417,7 +433,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
             if menu_item:
                 # 改進：根據菜名類型選擇合適的量詞
                 item_name = menu_item.item_name
-                quantity = item.quantity
+                quantity = item.quantity_small or item.quantity
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
@@ -458,6 +474,9 @@ def generate_voice_order(order_id, speech_rate=1.0):
             speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
             speech_config.speech_synthesis_speaking_rate = speech_rate
             
+            # 確保目錄存在
+            os.makedirs(VOICE_DIR, exist_ok=True)
+            
             # 直接存到 VOICE_DIR
             filename = f"{uuid.uuid4()}.wav"
             audio_path = os.path.join(VOICE_DIR, filename)
@@ -468,8 +487,13 @@ def generate_voice_order(order_id, speech_rate=1.0):
             result = synthesizer.speak_text_async(order_text).get()
             
             if result.reason == ResultReason.SynthesizingAudioCompleted:
-                print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
-                return audio_path
+                # 檢查檔案是否真的生成
+                if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                    print(f"[TTS] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
+                    return audio_path
+                else:
+                    print(f"[TTS] 檔案生成失敗或為空: {audio_path}")
+                    return generate_voice_order_fallback(order_id, speech_rate)
             else:
                 print(f"語音生成失敗：{result.reason}")
                 return generate_voice_order_fallback(order_id, speech_rate)
@@ -978,35 +1002,45 @@ def send_complete_order_notification(order_id):
         # 2. 處理語音結果
         if voice_result and isinstance(voice_result, str) and os.path.exists(voice_result):
             # 成功生成語音檔
-            print(f"語音檔生成成功: {voice_result}")
-            try:
-                # 構建正確的HTTPS URL
-                fname = os.path.basename(voice_result)
-                base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
-                audio_url = f"{base_url}/api/voices/{fname}"
-                
+            file_size = os.path.getsize(voice_result)
+            print(f"語音檔生成成功: {voice_result}, 大小: {file_size} bytes")
+            
+            if file_size > 0:
+                try:
+                    # 構建正確的HTTPS URL
+                    fname = os.path.basename(voice_result)
+                    base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+                    audio_url = f"{base_url}/api/voices/{fname}"
+                    
+                    line_bot_api = get_line_bot_api()
+                    if line_bot_api:
+                        line_bot_api.push_message(
+                            user.line_user_id,
+                            AudioSendMessage(
+                                original_content_url=audio_url,
+                                duration=30000  # 預設30秒
+                            )
+                        )
+                        print(f"語音檔已發送到 LINE: {audio_url}")
+                    else:
+                        print("LINE Bot API 不可用，跳過語音發送")
+                except Exception as e:
+                    print(f"發送語音檔失敗: {e}")
+            else:
+                print("語音檔案為空，跳過語音發送")
+        elif voice_result and isinstance(voice_result, dict):
+            # 備用方案：發送文字版本
+            if voice_result.get('success'):
+                print(f"使用備用語音方案: {voice_result.get('text', '')[:50]}...")
                 line_bot_api = get_line_bot_api()
                 if line_bot_api:
                     line_bot_api.push_message(
                         user.line_user_id,
-                        AudioSendMessage(
-                            original_content_url=audio_url,
-                            duration=30000  # 預設30秒
-                        )
+                        TextSendMessage(text=f"🎤 點餐語音（文字版）:\n{voice_result.get('text', '')}")
                     )
-                    print(f"語音檔已發送到 LINE: {audio_url}")
-            except Exception as e:
-                print(f"發送語音檔失敗: {e}")
-        elif voice_result and isinstance(voice_result, dict):
-            # 備用方案：發送文字版本
-            print(f"使用備用語音方案: {voice_result.get('text', '')[:50]}...")
-            line_bot_api = get_line_bot_api()
-            if line_bot_api:
-                line_bot_api.push_message(
-                    user.line_user_id,
-                    TextSendMessage(text=f"🎤 點餐語音（文字版）:\n{voice_result.get('text', '')}")
-                )
-                print("備用語音文字已發送到 LINE")
+                    print("備用語音文字已發送到 LINE")
+            else:
+                print(f"備用語音生成失敗: {voice_result.get('message', '')}")
         else:
             print("語音生成失敗，跳過語音發送")
         
@@ -1031,7 +1065,7 @@ def send_complete_order_notification(order_id):
         print("語速控制卡片已移除")
         
         # 6. 不立即清理語音檔案，讓靜態路由服務
-        # 語音檔案會在30分鐘後由cleanup_old_voice_files自動清理
+        # 語音檔案會在60分鐘後由cleanup_old_voice_files自動清理
         print(f"訂單通知發送完成: {order_id}")
             
     except Exception as e:
@@ -1176,6 +1210,7 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
         # 取得訂單資訊
         order = Order.query.get(order_id)
         if not order:
+            print(f"備用方案：找不到訂單: {order_id}")
             return None
         
         # 建立自然的中文訂單文字
@@ -1186,7 +1221,7 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             if menu_item:
                 # 改進：根據菜名類型選擇合適的量詞
                 item_name = menu_item.item_name
-                quantity = item.quantity
+                quantity = item.quantity_small or item.quantity
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
@@ -1209,20 +1244,24 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
             order_text = f"老闆，我要{voice_items}，謝謝。"
         
-        # 應用文本預處理（確保沒有遺漏的 x1 格式）
-        order_text = normalize_order_text_for_tts(order_text)
-        print(f"[TTS] 備用方案預處理後的訂單文本: {order_text}")
+        print(f"備用方案：生成文字版本語音: {order_text}")
         
         # 返回文字而非音檔
         return {
             'success': True,
             'text': order_text,
-            'message': '語音生成功能暫時不可用，請使用文字版本'
+            'message': '語音生成功能暫時不可用，請使用文字版本',
+            'is_fallback': True
         }
         
     except Exception as e:
         print(f"備用語音生成失敗：{e}")
-        return None
+        return {
+            'success': False,
+            'text': '抱歉，語音生成功能暫時不可用',
+            'message': '請稍後再試或聯繫客服',
+            'is_fallback': True
+        }
 
 # =============================================================================
 # 新增：非合作店家專用函數
@@ -1441,8 +1480,13 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
         speech_config.speech_synthesis_speaking_rate = speech_rate  # 支援語速調整
         
-        # 準備語音文字（優先使用 chinese_voice，如果沒有則使用 chinese_summary）
-        chinese_text = order_summary.get('chinese_voice', order_summary.get('chinese_summary', '點餐摘要'))
+        # 準備語音文字（處理不同類型的輸入）
+        if isinstance(order_summary, dict):
+            chinese_text = order_summary.get('chinese_voice', order_summary.get('chinese_summary', '點餐摘要'))
+        elif isinstance(order_summary, str):
+            chinese_text = order_summary
+        else:
+            chinese_text = '點餐摘要'
         
         # 應用文本預處理（確保沒有遺漏的 x1 格式）
         chinese_text = normalize_order_text_for_tts(chinese_text)
@@ -1840,3 +1884,207 @@ async def synthesize_azure_tts(text: str) -> tuple[str, int]:
     except Exception as e:
         print(f"Azure TTS 語音生成失敗: {e}")
         return None, 0
+
+# =============================================================================
+# 記憶體優化的語音生成函數
+# 功能：在記憶體不足的情況下提供備用語音生成方案
+# =============================================================================
+
+def generate_voice_order_memory_optimized(order_id, speech_rate=1.0):
+    """
+    記憶體優化的語音生成函數
+    在記憶體不足時提供備用方案
+    """
+    try:
+        import gc
+        import psutil
+        
+        # 檢查記憶體使用情況
+        memory = psutil.virtual_memory()
+        if memory.percent > 80:
+            print(f"⚠️ 記憶體使用率過高 ({memory.percent}%)，使用備用語音方案")
+            return generate_voice_order_fallback(order_id, speech_rate)
+        
+        # 強制垃圾回收
+        gc.collect()
+        
+        # 嘗試生成語音
+        voice_result = generate_voice_order(order_id, speech_rate)
+        
+        # 再次垃圾回收
+        gc.collect()
+        
+        return voice_result
+        
+    except Exception as e:
+        print(f"記憶體優化語音生成失敗: {e}")
+        return generate_voice_order_fallback(order_id, speech_rate)
+
+def generate_voice_order_fallback(order_id, speech_rate=1.0):
+    """
+    備用語音生成函數（當 Azure TTS 不可用或記憶體不足時）
+    """
+    try:
+        from ..models import Order, OrderItem, MenuItem
+        
+        # 取得訂單資訊
+        order = Order.query.get(order_id)
+        if not order:
+            return None
+        
+        # 建立中文訂單文字
+        items_for_voice = []
+        
+        for item in order.items:
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                item_name = menu_item.item_name
+                quantity = item.quantity
+                
+                # 判斷是飲料還是餐點
+                if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                    # 飲料類用「杯」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一杯")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}杯")
+                else:
+                    # 餐點類用「份」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一份")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}份")
+        
+        # 生成自然的中文語音
+        if len(items_for_voice) == 1:
+            order_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
+        else:
+            voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
+            order_text = f"老闆，我要{voice_items}，謝謝。"
+        
+        # 返回文字而非音檔
+        return {
+            'success': True,
+            'text': order_text,
+            'message': '語音生成功能暫時不可用，請使用文字版本'
+        }
+        
+    except Exception as e:
+        print(f"備用語音生成失敗：{e}")
+        return None
+
+def generate_chinese_summary_optimized(order_id):
+    """
+    記憶體優化的中文摘要生成
+    """
+    try:
+        from ..models import Order, OrderItem, MenuItem, Store
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return "訂單摘要生成失敗"
+        
+        store = Store.query.get(order.store_id)
+        
+        # 中文摘要
+        chinese_summary = f"訂單編號：{order.order_id}\n"
+        chinese_summary += f"店家：{store.store_name if store else '未知店家'}\n"
+        chinese_summary += "訂購項目：\n"
+        
+        for item in order.items:
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                chinese_summary += f"- {menu_item.item_name} x{item.quantity}\n"
+        
+        chinese_summary += f"總金額：${order.total_amount}"
+        
+        return chinese_summary
+        
+    except Exception as e:
+        print(f"中文摘要生成失敗: {e}")
+        return "訂單摘要生成失敗"
+
+# =============================================================================
+# 修復語音檔案和中文摘要消失的問題
+# =============================================================================
+
+def send_complete_order_notification_optimized(order_id):
+    """
+    記憶體優化的完整訂單通知發送
+    """
+    from ..models import Order, User
+    from ..webhook.routes import get_line_bot_api
+    from linebot.models import TextSendMessage, AudioSendMessage
+    
+    try:
+        order = Order.query.get(order_id)
+        if not order:
+            print(f"找不到訂單: {order_id}")
+            return
+        
+        user = User.query.get(order.user_id)
+        if not user:
+            print(f"找不到使用者: {order.user_id}")
+            return
+        
+        print(f"開始發送訂單通知: {order_id} -> {user.line_user_id}")
+        
+        # 1. 生成中文摘要（優先處理）
+        chinese_summary = generate_chinese_summary_optimized(order_id)
+        
+        # 2. 發送中文摘要
+        line_bot_api = get_line_bot_api()
+        if line_bot_api and chinese_summary:
+            try:
+                line_bot_api.push_message(
+                    user.line_user_id,
+                    TextSendMessage(text=chinese_summary)
+                )
+                print("✅ 中文訂單摘要已發送到 LINE")
+            except Exception as e:
+                print(f"❌ 發送中文摘要失敗: {e}")
+        
+        # 3. 嘗試生成語音檔（記憶體優化版本）
+        try:
+            voice_result = generate_voice_order_memory_optimized(order_id, 1.0)
+            
+            if voice_result and isinstance(voice_result, str) and os.path.exists(voice_result):
+                # 成功生成語音檔
+                print(f"✅ 語音檔生成成功: {voice_result}")
+                try:
+                    # 構建正確的HTTPS URL
+                    fname = os.path.basename(voice_result)
+                    base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+                    audio_url = f"{base_url}/api/voices/{fname}"
+                    
+                    if line_bot_api:
+                        line_bot_api.push_message(
+                            user.line_user_id,
+                            AudioSendMessage(
+                                original_content_url=audio_url,
+                                duration=30000
+                            )
+                        )
+                        print(f"✅ 語音檔已發送到 LINE: {audio_url}")
+                except Exception as e:
+                    print(f"❌ 發送語音檔失敗: {e}")
+            elif voice_result and isinstance(voice_result, dict):
+                # 備用方案：發送文字版本
+                print(f"📝 使用備用語音方案: {voice_result.get('text', '')[:50]}...")
+                if line_bot_api:
+                    line_bot_api.push_message(
+                        user.line_user_id,
+                        TextSendMessage(text=f"🎤 點餐語音（文字版）:\n{voice_result.get('text', '')}")
+                    )
+                    print("✅ 備用語音文字已發送到 LINE")
+            else:
+                print("⚠️ 語音生成失敗，跳過語音發送")
+        except Exception as e:
+            print(f"❌ 語音生成處理失敗: {e}")
+        
+        print(f"✅ 訂單通知發送完成: {order_id}")
+            
+    except Exception as e:
+        print(f"❌ 發送訂單確認失敗：{e}")
+        import traceback
+        traceback.print_exc()
