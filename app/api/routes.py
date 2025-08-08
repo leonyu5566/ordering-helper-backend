@@ -1793,7 +1793,8 @@ def simple_order():
             "voice_duration": voice_duration,
             "zh_summary": order_result['zh_summary'],
             "user_summary": order_result['user_summary'],
-            "voice_text": order_result['voice_text'],
+            "voice_text": order_result['voice_text'],  # 確保包含語音文字
+            "chinese_voice": order_result['voice_text'],  # 兼容舊版前端
             "order_details": order_result['items']
         }
         

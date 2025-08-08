@@ -15,6 +15,7 @@ import requests
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import logging
+import re
 
 # =============================================================================
 # Pydantic 模型定義
@@ -1336,13 +1337,32 @@ def generate_order_summary_with_gemini(items, user_language='zh'):
         # 回傳預設格式
         return generate_fallback_order_summary(items, user_language)
 
-def generate_chinese_order_summary(chinese_items, total_amount):
+def generate_chinese_order_summary(zh_items: List[Dict], total_amount: float) -> str:
     """
     生成中文訂單摘要（使用原始中文菜名）
     """
     try:
+        # 快速失敗檢查
+        if not zh_items:
+            print("❌ zh_items 為空，無法生成中文摘要")
+            return "點餐摘要"
+        
+        # 檢查每個項目是否有有效的菜名
+        valid_items = []
+        for item in zh_items:
+            name = item.get('name', '')
+            if not name or not isinstance(name, str):
+                print(f"⚠️ 無效的菜名: {name}")
+                continue
+            valid_items.append(item)
+        
+        if not valid_items:
+            print("❌ 沒有有效的菜名項目")
+            return "點餐摘要"
+        
+        # 生成摘要
         items_text = ""
-        for item in chinese_items:
+        for item in valid_items:
             name = item['name']
             quantity = item['quantity']
             items_text += f"{name} x{quantity}、"
@@ -1351,10 +1371,14 @@ def generate_chinese_order_summary(chinese_items, total_amount):
         if items_text.endswith('、'):
             items_text = items_text[:-1]
         
-        return items_text.replace('x', ' x ')
+        result = items_text.replace('x', ' x ')
+        print(f"✅ 中文摘要生成成功: {result}")
+        return result
         
     except Exception as e:
-        print(f"中文訂單摘要生成失敗: {e}")
+        print(f"❌ 中文訂單摘要生成失敗: {e}")
+        import traceback
+        traceback.print_exc()
         return "點餐摘要"
 
 def generate_user_language_order_summary(user_language_items, total_amount, user_language):
@@ -1530,6 +1554,7 @@ def send_order_to_line_bot(user_id, order_data):
     try:
         import os
         import requests
+        import re
         
         # 取得 LINE Bot 設定
         line_channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
@@ -1537,6 +1562,16 @@ def send_order_to_line_bot(user_id, order_data):
         
         if not line_channel_access_token:
             print("警告: LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
+            return False
+        
+        # 驗證 userId 格式
+        if not user_id or not isinstance(user_id, str):
+            print(f"❌ 無效的 userId: {user_id}")
+            return False
+        
+        # 檢查是否為測試假值
+        if user_id == "U1234567890abcdef" or not re.match(r'^U[0-9a-f]{32}$', user_id):
+            print(f"⚠️ 檢測到測試假值或無效格式的 userId: {user_id}")
             return False
         
         # 準備訊息內容
@@ -1593,6 +1628,12 @@ def send_order_to_line_bot(user_id, order_data):
             "messages": messages
         }
         
+        print(f"📤 準備發送 LINE Bot 訊息:")
+        print(f"   userId: {user_id}")
+        print(f"   訊息數量: {len(messages)}")
+        print(f"   中文摘要: {chinese_summary[:50]}...")
+        print(f"   使用者摘要: {user_summary[:50]}...")
+        
         response = requests.post(line_api_url, headers=headers, json=payload)
         
         if response.status_code == 200:
@@ -1600,6 +1641,7 @@ def send_order_to_line_bot(user_id, order_data):
             return True
         else:
             print(f"❌ LINE Bot 發送失敗: {response.status_code} - {response.text}")
+            print(f"   請求 payload: {payload}")
             return False
             
     except Exception as e:
@@ -1715,7 +1757,8 @@ def process_order_with_dual_language(order_request: OrderRequest):
             })
             
             # 使用者語言訂單項目（根據語言選擇菜名）
-            if order_request.lang == 'zh-TW':
+            # 修復語言判斷：使用 startswith('zh') 來識別中文
+            if order_request.lang.startswith('zh'):
                 # 中文使用者使用原始中文菜名
                 user_items.append({
                     'name': item.name.original,
@@ -1735,6 +1778,7 @@ def process_order_with_dual_language(order_request: OrderRequest):
         # 添加調試日誌
         logging.warning("🎯 zh_items=%s", zh_items)
         logging.warning("🎯 user_items=%s", user_items)
+        logging.warning("🎯 user_lang=%s", order_request.lang)
         
         # 生成中文訂單摘要（使用原始中文菜名）
         zh_summary = generate_chinese_order_summary(zh_items, total_amount)
@@ -1758,28 +1802,9 @@ def process_order_with_dual_language(order_request: OrderRequest):
         
     except Exception as e:
         print(f"雙語訂單處理失敗: {e}")
+        import traceback
+        traceback.print_exc()
         return None
-
-def generate_chinese_order_summary(zh_items: List[Dict], total_amount: float) -> str:
-    """
-    生成中文訂單摘要（使用原始中文菜名）
-    """
-    try:
-        items_text = ""
-        for item in zh_items:
-            name = item['name']
-            quantity = item['quantity']
-            items_text += f"{name} x{quantity}、"
-        
-        # 移除最後一個頓號
-        if items_text.endswith('、'):
-            items_text = items_text[:-1]
-        
-        return items_text.replace('x', ' x ')
-        
-    except Exception as e:
-        print(f"中文訂單摘要生成失敗: {e}")
-        return "點餐摘要"
 
 def generate_user_language_order_summary(user_items: List[Dict], total_amount: float, user_lang: str) -> str:
     """
