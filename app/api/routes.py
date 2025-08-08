@@ -1654,7 +1654,9 @@ def simple_order():
             }
             
             for item in data.get('items', []):
-                # 防呆轉換器：把舊格式轉成新 nested name 格式
+                # 防呆轉換器：使用新的安全本地化菜名建立函數
+                from .helpers import safe_build_localised_name
+                
                 item_name = item.get('item_name') or item.get('name') or item.get('original_name') or '未知項目'
                 
                 # 檢查是否已經是新的雙語格式
@@ -1666,16 +1668,15 @@ def simple_order():
                         'price': item.get('price') or item.get('price_small') or 0
                     }
                 else:
-                    # 舊格式，轉換成新格式
-                    # 檢查是否有原始中文菜名和翻譯菜名
-                    original_name = item.get('original_name') or item_name
-                    translated_name = item.get('translated_name') or item.get('name') or item_name
+                    # 舊格式，使用安全本地化菜名建立函數
+                    # 優先使用 OCR 取得的中文菜名
+                    ocr_name = item.get('ocr_name') or item.get('original_name')
+                    raw_name = item.get('translated_name') or item.get('name') or item_name
+                    
+                    localised_name = safe_build_localised_name(raw_name, ocr_name)
                     
                     simple_item = {
-                        'name': {
-                            'original': original_name,
-                            'translated': translated_name
-                        },
+                        'name': localised_name,
                         'quantity': item.get('quantity') or item.get('qty') or 1,
                         'price': item.get('price') or item.get('price_small') or 0
                     }

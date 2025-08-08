@@ -18,6 +18,74 @@ import logging
 import re
 
 # =============================================================================
+# 新增：中文檢測和防呆轉換器函數
+# =============================================================================
+
+def contains_cjk(text: str) -> bool:
+    """
+    檢測文字是否包含中日韓文字（CJK）
+    用於判斷是否為中文菜名
+    """
+    if not text or not isinstance(text, str):
+        return False
+    
+    # 中日韓統一表意文字範圍
+    cjk_ranges = [
+        (0x4E00, 0x9FFF),   # 基本中日韓統一表意文字
+        (0x3400, 0x4DBF),   # 中日韓統一表意文字擴展A
+        (0x20000, 0x2A6DF), # 中日韓統一表意文字擴展B
+        (0x2A700, 0x2B73F), # 中日韓統一表意文字擴展C
+        (0x2B740, 0x2B81F), # 中日韓統一表意文字擴展D
+        (0x2B820, 0x2CEAF), # 中日韓統一表意文字擴展E
+        (0xF900, 0xFAFF),   # 中日韓相容表意文字
+        (0x2F800, 0x2FA1F), # 中日韓相容表意文字補充
+    ]
+    
+    for char in text:
+        char_code = ord(char)
+        for start, end in cjk_ranges:
+            if start <= char_code <= end:
+                return True
+    
+    return False
+
+def safe_build_localised_name(raw_name: str, zh_name: str | None = None) -> Dict[str, str]:
+    """
+    安全建立本地化菜名
+    若已經抓到 OCR 中文 (zh_name)，就放到 original；
+    沒有中文才 fallback 到 raw_name。
+    
+    Args:
+        raw_name: 原始菜名（可能是英文或中文）
+        zh_name: OCR 或 Gemini 取得的中文菜名
+    
+    Returns:
+        Dict with 'original' and 'translated' keys
+    """
+    if zh_name and contains_cjk(zh_name):
+        # 有中文菜名，使用中文作為 original
+        return {
+            'original': zh_name,
+            'translated': raw_name
+        }
+    elif contains_cjk(raw_name):
+        # raw_name 本身就是中文
+        # 如果 zh_name 存在且不是中文，使用它作為翻譯
+        translated_name = zh_name if zh_name and not contains_cjk(zh_name) else raw_name
+        return {
+            'original': raw_name,
+            'translated': translated_name
+        }
+    else:
+        # 沒有中文，先把 raw_name 當 original，再視語言翻譯
+        # 如果 zh_name 存在但不是中文，可能是有用的翻譯
+        translated_name = zh_name if zh_name and not contains_cjk(zh_name) else raw_name
+        return {
+            'original': raw_name,
+            'translated': translated_name
+        }
+
+# =============================================================================
 # Pydantic 模型定義
 # 功能：定義 API 請求和回應的資料結構
 # 用途：確保資料類型的正確性和一致性
@@ -1748,6 +1816,12 @@ def process_order_with_dual_language(order_request: OrderRequest):
             # 計算小計
             subtotal = item.price * item.quantity
             total_amount += subtotal
+            
+            # 保護 original 欄位，避免被覆寫
+            # 若偵測到 original 是英文但 translated 是中文，交換一次
+            if not contains_cjk(item.name.original) and contains_cjk(item.name.translated):
+                logging.warning("🔄 檢測到欄位顛倒，交換 original 和 translated")
+                item.name.original, item.name.translated = item.name.translated, item.name.original
             
             # 中文訂單項目（使用原始中文菜名）
             zh_items.append({
