@@ -148,6 +148,12 @@ class OrderItem(db.Model):
     menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
     quantity_small = db.Column(db.Integer, nullable=False, default=0)
     subtotal = db.Column(db.Integer, nullable=False)
+    
+    # 新增：雙語菜名欄位（從源頭保存，避免後續處理時找不到正確菜名）
+    original_name = db.Column(db.String(100), nullable=False)  # 原始中文菜名（OCR辨識結果）
+    translated_name = db.Column(db.String(100), nullable=False)  # 翻譯菜名（使用者語言）
+    
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
 
 class VoiceFile(db.Model):
     __tablename__ = 'voice_files'

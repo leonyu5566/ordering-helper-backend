@@ -1,24 +1,48 @@
 # =============================================================================
 # 檔案名稱：app/api/helpers.py
-# 功能描述：提供 API 路由的輔助函數，包含 AI 功能和檔案處理
+# 功能描述：API 輔助函數集合，提供各種業務邏輯處理功能
 # 主要職責：
-# - Gemini API 整合（OCR 和翻譯）
-# - Azure TTS 語音生成
-# - 檔案上傳處理
-# - 訂單摘要生成
-# 支援功能：
-# - 菜單圖片 OCR 辨識
-# - 多語言翻譯
-# - 中文語音生成
-# - 檔案安全管理
+# - 提供 API 路由所需的輔助函數
+# - 處理複雜的業務邏輯
+# - 整合外部服務（如 Gemini API、Azure Speech 等）
+# - 提供資料庫操作的便利函數
 # =============================================================================
 
 import os
+import uuid
 import json
 import requests
-import tempfile
-import uuid
-import time
+from typing import List, Dict, Any, Optional
+from pydantic import BaseModel
+
+# =============================================================================
+# Pydantic 模型定義
+# 功能：定義 API 請求和回應的資料結構
+# 用途：確保資料類型的正確性和一致性
+# =============================================================================
+
+class LocalisedName(BaseModel):
+    """雙語菜名模型"""
+    original: str  # 原始中文菜名（OCR辨識結果）
+    translated: str  # 翻譯菜名（使用者語言）
+
+class OrderItemRequest(BaseModel):
+    """訂單項目請求模型"""
+    name: LocalisedName  # 雙語菜名
+    quantity: int  # 數量
+    price: float  # 價格
+
+class OrderRequest(BaseModel):
+    """訂單請求模型"""
+    lang: str  # 使用者語言代碼（如 'zh-TW', 'en', 'ja'）
+    items: List[OrderItemRequest]  # 訂單項目列表
+    line_user_id: Optional[str] = None  # LINE 使用者 ID
+
+# =============================================================================
+# 環境變數和配置區塊
+# 功能：載入和管理環境變數，設定 API 金鑰和服務配置
+# 用途：確保敏感資訊的安全性，提供靈活的配置管理
+# =============================================================================
 
 # Voice files 存放在 Cloud Run 唯一可寫的 /tmp/voices
 VOICE_DIR = "/tmp/voices"
@@ -1618,3 +1642,194 @@ def send_voice_with_rate(user_id, order_id, rate=1.0):
     except Exception as e:
         print(f"❌ 語速語音發送失敗: {e}")
         return False
+
+def process_order_with_dual_language(order_request: OrderRequest):
+    """
+    處理雙語訂單（新設計）
+    按照GPT建議：從源頭就同時保留 original_name 與 translated_name
+    """
+    try:
+        # 分離中文訂單和使用者語言訂單
+        zh_items = []  # 中文訂單項目（使用原始中文菜名）
+        user_items = []  # 使用者語言訂單項目（根據語言選擇菜名）
+        total_amount = 0
+        
+        for item in order_request.items:
+            # 計算小計
+            subtotal = item.price * item.quantity
+            total_amount += subtotal
+            
+            # 中文訂單項目（使用原始中文菜名）
+            zh_items.append({
+                'name': item.name.original,
+                'quantity': item.quantity,
+                'price': item.price,
+                'subtotal': subtotal
+            })
+            
+            # 使用者語言訂單項目（根據語言選擇菜名）
+            if order_request.lang == 'zh-TW':
+                # 中文使用者使用原始中文菜名
+                user_items.append({
+                    'name': item.name.original,
+                    'quantity': item.quantity,
+                    'price': item.price,
+                    'subtotal': subtotal
+                })
+            else:
+                # 其他語言使用者使用翻譯菜名
+                user_items.append({
+                    'name': item.name.translated,
+                    'quantity': item.quantity,
+                    'price': item.price,
+                    'subtotal': subtotal
+                })
+        
+        # 生成中文訂單摘要（使用原始中文菜名）
+        zh_summary = generate_chinese_order_summary(zh_items, total_amount)
+        
+        # 生成使用者語言訂單摘要
+        user_summary = generate_user_language_order_summary(user_items, total_amount, order_request.lang)
+        
+        # 生成中文語音（使用原始中文菜名）
+        voice_text = build_chinese_voice_text(zh_items)
+        
+        return {
+            "zh_summary": zh_summary,
+            "user_summary": user_summary,
+            "voice_text": voice_text,
+            "total_amount": total_amount,
+            "items": {
+                "zh_items": zh_items,
+                "user_items": user_items
+            }
+        }
+        
+    except Exception as e:
+        print(f"雙語訂單處理失敗: {e}")
+        return None
+
+def generate_chinese_order_summary(zh_items: List[Dict], total_amount: float) -> str:
+    """
+    生成中文訂單摘要（使用原始中文菜名）
+    """
+    try:
+        items_text = ""
+        for item in zh_items:
+            name = item['name']
+            quantity = item['quantity']
+            items_text += f"{name} x{quantity}、"
+        
+        # 移除最後一個頓號
+        if items_text.endswith('、'):
+            items_text = items_text[:-1]
+        
+        return items_text.replace('x', ' x ')
+        
+    except Exception as e:
+        print(f"中文訂單摘要生成失敗: {e}")
+        return "點餐摘要"
+
+def generate_user_language_order_summary(user_items: List[Dict], total_amount: float, user_lang: str) -> str:
+    """
+    生成使用者語言訂單摘要
+    """
+    try:
+        items_text = ""
+        for item in user_items:
+            name = item['name']
+            quantity = item['quantity']
+            items_text += f"{name} x{quantity}、"
+        
+        # 移除最後一個頓號
+        if items_text.endswith('、'):
+            items_text = items_text[:-1]
+        
+        # 根據使用者語言格式化
+        if user_lang == 'zh-TW':
+            return items_text.replace('x', ' x ')
+        else:
+            return f"Order: {items_text.replace('x', ' x ')}"
+        
+    except Exception as e:
+        print(f"使用者語言訂單摘要生成失敗: {e}")
+        return "Order Summary"
+
+def build_chinese_voice_text(zh_items: List[Dict]) -> str:
+    """
+    構建中文語音文字（使用原始中文菜名）
+    """
+    try:
+        voice_items = []
+        for item in zh_items:
+            name = item['name']
+            quantity = item['quantity']
+            
+            # 根據菜名類型選擇量詞
+            if any(keyword in name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                # 飲料類用「杯」
+                if quantity == 1:
+                    voice_items.append(f"{name}一杯")
+                else:
+                    voice_items.append(f"{name}{quantity}杯")
+            else:
+                # 餐點類用「份」
+                if quantity == 1:
+                    voice_items.append(f"{name}一份")
+                else:
+                    voice_items.append(f"{name}{quantity}份")
+        
+        # 生成自然的中文語音
+        if len(voice_items) == 1:
+            return f"老闆，我要{voice_items[0]}，謝謝。"
+        else:
+            voice_text = "、".join(voice_items[:-1]) + "和" + voice_items[-1]
+            return f"老闆，我要{voice_text}，謝謝。"
+        
+    except Exception as e:
+        print(f"中文語音文字構建失敗: {e}")
+        return "老闆，我要點餐，謝謝。"
+
+async def synthesize_azure_tts(text: str) -> tuple[str, int]:
+    """
+    使用 Azure TTS 合成語音
+    回傳：(語音檔URL, 持續時間毫秒)
+    """
+    try:
+        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
+        import os
+        
+        # 取得 Azure Speech 配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech 配置不可用")
+            return None, 0
+        
+        # 設定語音參數
+        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+        speech_config.speech_synthesis_speaking_rate = 1.0
+        
+        # 生成語音檔路徑
+        filename = f"{uuid.uuid4()}.wav"
+        voice_path = os.path.join(VOICE_DIR, filename)
+        
+        # 設定音訊輸出
+        audio_config = AudioConfig(filename=voice_path)
+        
+        # 建立語音合成器
+        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        
+        # 生成語音
+        result = synthesizer.speak_text_async(text).get()
+        
+        if result.reason == ResultReason.SynthesizingAudioCompleted:
+            # 計算持續時間（毫秒）
+            duration_ms = int(result.audio_duration / 10000)  # Azure 回傳的是 100-nanosecond units
+            return voice_path, duration_ms
+        else:
+            print(f"語音生成失敗: {result.reason}")
+            return None, 0
+            
+    except Exception as e:
+        print(f"Azure TTS 語音生成失敗: {e}")
+        return None, 0

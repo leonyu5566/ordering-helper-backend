@@ -1706,133 +1706,83 @@ def simple_menu_ocr():
 
 @api_bp.route('/orders/simple', methods=['POST', 'OPTIONS'])
 def simple_order():
-    """簡化訂單處理（非合作店家）- 不儲存資料庫，直接生成語音"""
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
     
     try:
+        # 解析請求資料
         data = request.get_json()
-        
         if not data:
             return jsonify({
                 "success": False,
                 "error": "請求資料為空"
             }), 400
         
-        # 檢查必要欄位
-        if 'items' not in data:
-            return jsonify({
-                "success": False,
-                "error": "缺少訂單項目"
-            }), 400
-        
-        items = data['items']
-        user_language = data.get('user_language', 'zh')
-        
-        if not items:
-            return jsonify({
-                "success": False,
-                "error": "沒有選擇任何商品"
-            }), 400
-        
-        # 驗證和計算
-        total_amount = 0
-        validated_items = []
-        
-        for i, item in enumerate(items):
-            # 優先使用實際的菜名，如果沒有則使用預設值
-            name = (item.get('name') or 
-                   item.get('translated_name') or 
-                   item.get('original_name') or 
-                   item.get('item_name') or 
-                   f"項目 {i+1}")
-            quantity = int(item.get('quantity', 1))
-            price = float(item.get('price', 0))
-            
-            # 調試信息：檢查項目名稱
-            print(f"項目 {i+1} 原始資料: {item}")
-            print(f"項目 {i+1} 最終名稱: {name}")
-            
-            if quantity <= 0:
-                return jsonify({
-                    "success": False,
-                    "error": f"項目 {i+1}: 數量必須大於 0"
-                }), 400
-            
-            if price < 0:
-                return jsonify({
-                    "success": False,
-                    "error": f"項目 {i+1}: 價格不能為負數"
-                }), 400
-            
-            subtotal = price * quantity
-            total_amount += subtotal
-            
-            validated_items.append({
-                'name': name,
-                'quantity': quantity,
-                'price': price,
-                'subtotal': subtotal
-            })
-        
-        # 生成訂單ID（用於檔案命名）
-        order_id = f"simple_{datetime.datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-        
-        # 使用 Gemini API 生成訂單摘要
-        from .helpers import generate_order_summary_with_gemini
-        order_summary = generate_order_summary_with_gemini(validated_items, user_language)
-        
-        # 生成中文語音檔（Azure Speech）
-        voice_url = None
+        # 使用 Pydantic 模型驗證請求資料
         try:
-            from .helpers import generate_chinese_voice_with_azure
-            voice_url = generate_chinese_voice_with_azure(order_summary, order_id)
+            from .helpers import OrderRequest, process_order_with_dual_language, synthesize_azure_tts
+            order_request = OrderRequest(**data)
+        except Exception as e:
+            return jsonify({
+                "success": False,
+                "error": f"請求資料格式錯誤: {str(e)}"
+            }), 400
+        
+        # 處理雙語訂單
+        order_result = process_order_with_dual_language(order_request)
+        if not order_result:
+            return jsonify({
+                "success": False,
+                "error": "訂單處理失敗"
+            }), 500
+        
+        # 生成語音檔
+        voice_url = None
+        voice_duration = 0
+        try:
+            voice_url, voice_duration = synthesize_azure_tts(order_result['voice_text'])
         except Exception as e:
             print(f"語音生成失敗: {e}")
         
-        # 使用 Gemini API 生成的摘要
-        chinese_summary = order_summary.get('chinese_summary', '點餐摘要')
-        user_summary = order_summary.get('user_summary', f'Order: {int(total_amount)} 元')
-        
-        # 準備訂單資料
-        order_data = {
-            "order_id": order_id,
-            "total_amount": total_amount,
+        # 準備回應資料
+        response_data = {
+            "success": True,
+            "order_id": f"dual_{uuid.uuid4().hex[:8]}",
+            "total_amount": order_result['total_amount'],
             "voice_url": voice_url,
-            "chinese_summary": chinese_summary,
-            "user_summary": user_summary,
-            "order_details": validated_items
+            "voice_duration": voice_duration,
+            "zh_summary": order_result['zh_summary'],
+            "user_summary": order_result['user_summary'],
+            "voice_text": order_result['voice_text'],
+            "order_details": order_result['items']
         }
         
         # 發送給 LINE Bot（如果提供了使用者ID）
-        line_user_id = data.get('line_user_id')
-        if line_user_id:
+        if order_request.line_user_id:
             try:
                 from .helpers import send_order_to_line_bot
-                send_success = send_order_to_line_bot(line_user_id, order_data)
+                line_data = {
+                    "order_id": response_data['order_id'],
+                    "total_amount": response_data['total_amount'],
+                    "voice_url": response_data['voice_url'],
+                    "zh_summary": response_data['zh_summary'],
+                    "user_summary": response_data['user_summary']
+                }
+                send_success = send_order_to_line_bot(order_request.line_user_id, line_data)
                 if send_success:
-                    print(f"✅ 成功發送訂單到 LINE Bot，使用者: {line_user_id}")
+                    print(f"✅ 成功發送訂單到 LINE Bot，使用者: {order_request.line_user_id}")
                 else:
-                    print(f"⚠️ LINE Bot 發送失敗，使用者: {line_user_id}")
+                    print(f"⚠️ LINE Bot 發送失敗，使用者: {order_request.line_user_id}")
             except Exception as e:
                 print(f"❌ LINE Bot 發送異常: {e}")
         
-        response = jsonify({
-            "success": True,
-            "order_id": order_id,
-            "total_amount": total_amount,
-            "voice_url": voice_url,
-            "chinese_summary": chinese_summary,
-            "user_summary": user_summary,
-            "order_details": validated_items,
-            "line_bot_sent": line_user_id is not None
-        })
+        response = jsonify(response_data)
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 201
     
     except Exception as e:
-        print(f"簡化訂單處理失敗：{e}")
+        print(f"雙語訂單處理失敗：{e}")
         response = jsonify({
             "success": False,
             "error": "訂單處理失敗"
