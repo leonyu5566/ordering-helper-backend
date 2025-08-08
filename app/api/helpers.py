@@ -1208,145 +1208,192 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
 def generate_order_summary_with_gemini(items, user_language='zh'):
     """
     使用 Gemini API 生成訂單摘要
-    輸入：訂單項目列表和使用者語言
-    輸出：中文摘要和使用者語言摘要
+    新設計思路：
+    1. 分離中文訂單（原始中文菜名）和使用者語言訂單（翻譯菜名）
+    2. 分別生成對應的摘要和語音
     """
     try:
-        # 構建訂單項目文字（改善格式）
-        items_text = ""
+        # 分離中文訂單和使用者語言訂單
+        chinese_order_items = []
+        user_language_order_items = []
         total_amount = 0
-        item_details = []
         
         for item in items:
-            name = item['name']
+            # 獲取原始中文菜名和翻譯菜名
+            original_name = item.get('original_name') or item.get('name', '')
+            translated_name = item.get('translated_name') or item.get('name', '')
             quantity = item['quantity']
+            price = item.get('price', 0)
             subtotal = item['subtotal']
             total_amount += subtotal
             
-            # 記錄詳細資訊用於 Gemini API
-            item_details.append({
-                'name': name,
+            # 中文訂單項目（使用原始中文菜名）
+            chinese_order_items.append({
+                'name': original_name,
                 'quantity': quantity,
-                'price': item.get('price', 0),
+                'price': price,
                 'subtotal': subtotal
             })
             
+            # 使用者語言訂單項目（根據使用者語言選擇菜名）
+            if user_language == 'zh':
+                # 中文使用者使用原始中文菜名
+                user_language_order_items.append({
+                    'name': original_name,
+                    'quantity': quantity,
+                    'price': price,
+                    'subtotal': subtotal
+                })
+            else:
+                # 其他語言使用者使用翻譯菜名
+                user_language_order_items.append({
+                    'name': translated_name,
+                    'quantity': quantity,
+                    'price': price,
+                    'subtotal': subtotal
+                })
+        
+        # 生成中文訂單摘要（使用原始中文菜名）
+        chinese_summary = generate_chinese_order_summary(chinese_order_items, total_amount)
+        
+        # 生成使用者語言訂單摘要
+        user_language_summary = generate_user_language_order_summary(user_language_order_items, total_amount, user_language)
+        
+        # 生成中文語音（使用原始中文菜名）
+        chinese_voice = generate_chinese_voice_text(chinese_order_items)
+        
+        return {
+            "chinese_voice": chinese_voice,
+            "chinese_summary": chinese_summary,
+            "user_summary": user_language_summary
+        }
+        
+    except Exception as e:
+        print(f"訂單摘要生成失敗: {e}")
+        # 回傳預設格式
+        return generate_fallback_order_summary(items, user_language)
+
+def generate_chinese_order_summary(chinese_items, total_amount):
+    """
+    生成中文訂單摘要（使用原始中文菜名）
+    """
+    try:
+        items_text = ""
+        for item in chinese_items:
+            name = item['name']
+            quantity = item['quantity']
             items_text += f"{name} x{quantity}、"
         
         # 移除最後一個頓號
         if items_text.endswith('、'):
             items_text = items_text[:-1]
         
-        # 構建更詳細的 Gemini 提示詞
-        import json
-        prompt = f"""
-你是一個專業的點餐助手。請根據以下實際的點餐項目生成自然的中文語音和訂單摘要。
-
-## 點餐項目詳情：
-{json.dumps(item_details, ensure_ascii=False, indent=2)}
-
-## 總金額：{int(total_amount)}元
-
-請生成：
-
-1. **中文語音內容**（給店家聽的，要自然流暢）：
-   - 格式：老闆，我要[實際品項名稱]一份、[實際品項名稱]一杯，謝謝。
-   - 要求：使用實際的品項名稱，語言要自然，像是客人親自點餐
-   - 避免使用"品項1、品項2"這樣的佔位符
-   - 範例：老闆，我要經典夏威夷奶醬義大利麵一份，謝謝。
-
-2. **中文訂單摘要**（給使用者看的）：
-   - 格式：[實際品項名稱] x [數量]、[實際品項名稱] x [數量]
-   - 要求：清晰列出所有實際品項和數量
-   - 避免使用"品項1、品項2"這樣的佔位符
-   - 範例：經典夏威夷奶醬義大利麵 x 1
-
-3. **使用者語言摘要**（{user_language}）：
-   - 格式：Order: [實際品項名稱] x [qty], [實際品項名稱] x [qty]
-   - 要求：使用使用者選擇的語言，翻譯實際品項名稱
-   - 避免使用"Item 1、Item 2"這樣的佔位符
-
-## 重要注意事項：
-- 必須使用實際的品項名稱，不要使用"品項1、品項2"等佔位符
-- 語音內容要自然流暢，適合現場點餐
-- 摘要要清晰易讀，便於使用者確認
-
-請以 JSON 格式回傳：
-{{
-    "chinese_voice": "老闆，我要[實際品項名稱]一份，謝謝。",
-    "chinese_summary": "[實際品項名稱] x [數量]",
-    "user_summary": "Order: [實際品項名稱] x [qty]"
-}}
-        """
-        
-        # 呼叫 Gemini API
-        gemini_client = get_gemini_client()
-        if not gemini_client:
-            # 如果 Gemini API 不可用，使用改善的預設格式
-            chinese_voice = f"老闆，我要{items_text}，謝謝。"
-            chinese_summary = items_text.replace('、', '、').replace('x', ' x ')
-            return {
-                "chinese_voice": chinese_voice,
-                "chinese_summary": chinese_summary,
-                "user_summary": f"Order: {items_text}"
-            }
-        
-        response = gemini_client.generate_content(prompt)
-        
-        # 嘗試解析 JSON 回應
-        try:
-            import json
-            result = json.loads(response.text)
-            
-            # 確保回傳格式正確，並檢查是否包含實際品項名稱
-            if 'chinese_voice' not in result:
-                result['chinese_voice'] = f"老闆，我要{items_text}，謝謝。"
-            elif '品項1' in result['chinese_voice'] or '項目1' in result['chinese_voice']:
-                # 如果 Gemini 回傳了佔位符，使用實際品項名稱
-                result['chinese_voice'] = f"老闆，我要{items_text}，謝謝。"
-            
-            if 'chinese_summary' not in result:
-                result['chinese_summary'] = items_text.replace('、', '、').replace('x', ' x ')
-            elif '品項1' in result['chinese_summary'] or '項目1' in result['chinese_summary']:
-                # 如果 Gemini 回傳了佔位符，使用實際品項名稱
-                result['chinese_summary'] = items_text.replace('、', '、').replace('x', ' x ')
-            
-            if 'user_summary' not in result:
-                result['user_summary'] = f"Order: {items_text}"
-            elif 'Item 1' in result['user_summary'] or '項目1' in result['user_summary']:
-                # 如果 Gemini 回傳了佔位符，使用實際品項名稱
-                result['user_summary'] = f"Order: {items_text}"
-            
-            return result
-        except json.JSONDecodeError:
-            # 如果 JSON 解析失敗，使用改善的預設格式
-            chinese_voice = f"老闆，我要{items_text}，謝謝。"
-            chinese_summary = items_text.replace('、', '、').replace('x', ' x ')
-            return {
-                "chinese_voice": chinese_voice,
-                "chinese_summary": chinese_summary,
-                "user_summary": f"Order: {items_text}"
-            }
+        return items_text.replace('x', ' x ')
         
     except Exception as e:
-        print(f"Gemini API 訂單摘要生成失敗: {e}")
-        # 回傳改善的預設格式
+        print(f"中文訂單摘要生成失敗: {e}")
+        return "點餐摘要"
+
+def generate_user_language_order_summary(user_language_items, total_amount, user_language):
+    """
+    生成使用者語言訂單摘要（使用翻譯菜名）
+    """
+    try:
         items_text = ""
-        for item in items:
+        for item in user_language_items:
             name = item['name']
             quantity = item['quantity']
             items_text += f"{name} x{quantity}、"
         
+        # 移除最後一個頓號
         if items_text.endswith('、'):
             items_text = items_text[:-1]
         
-        chinese_voice = f"老闆，我要{items_text}，謝謝。"
-        chinese_summary = items_text.replace('、', '、').replace('x', ' x ')
+        # 根據使用者語言格式化
+        if user_language == 'zh':
+            return items_text.replace('x', ' x ')
+        else:
+            return f"Order: {items_text.replace('x', ' x ')}"
+        
+    except Exception as e:
+        print(f"使用者語言訂單摘要生成失敗: {e}")
+        return "Order Summary"
+
+def generate_chinese_voice_text(chinese_items):
+    """
+    生成中文語音文字（使用原始中文菜名）
+    """
+    try:
+        voice_items = []
+        for item in chinese_items:
+            name = item['name']
+            quantity = item['quantity']
+            
+            # 根據菜名類型選擇量詞
+            if any(keyword in name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                # 飲料類用「杯」
+                if quantity == 1:
+                    voice_items.append(f"{name}一杯")
+                else:
+                    voice_items.append(f"{name}{quantity}杯")
+            else:
+                # 餐點類用「份」
+                if quantity == 1:
+                    voice_items.append(f"{name}一份")
+                else:
+                    voice_items.append(f"{name}{quantity}份")
+        
+        # 生成自然的中文語音
+        if len(voice_items) == 1:
+            return f"老闆，我要{voice_items[0]}，謝謝。"
+        else:
+            voice_text = "、".join(voice_items[:-1]) + "和" + voice_items[-1]
+            return f"老闆，我要{voice_text}，謝謝。"
+        
+    except Exception as e:
+        print(f"中文語音文字生成失敗: {e}")
+        return "老闆，我要點餐，謝謝。"
+
+def generate_fallback_order_summary(items, user_language):
+    """
+    生成備用訂單摘要（當主要方法失敗時）
+    """
+    try:
+        chinese_items = []
+        user_language_items = []
+        
+        for item in items:
+            original_name = item.get('original_name') or item.get('name', '')
+            translated_name = item.get('translated_name') or item.get('name', '')
+            quantity = item['quantity']
+            
+            chinese_items.append({
+                'name': original_name,
+                'quantity': quantity
+            })
+            
+            user_language_items.append({
+                'name': translated_name,
+                'quantity': quantity
+            })
+        
+        # 生成備用摘要
+        chinese_summary = generate_chinese_order_summary(chinese_items, 0)
+        user_language_summary = generate_user_language_order_summary(user_language_items, 0, user_language)
+        chinese_voice = generate_chinese_voice_text(chinese_items)
         
         return {
             "chinese_voice": chinese_voice,
             "chinese_summary": chinese_summary,
-            "user_summary": f"Order: {items_text}"
+            "user_summary": user_language_summary
+        }
+        
+    except Exception as e:
+        print(f"備用訂單摘要生成失敗: {e}")
+        return {
+            "chinese_voice": "老闆，我要點餐，謝謝。",
+            "chinese_summary": "點餐摘要",
+            "user_summary": "Order Summary"
         }
 
 def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
