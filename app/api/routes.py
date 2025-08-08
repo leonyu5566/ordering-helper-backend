@@ -340,14 +340,20 @@ def create_order():
             "received_data": list(data.keys())
         }), 400
 
-    # 檢查是否為非合作店家訂單（包含臨時菜單項目）
+    # 檢查是否為非合作店家訂單（包含臨時菜單項目或沒有 menu_item_id）
     has_temp_items = any(
         str(item.get('menu_item_id') or item.get('id') or '').startswith('temp_')
         for item in data.get('items', [])
     )
     
-    # 如果是非合作店家訂單，重定向到 simple_order
-    if has_temp_items:
+    # 檢查是否有項目缺少 menu_item_id（舊格式）
+    has_legacy_items = any(
+        not (item.get('menu_item_id') or item.get('id'))
+        for item in data.get('items', [])
+    )
+    
+    # 如果是非合作店家訂單或舊格式訂單，重定向到雙語處理
+    if has_temp_items or has_legacy_items:
         print("檢測到臨時菜單項目，重定向到 simple_order")
         # 重構資料格式以符合 simple_order 的要求
         simple_data = {
