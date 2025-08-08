@@ -1023,7 +1023,7 @@ def handle_start_ordering(event, store_id, user):
         # 根據店家類型決定下一步
         if store.partner_level > 0:
             # 合作店家，跳轉到 LIFF
-            liff_url = f"https://your-liff-domain.com/ordering?store_id={store_id}&lang={user.preferred_lang}"
+            liff_url = f"https://green-beach-0f9c8c70f.azurestaticapps.net/?store_id={store_id}&partner=true&store_name={store.store_name}&lang={user.preferred_lang}"
             
             messages = {
                 "en": f"Starting to order from {store.store_name}...",
@@ -1063,7 +1063,7 @@ def handle_start_ordering(event, store_id, user):
                 store_id = new_store.store_id
             
             # 跳轉到非合作店家的 LIFF 頁面
-            liff_url = f"https://your-liff-domain.com/non-partner?store_id={store_id}&lang={user.preferred_lang}"
+            liff_url = f"https://green-beach-0f9c8c70f.azurestaticapps.net/?store_id={store_id}&partner=false&store_name={store.store_name}&lang={user.preferred_lang}"
             
             messages = {
                 "en": f"Please take a photo of the menu from {store.store_name} to start ordering.",
