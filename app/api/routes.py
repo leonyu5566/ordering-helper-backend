@@ -1194,10 +1194,13 @@ def get_all_stores():
             store_list.append({
                 'store_id': store.store_id,
                 'store_name': store.store_name,
-                'store_address': store.store_address,
-                'store_phone': store.store_phone,
-                'store_description': store.store_description,
-                'is_partner': store.is_partner
+                'partner_level': store.partner_level,
+                'gps_lat': store.gps_lat,
+                'gps_lng': store.gps_lng,
+                'place_id': store.place_id,
+                'review_summary': store.review_summary,
+                'main_photo_url': store.main_photo_url,
+                'created_at': store.created_at.isoformat() if store.created_at else None
             })
         
         response = jsonify({
@@ -1208,6 +1211,7 @@ def get_all_stores():
         return response
         
     except Exception as e:
+        print(f"取得店家列表失敗: {e}")
         response = jsonify({'error': '無法載入店家列表'})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 500
@@ -1739,7 +1743,7 @@ def simple_order():
             order = Order(
                 user_id=user.user_id,
                 store_id=store.store_id,
-                order_date=datetime.datetime.now(),
+                order_time=datetime.datetime.now(),  # 使用正確的欄位名稱
                 total_amount=order_result['total_amount'],
                 status='pending'
             )
