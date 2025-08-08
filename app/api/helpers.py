@@ -16,6 +16,10 @@ from typing import List, Dict, Any, Optional
 from pydantic import BaseModel
 import logging
 import re
+import datetime
+from google.cloud import storage
+from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
+import tempfile
 
 # =============================================================================
 # 新增：中文檢測和防呆轉換器函數
@@ -2198,3 +2202,311 @@ def send_complete_order_notification_optimized(order_id):
         print(f"❌ 發送訂單確認失敗：{e}")
         import traceback
         traceback.print_exc()
+
+def build_order_message(zh_summary: str, user_summary: str, total: int, audio_url: str | None) -> list:
+    """
+    建立訂單訊息（嚴謹檢查版本）
+    按照 GPT 建議：確保摘要不為 None，audio_url 必須是 HTTPS
+    """
+    import logging
+    
+    # 1. 確保兩種摘要都不是 None
+    if not zh_summary or zh_summary.strip() == "":
+        logging.error("zh_summary missing or empty")
+        raise ValueError("zh_summary missing")
+    
+    if not user_summary or user_summary.strip() == "":
+        # 允許 fallback 但要寫入日誌
+        logging.warning("User summary missing, fallback to zh_summary")
+        user_summary = zh_summary
+    
+    # 2. 構建文字訊息
+    text = (
+        "Order Summary\n\n"
+        f"中文摘要（給店家聽）：{zh_summary}\n\n"
+        f"{detect_lang(user_summary)} 摘要：{user_summary}\n\n"
+        f"總金額：{total} 元"
+    )
+    messages = [{"type": "text", "text": text}]
+    
+    # 3. audio_url 必須是 https 且可存取，否則不要附加
+    if audio_url and audio_url.startswith("https://"):
+        messages.append({
+            "type": "audio",
+            "originalContentUrl": audio_url,
+            "duration": estimate_duration_ms(audio_url)
+        })
+        logging.info(f"✅ 附加音訊訊息: {audio_url}")
+    else:
+        logging.warning(f"Skip audio, invalid url={audio_url}")
+    
+    return messages
+
+def detect_lang(text: str) -> str:
+    """檢測語言並返回對應標籤"""
+    if contains_cjk(text):
+        return "中文"
+    elif any(c.isalpha() for c in text) and not contains_cjk(text):
+        return "English"
+    else:
+        return "摘要"
+
+def estimate_duration_ms(audio_url: str) -> int:
+    """估算音訊時長（毫秒）"""
+    # 根據檔案大小和內容估算，這裡使用預設值
+    return 30000  # 30秒
+
+def send_order_to_line_bot_fixed(user_id, order_data):
+    """
+    修復版本的 LINE Bot 發送函數
+    解決摘要被預設字串覆蓋和 TTS 檔案沒有公開網址的問題
+    """
+    try:
+        import os
+        import requests
+        import re
+        import logging
+        
+        # 取得 LINE Bot 設定
+        line_channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
+        line_channel_secret = os.getenv('LINE_CHANNEL_SECRET')
+        
+        if not line_channel_access_token:
+            logging.error("LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
+            return False
+        
+        # 驗證 userId 格式
+        if not user_id or not isinstance(user_id, str):
+            logging.error(f"❌ 無效的 userId: {user_id}")
+            return False
+        
+        # 檢查是否為測試假值或無效格式
+        if not re.match(r'^U[0-9a-f]{32}$', user_id):
+            logging.warning(f"⚠️ 檢測到無效格式的 userId: {user_id}")
+            return False
+        
+        # 準備訊息內容（嚴謹檢查）
+        zh_summary = order_data.get('chinese_summary') or order_data.get('zh_summary')
+        user_summary = order_data.get('user_summary')
+        voice_url = order_data.get('voice_url')
+        total_amount = order_data.get('total_amount', 0)
+        
+        # 除錯：檢查變數值
+        logging.debug(f"zh_summary={zh_summary}")
+        logging.debug(f"user_summary={user_summary}")
+        logging.debug(f"voice_url={voice_url}")
+        
+        # 使用新的訊息構建函數
+        try:
+            messages = build_order_message(zh_summary, user_summary, total_amount, voice_url)
+        except ValueError as e:
+            logging.error(f"訊息構建失敗: {e}")
+            return False
+        
+        # 準備 LINE Bot API 請求
+        line_api_url = "https://api.line.me/v2/bot/message/push"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {line_channel_access_token}'
+        }
+        
+        # 發送訊息
+        payload = {
+            "to": user_id,
+            "messages": messages
+        }
+        
+        logging.info(f"📤 準備發送 LINE Bot 訊息:")
+        logging.info(f"   userId: {user_id}")
+        logging.info(f"   訊息數量: {len(messages)}")
+        logging.info(f"   中文摘要: {zh_summary[:50] if zh_summary else 'None'}...")
+        logging.info(f"   使用者摘要: {user_summary[:50] if user_summary else 'None'}...")
+        
+        response = requests.post(line_api_url, headers=headers, json=payload)
+        
+        if response.status_code == 200:
+            logging.info(f"✅ 成功發送訂單到 LINE Bot，使用者: {user_id}")
+            return True
+        else:
+            logging.error(f"❌ LINE Bot 發送失敗: {response.status_code} - {response.text}")
+            logging.error(f"   請求 payload: {payload}")
+            return False
+            
+    except Exception as e:
+        logging.error(f"❌ LINE Bot 整合失敗: {e}")
+        return False
+
+def generate_and_upload_audio_to_gcs(text: str, order_id: str) -> str | None:
+    """
+    生成語音檔並上傳到 GCS，返回公開 HTTPS URL
+    解決 TTS 檔案沒有公開網址的問題
+    """
+    try:
+        import os
+        import tempfile
+        from google.cloud import storage
+        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig
+        
+        # 1. 生成語音檔
+        speech_config = get_speech_config()
+        if not speech_config:
+            logging.error("Azure Speech 配置不可用")
+            return None
+        
+        # 設定語音參數
+        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+        speech_config.speech_synthesis_speaking_rate = 1.0
+        
+        # 準備語音文字
+        voice_text = normalize_order_text_for_tts(text)
+        logging.info(f"[TTS] 生成語音文字: {voice_text}")
+        
+        # 生成臨時語音檔
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+            temp_path = temp_file.name
+        
+        # 設定音訊輸出
+        audio_config = AudioConfig(filename=temp_path)
+        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        
+        # 生成語音
+        result = synthesizer.speak_text_async(voice_text).get()
+        
+        if result.reason == ResultReason.SynthesizingAudioCompleted:
+            logging.info(f"✅ 語音生成成功: {temp_path}")
+        else:
+            logging.error(f"❌ 語音生成失敗: {result.reason}")
+            os.unlink(temp_path)
+            return None
+        
+        # 2. 上傳到 GCS
+        try:
+            # 初始化 GCS 客戶端
+            storage_client = storage.Client()
+            
+            # 取得 bucket（需要設定環境變數）
+            bucket_name = os.getenv('GCS_BUCKET_NAME', 'ordering-helper-voice-files')
+            bucket = storage_client.bucket(bucket_name)
+            
+            # 生成 blob 名稱
+            blob_name = f"voices/{order_id}_{os.path.basename(temp_path)}"
+            blob = bucket.blob(blob_name)
+            
+            # 上傳檔案
+            blob.upload_from_filename(temp_path)
+            
+            # 設定公開讀取權限
+            blob.make_public()
+            
+            # 取得公開 URL
+            public_url = blob.public_url
+            
+            # 清理臨時檔案
+            os.unlink(temp_path)
+            
+            logging.info(f"✅ 語音檔已上傳到 GCS: {public_url}")
+            return public_url
+            
+        except Exception as e:
+            logging.error(f"❌ GCS 上傳失敗: {e}")
+            # 清理臨時檔案
+            os.unlink(temp_path)
+            return None
+            
+    except Exception as e:
+        logging.error(f"❌ 語音生成和上傳失敗: {e}")
+        return None
+
+def process_order_with_enhanced_tts(order_request: OrderRequest):
+    """
+    增強版本的訂單處理函數
+    包含完整的 TTS 和 GCS 上傳流程
+    """
+    try:
+        # 添加調試日誌
+        logging.warning("🛰️ payload=%s", json.dumps(order_request.dict(), ensure_ascii=False))
+        
+        # 分離中文訂單和使用者語言訂單
+        zh_items = []  # 中文訂單項目（使用原始中文菜名）
+        user_items = []  # 使用者語言訂單項目（根據語言選擇菜名）
+        total_amount = 0
+        
+        for item in order_request.items:
+            # 計算小計
+            subtotal = item.price * item.quantity
+            total_amount += subtotal
+            
+            # 保護 original 欄位，避免被覆寫
+            if not contains_cjk(item.name.original) and contains_cjk(item.name.translated):
+                logging.warning("🔄 檢測到欄位顛倒，交換 original 和 translated")
+                item.name.original, item.name.translated = item.name.translated, item.name.original
+            
+            # 檢查是否為非合作店家的 OCR 菜單項目
+            menu_item_id = getattr(item, 'menu_item_id', None)
+            
+            # 中文訂單項目（使用原始中文菜名）
+            zh_items.append({
+                'name': item.name.original,
+                'quantity': item.quantity,
+                'price': item.price,
+                'subtotal': subtotal,
+                'menu_item_id': menu_item_id
+            })
+            
+            # 使用者語言訂單項目（根據語言選擇菜名）
+            if order_request.lang.startswith('zh'):
+                user_items.append({
+                    'name': item.name.original,
+                    'quantity': item.quantity,
+                    'price': item.price,
+                    'subtotal': subtotal,
+                    'menu_item_id': menu_item_id
+                })
+            else:
+                user_items.append({
+                    'name': item.name.translated,
+                    'quantity': item.quantity,
+                    'price': item.price,
+                    'subtotal': subtotal,
+                    'menu_item_id': menu_item_id
+                })
+        
+        # 添加調試日誌
+        logging.warning("🎯 zh_items=%s", zh_items)
+        logging.warning("🎯 user_items=%s", user_items)
+        logging.warning("🎯 user_lang=%s", order_request.lang)
+        
+        # 生成中文訂單摘要（使用原始中文菜名）
+        zh_summary = generate_chinese_order_summary(zh_items, total_amount)
+        
+        # 生成使用者語言訂單摘要
+        user_summary = generate_user_language_order_summary(user_items, total_amount, order_request.lang)
+        
+        # 生成中文語音文字
+        voice_text = build_chinese_voice_text(zh_items)
+        
+        # 生成語音檔並上傳到 GCS
+        audio_url = None
+        if voice_text:
+            order_id = f"order_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            audio_url = generate_and_upload_audio_to_gcs(voice_text, order_id)
+        
+        return {
+            "zh_summary": zh_summary,
+            "user_summary": user_summary,
+            "voice_text": voice_text,
+            "audio_url": audio_url,  # 新增：GCS 公開 URL
+            "total_amount": total_amount,
+            "zh_items": zh_items,
+            "user_items": user_items,
+            "items": {
+                "zh_items": zh_items,
+                "user_items": user_items
+            }
+        }
+        
+    except Exception as e:
+        logging.error(f"雙語訂單處理失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        return None

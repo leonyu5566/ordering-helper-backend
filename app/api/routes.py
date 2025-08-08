@@ -1700,8 +1700,9 @@ def simple_order():
                 "error": f"請求資料格式錯誤: {str(e)}"
             }), 400
         
-        # 處理雙語訂單
-        order_result = process_order_with_dual_language(order_request)
+        # 處理雙語訂單（使用修復版本）
+        from .helpers import process_order_with_enhanced_tts, send_order_to_line_bot_fixed
+        order_result = process_order_with_enhanced_tts(order_request)
         if not order_result:
             return jsonify({
                 "success": False,
@@ -1809,12 +1810,13 @@ def simple_order():
             except Exception as e:
                 print(f"⚠️ 語音生成失敗: {e}")
             
-            # 發送到 LINE Bot
+            # 發送到 LINE Bot（使用修復版本）
             try:
-                from .helpers import send_order_to_line_bot
-                send_order_to_line_bot(line_user_id, {
+                send_order_to_line_bot_fixed(line_user_id, {
                     'order_id': order.order_id,
-                    'items': order_result['zh_items'],
+                    'chinese_summary': order_result['zh_summary'],
+                    'user_summary': order_result['user_summary'],
+                    'voice_url': order_result.get('audio_url'),
                     'total_amount': order_result['total_amount']
                 })
                 print(f"✅ 成功發送訂單到 LINE Bot，使用者: {line_user_id}")

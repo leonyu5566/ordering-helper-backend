@@ -60,4 +60,10 @@ logs/
 *.temp
 
 # Instance folder
-instance/ 
+instance/
+
+# Local development files (Cloud MySQL local setup)
+*.local
+start_local_with_cloud_mysql.*.local
+tools/force_cloud_mysql_local.py.local
+CLOUD_MYSQL_LOCAL_*.md.local 
