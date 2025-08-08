@@ -151,9 +151,9 @@ class OrderItem(db.Model):
     quantity_small = db.Column(db.Integer, nullable=False, default=0)
     subtotal = db.Column(db.Integer, nullable=False)
     
-    # 暫時註解：雙語菜名欄位（等待資料庫結構更新）
-    # original_name = db.Column(db.String(100), nullable=False)  # 原始中文菜名（OCR辨識結果）
-    # translated_name = db.Column(db.String(100), nullable=False)  # 翻譯菜名（使用者語言）
+    # 雙語菜名欄位（已新增到資料庫）
+    original_name = db.Column(db.String(100), nullable=True)  # 原始中文菜名（OCR辨識結果）
+    translated_name = db.Column(db.String(100), nullable=True)  # 翻譯菜名（使用者語言）
     
     created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
 

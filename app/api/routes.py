@@ -1756,9 +1756,9 @@ def simple_order():
                     order_id=order.order_id,
                     menu_item_id=item.get('menu_item_id'),
                     quantity_small=item['quantity'],  # 使用正確的欄位名稱
-                    subtotal=item['subtotal']
-                    # 暫時不使用 original_name 和 translated_name 欄位
-                    # 因為資料庫中還沒有這些欄位
+                    subtotal=item['subtotal'],
+                    original_name=item.get('name', ''),  # 保存原始中文菜名
+                    translated_name=item.get('name', '')  # 暫時使用相同名稱
                 )
                 db.session.add(order_item)
             

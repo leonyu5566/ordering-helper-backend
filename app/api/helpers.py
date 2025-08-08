@@ -502,7 +502,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
             if menu_item:
                 # 改進：根據菜名類型選擇合適的量詞
                 item_name = menu_item.item_name
-                quantity = item.quantity_small or item.quantity
+                quantity = item.quantity_small
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
@@ -1290,7 +1290,7 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             if menu_item:
                 # 改進：根據菜名類型選擇合適的量詞
                 item_name = menu_item.item_name
-                quantity = item.quantity_small or item.quantity
+                quantity = item.quantity_small
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
