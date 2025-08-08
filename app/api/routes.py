@@ -404,7 +404,9 @@ def create_order():
             voice_url = None
             voice_duration = 0
             try:
-                voice_url, voice_duration = synthesize_azure_tts(order_result['voice_text'])
+                # 使用同步版本的語音生成
+                from .helpers import generate_chinese_voice_with_azure
+                voice_url = generate_chinese_voice_with_azure(order_result['voice_text'], f"dual_{uuid.uuid4().hex[:8]}")
             except Exception as e:
                 print(f"語音生成失敗: {e}")
             
@@ -1797,7 +1799,9 @@ def simple_order():
         voice_url = None
         voice_duration = 0
         try:
-            voice_url, voice_duration = synthesize_azure_tts(order_result['voice_text'])
+            # 使用同步版本的語音生成
+            from .helpers import generate_chinese_voice_with_azure
+            voice_url = generate_chinese_voice_with_azure(order_result['voice_text'], f"dual_{uuid.uuid4().hex[:8]}")
         except Exception as e:
             print(f"語音生成失敗: {e}")
         
