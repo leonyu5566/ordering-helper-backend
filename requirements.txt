@@ -12,14 +12,5 @@ Pillow==10.0.1
 Werkzeug==2.3.7
 gunicorn==21.2.0
 
-# LangChain 相關依賴
-langchain==0.1.0
-langchain-community==0.0.10
-faiss-cpu==1.7.4
-pydantic==2.5.0
-
-# 記憶體監控
-psutil==5.9.6
-
 # Google Cloud Storage (用於語音檔上傳)
 google-cloud-storage==2.10.0
