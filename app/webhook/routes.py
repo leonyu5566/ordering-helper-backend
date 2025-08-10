@@ -70,7 +70,7 @@ def get_gemini_model():
         from google import genai
         genai.Client(api_key=api_key)
         return genai.Client().models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             contents=["測試訊息"],
             config={
                 "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
@@ -385,10 +385,10 @@ def get_ai_recommendations(food_request, user_language='zh'):
 - 確保 JSON 格式完全正確
 """
 
-        # 調用 Gemini 2.5 Flash API
+        # 調用 Gemini 2.5 Flash Lite API
         from google import genai
         response = genai.Client().models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-flash-lite",
             contents=[prompt],
             config={
                 "response_mime_type": "application/json",  # 新版 JSON Mode
