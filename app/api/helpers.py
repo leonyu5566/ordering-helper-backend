@@ -2242,11 +2242,9 @@ def build_order_message(zh_summary: str, user_summary: str, total: int, audio_ur
     # 2. 構建文字訊息（修正排序：使用者語言摘要在前）
     text_parts = []
     
-    # 使用者語言摘要在第一行
+    # 使用者語言摘要在第一行（直接顯示，不加標籤）
     if user_summary and user_summary != zh_summary:
-        # 根據使用者語言顯示對應的語言標籤
-        lang_label = get_language_label(user_summary)
-        text_parts.append(f"{lang_label} 摘要：{user_summary}")
+        text_parts.append(user_summary)
     
     # 中文摘要（給店家聽）
     text_parts.append(f"中文摘要（給店家聽）：{zh_summary}")
