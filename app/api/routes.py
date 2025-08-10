@@ -62,6 +62,35 @@ def allowed_file(filename):
 # 功能：提供 LIFF 前端所需的核心功能
 # =============================================================================
 
+@api_bp.route('/translate', methods=['POST', 'OPTIONS'])
+def translate_text():
+    """批次翻譯文字內容（支援任意語言）"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        data = request.get_json() or {}
+        contents = data.get('contents', [])
+        source = data.get('source')  # 可為 None 讓服務自動偵測
+        target = data.get('target')  # e.g. "fr-FR" 或 "fr"
+        
+        if not contents or not target:
+            return jsonify({"error": "contents/target required"}), 400
+        
+        # 允許 BCP47，先取主要語言碼給 API（ex: "fr-FR" -> "fr"）
+        target_short = target.split('-')[0]
+        
+        # 使用 Google Cloud Translation API
+        from .helpers import translate_text_batch
+        translated_texts = translate_text_batch(contents, target_short, source)
+        
+        return jsonify({"translated": translated_texts})
+        
+    except Exception as e:
+        current_app.logger.error(f"翻譯API錯誤: {str(e)}")
+        return jsonify({"error": f"翻譯失敗: {str(e)}"}), 500
+
 @api_bp.route('/stores/<int:store_id>', methods=['GET'])
 def get_store(store_id):
     """取得店家資訊（支援多語言翻譯）"""
@@ -90,8 +119,36 @@ def get_store(store_id):
 def get_menu(store_id):
     """取得店家菜單（支援多語言翻譯，優先使用資料庫翻譯）"""
     try:
-        # 取得使用者語言偏好
+        # 取得使用者語言偏好（支援任意 BCP47 語言碼）
         user_language = request.args.get('lang', 'zh')
+        
+        # 支援 Accept-Language header 作為 fallback
+        if not user_language or user_language == 'zh':
+            accept_language = request.headers.get('Accept-Language', '')
+            if accept_language:
+                # 簡單解析 Accept-Language，取第一個語言
+                first_lang = accept_language.split(',')[0].strip().split(';')[0]
+                if first_lang and first_lang != 'zh':
+                    user_language = first_lang
+        
+        # 語言碼正規化：支援 BCP47 格式
+        def normalize_language_code(lang_code):
+            """將語言碼正規化為 Google Cloud Translation API 支援的格式"""
+            if not lang_code:
+                return 'zh'
+            
+            # 支援的語言直接返回
+            supported_langs = ['zh', 'en', 'ja', 'ko']
+            if lang_code in supported_langs:
+                return lang_code
+            
+            # 處理 BCP47 格式 (如 'fr-FR', 'de-DE')
+            if '-' in lang_code:
+                return lang_code.split('-')[0]
+            
+            return lang_code
+        
+        normalized_lang = normalize_language_code(user_language)
         
         # 先檢查店家是否存在
         store = Store.query.get(store_id)
@@ -129,6 +186,7 @@ def get_menu(store_id):
         return jsonify({
             "store_id": store_id,
             "user_language": user_language,
+            "normalized_language": normalized_lang,
             "menu_items": translated_menu,
             "translation_stats": {
                 "database_translations": db_translations,
@@ -138,14 +196,43 @@ def get_menu(store_id):
         })
         
     except Exception as e:
+        current_app.logger.error(f"菜單載入錯誤: {str(e)}")
         return jsonify({'error': '無法載入菜單'}), 500
 
 @api_bp.route('/menu/by-place-id/<place_id>', methods=['GET'])
 def get_menu_by_place_id(place_id):
     """根據 place_id 取得店家菜單（支援多語言翻譯）"""
     try:
-        # 取得使用者語言偏好
+        # 取得使用者語言偏好（支援任意 BCP47 語言碼）
         user_language = request.args.get('lang', 'zh')
+        
+        # 支援 Accept-Language header 作為 fallback
+        if not user_language or user_language == 'zh':
+            accept_language = request.headers.get('Accept-Language', '')
+            if accept_language:
+                # 簡單解析 Accept-Language，取第一個語言
+                first_lang = accept_language.split(',')[0].strip().split(';')[0]
+                if first_lang and first_lang != 'zh':
+                    user_language = first_lang
+        
+        # 語言碼正規化：支援 BCP47 格式
+        def normalize_language_code(lang_code):
+            """將語言碼正規化為 Google Cloud Translation API 支援的格式"""
+            if not lang_code:
+                return 'zh'
+            
+            # 支援的語言直接返回
+            supported_langs = ['zh', 'en', 'ja', 'ko']
+            if lang_code in supported_langs:
+                return lang_code
+            
+            # 處理 BCP47 格式 (如 'fr-FR', 'de-DE')
+            if '-' in lang_code:
+                return lang_code.split('-')[0]
+            
+            return lang_code
+        
+        normalized_lang = normalize_language_code(user_language)
         
         # 先根據 place_id 找到店家
         store = Store.query.filter_by(place_id=place_id).first()

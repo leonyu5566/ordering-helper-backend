@@ -24,6 +24,83 @@ import tempfile
 # 新增：中文檢測和防呆轉換器函數
 # =============================================================================
 
+# =============================================================================
+# Google Cloud Translation API 整合
+# 功能：提供批次翻譯服務，支援任意語言
+# =============================================================================
+
+def translate_text_batch(texts: List[str], target_language: str, source_language: str = None) -> List[str]:
+    """
+    使用 Google Cloud Translation API 批次翻譯文字
+    
+    Args:
+        texts: 要翻譯的文字列表
+        target_language: 目標語言碼 (如 'fr', 'de', 'th')
+        source_language: 來源語言碼 (如 'en', 'zh')，可為 None 自動偵測
+    
+    Returns:
+        翻譯後的文字列表
+    """
+    try:
+        from google.cloud import translate_v3 as translate
+        
+        # 檢查環境變數
+        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+        if not project_id:
+            raise Exception("GOOGLE_CLOUD_PROJECT 環境變數未設定")
+        
+        location = "global"  # 或使用 "us-central1"
+        
+        # 建立翻譯客戶端
+        client = translate.TranslationServiceClient()
+        parent = f"projects/{project_id}/locations/{location}"
+        
+        # 準備翻譯請求
+        request_data = {
+            "parent": parent,
+            "contents": texts,
+            "mime_type": "text/plain",
+            "target_language_code": target_language,
+        }
+        
+        # 如果指定了來源語言，加入請求
+        if source_language:
+            request_data["source_language_code"] = source_language
+        
+        # 執行翻譯
+        response = client.translate_text(request=request_data)
+        
+        # 提取翻譯結果
+        translated_texts = [translation.translated_text for translation in response.translations]
+        
+        return translated_texts
+        
+    except ImportError:
+        # 如果沒有安裝 google-cloud-translate，使用 fallback
+        logging.warning("Google Cloud Translation API 未安裝，使用 fallback 翻譯")
+        return translate_text_batch_fallback(texts, target_language, source_language)
+        
+    except Exception as e:
+        logging.error(f"Google Cloud Translation API 錯誤: {str(e)}")
+        # 使用 fallback 翻譯
+        return translate_text_batch_fallback(texts, target_language, source_language)
+
+def translate_text_batch_fallback(texts: List[str], target_language: str, source_language: str = None) -> List[str]:
+    """
+    Fallback 翻譯函數（當 Google Cloud Translation API 不可用時）
+    目前簡單回傳原文，未來可整合其他翻譯服務
+    """
+    logging.warning(f"使用 fallback 翻譯，目標語言: {target_language}")
+    # 簡單的語言對應（可擴展）
+    language_names = {
+        'fr': 'French', 'de': 'German', 'es': 'Spanish', 'it': 'Italian',
+        'pt': 'Portuguese', 'ru': 'Russian', 'ar': 'Arabic', 'hi': 'Hindi',
+        'th': 'Thai', 'vi': 'Vietnamese', 'ko': 'Korean', 'ja': 'Japanese'
+    }
+    
+    # 回傳原文加上語言標記（避免翻譯失敗）
+    return [f"{text} ({language_names.get(target_language, target_language)})" for text in texts]
+
 def contains_cjk(text: str) -> bool:
     """
     檢測文字是否包含中日韓文字（CJK）
@@ -905,14 +982,43 @@ def translate_menu_items_with_db_fallback(menu_items, target_language):
     """翻譯菜單項目，優先使用資料庫翻譯，失敗時使用 AI 翻譯"""
     translated_items = []
     
+    # 語言碼正規化：支援 BCP47 格式
+    def normalize_language_code(lang_code):
+        """將語言碼正規化為 Google Cloud Translation API 支援的格式"""
+        if not lang_code:
+            return 'en'
+        
+        # 支援的語言直接返回
+        supported_langs = ['zh', 'en', 'ja', 'ko']
+        if lang_code in supported_langs:
+            return lang_code
+        
+        # 處理 BCP47 格式 (如 'fr-FR', 'de-DE')
+        if '-' in lang_code:
+            return lang_code.split('-')[0]
+        
+        return lang_code
+    
+    normalized_lang = normalize_language_code(target_language)
+    
     for item in menu_items:
         # 嘗試從資料庫獲取翻譯
         db_translation = None
         try:
+            # 先嘗試完整語言碼
             db_translation = MenuTranslation.query.filter_by(
                 menu_item_id=item.menu_item_id,
                 lang_code=target_language
             ).first()
+            
+            # 如果沒有找到，嘗試主要語言碼
+            if not db_translation and '-' in target_language:
+                main_lang = target_language.split('-')[0]
+                db_translation = MenuTranslation.query.filter_by(
+                    menu_item_id=item.menu_item_id,
+                    lang_code=main_lang
+                ).first()
+                
         except Exception as e:
             print(f"資料庫翻譯查詢失敗: {e}")
         
@@ -923,20 +1029,27 @@ def translate_menu_items_with_db_fallback(menu_items, target_language):
         else:
             # 使用 AI 翻譯
             try:
-                translated_name = translate_text_with_fallback(item.item_name, target_language)
+                # 使用正規化後的語言碼進行翻譯
+                translated_name = translate_text_with_fallback(item.item_name, normalized_lang)
                 translation_source = 'ai'
             except Exception as e:
                 print(f"AI 翻譯失敗: {e}")
                 translated_name = item.item_name
                 translation_source = 'original'
         
+        # 建立雙語格式的菜名
         translated_item = {
             'menu_item_id': item.menu_item_id,
             'original_name': item.item_name,
             'translated_name': translated_name,
             'price_small': item.price_small,
             'price_big': item.price_big,
-            'translation_source': translation_source
+            'translation_source': translation_source,
+            # 新增雙語格式支援
+            'name': {
+                'original': item.item_name,
+                'translated': translated_name
+            }
         }
         translated_items.append(translated_item)
     

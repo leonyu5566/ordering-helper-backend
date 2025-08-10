@@ -14,3 +14,6 @@ gunicorn==21.2.0
 
 # Google Cloud Storage (用於語音檔上傳)
 google-cloud-storage==2.10.0
+
+# Google Cloud Translation API (用於多語言支援)
+google-cloud-translate==3.12.0
