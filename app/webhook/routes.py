@@ -73,7 +73,7 @@ def get_gemini_model():
             model="gemini-2.5-flash-lite",
             contents=["測試訊息"],
             config={
-                "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+                "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)
             }
         )
     except Exception as e:
@@ -392,7 +392,7 @@ def get_ai_recommendations(food_request, user_language='zh'):
             contents=[prompt],
             config={
                 "response_mime_type": "application/json",  # 新版 JSON Mode
-                "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+                "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)
             }
         )
         

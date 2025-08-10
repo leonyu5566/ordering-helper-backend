@@ -316,7 +316,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
                 ],
                 config={
                     "thinking_config": {
-                        "thinking_budget": 128
+                        "thinking_budget": 512
                     }
                 }
             )
@@ -823,7 +823,7 @@ def translate_text(text, target_language='en'):
             model="gemini-2.5-flash-lite",
             contents=[prompt],
             config={
-                "thinking_config": genai.types.ThinkingConfig(thinking_budget=128)
+                "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)
             }
         )
         return response.text.strip()
