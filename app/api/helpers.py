@@ -246,12 +246,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
         
         # 建立 Gemini 提示詞（JSON Mode 優化版）
         prompt = f"""
-你是一個菜單 OCR 專家。請分析這張菜單圖片並輸出 JSON 格式的結果。
-
-## 任務：
-1. 辨識菜單中的所有項目、價格和描述
-2. 將菜名翻譯為 {target_language} 語言
-3. 輸出合法的 JSON 物件
+你是一個餐廳菜單解析器。請分析這張菜單圖片並輸出**唯一**的 JSON，符合下列 schema：
 
 ## 輸出格式：
 {{
@@ -262,21 +257,25 @@ def process_menu_with_gemini(image_path, target_language='en'):
       "translated_name": "翻譯菜名", 
       "price": 數字,
       "description": "描述或null",
-      "category": "分類"
+      "category": "分類或null"
     }}
   ],
   "store_info": {{
-    "name": "店名",
+    "name": "店名或null",
     "address": "地址或null",
     "phone": "電話或null"
   }},
-  "processing_notes": "備註"
+  "processing_notes": "備註或null"
 }}
 
-## 注意事項：
-- 價格必須是整數
-- 如果圖片模糊或無法辨識，將 success 設為 false
-- 優先處理清晰可見的菜單項目
+## 規則：
+1. 圖片中沒有的店家資訊請回 `null`，不要猜測
+2. 一律不要使用 ``` 或任何程式碼區塊語法
+3. 價格輸出數字，無法辨識時用 0
+4. **只輸出 JSON**，不要其他文字
+5. 若圖片模糊或無法辨識，將 success 設為 false
+6. 優先處理清晰可見的菜單項目
+7. 菜名翻譯為 {target_language} 語言
 """
         
         # 呼叫 Gemini 2.5 Flash API（添加超時控制）
@@ -356,12 +355,30 @@ def process_menu_with_gemini(image_path, target_language='en'):
                         if 'menu_items' not in result:
                             result['menu_items'] = []
                         
+                        # 主要成功條件：以 menu_items 為準，而不是店家資訊
+                        if not result.get('menu_items') or len(result['menu_items']) == 0:
+                            result['success'] = False
+                            result['error'] = '無法從圖片中辨識菜單項目'
+                            result['processing_notes'] = '圖片可能模糊或不是菜單'
+                            return result
+                        
                         if 'store_info' not in result:
                             result['store_info'] = {
-                                'name': '未知店家',
+                                'name': None,
                                 'address': None,
                                 'phone': None
                             }
+                        
+                        # 保底填值：確保店家資訊欄位不會是 None，而是明確的 null 值
+                        if result.get('store_info'):
+                            store_info = result['store_info']
+                            if store_info.get('name') is None:
+                                store_info['name'] = None
+                                store_info['note'] = 'store_name_not_found_in_image'
+                            if store_info.get('address') is None:
+                                store_info['address'] = None
+                            if store_info.get('phone') is None:
+                                store_info['phone'] = None
                         
                         print(f"成功處理菜單，共 {len(result.get('menu_items', []))} 個項目")
                         return result

@@ -359,7 +359,6 @@ def get_ai_recommendations(food_request, user_language='zh'):
 ## 輸出格式要求：
 請嚴格按照以下 JSON 格式輸出，不要包含任何其他文字：
 
-```json
 {{
   "recommendations": [
     {{
@@ -376,13 +375,14 @@ def get_ai_recommendations(food_request, user_language='zh'):
     "recommendation_strategy": "推薦策略說明"
   }}
 }}
-```
 
 ## 重要注意事項：
 - 確保推薦理由符合使用者需求
 - 考慮店家的合作等級和特色
 - 提供有價值的推薦理由
 - 確保 JSON 格式完全正確
+- **一律不要使用 ``` 或任何程式碼區塊語法**
+- **只輸出 JSON**，不要其他文字
 """
 
         # 調用 Gemini 2.5 Flash Lite API
