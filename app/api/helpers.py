@@ -2574,3 +2574,259 @@ def process_order_with_enhanced_tts(order_request: OrderRequest):
         import traceback
         traceback.print_exc()
         return None
+
+def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="cheerful", use_hd_voice=True):
+    """
+    使用 Azure TTS 生成增強版訂單語音（支援 SSML 和 HD 聲音）
+    
+    Args:
+        order_id: 訂單 ID
+        speech_rate: 語速倍率 (0.5-2.0)
+        emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")
+        use_hd_voice: 是否使用 HD 聲音
+    """
+    # 先 cleanup（延長清理時間）
+    cleanup_old_voice_files(3600)  # 60分鐘
+    
+    try:
+        from ..models import Order, OrderItem, MenuItem
+        
+        # 取得訂單資訊
+        order = Order.query.get(order_id)
+        if not order:
+            print(f"找不到訂單: {order_id}")
+            return None
+        
+        # 建立自然的中文訂單文字
+        items_for_voice = []
+        
+        for item in order.items:
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                # 改進：根據菜名類型選擇合適的量詞
+                item_name = menu_item.item_name
+                quantity = item.quantity_small
+                
+                # 判斷是飲料還是餐點
+                if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+                    # 飲料類用「杯」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一杯")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}杯")
+                else:
+                    # 餐點類用「份」
+                    if quantity == 1:
+                        items_for_voice.append(f"{item_name}一份")
+                    else:
+                        items_for_voice.append(f"{item_name}{quantity}份")
+        
+        # 生成自然的中文語音
+        if len(items_for_voice) == 1:
+            order_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
+        else:
+            voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
+            order_text = f"老闆，我要{voice_items}，謝謝。"
+        
+        # 應用文本預處理（確保沒有遺漏的 x1 格式）
+        order_text = normalize_order_text_for_tts(order_text)
+        print(f"[TTS Enhanced] 預處理後的訂單文本: {order_text}")
+        
+        # 取得語音配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech Service 配置失敗，使用備用方案")
+            return generate_voice_order_fallback(order_id, speech_rate)
+        
+        try:
+            # 延遲導入 Azure Speech SDK
+            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
+            
+            # 選擇語音（支援 HD 聲音）
+            if use_hd_voice:
+                # 使用 HD 聲音（自動情感偵測）
+                voice_name = "zh-TW-HsiaoChenNeural"  # 目前台灣中文 HD 聲音
+                print(f"[TTS Enhanced] 使用 HD 聲音: {voice_name}")
+            else:
+                # 使用標準聲音
+                voice_name = "zh-TW-HsiaoChenNeural"
+                print(f"[TTS Enhanced] 使用標準聲音: {voice_name}")
+            
+            # 設定語音參數
+            speech_config.speech_synthesis_voice_name = voice_name
+            speech_config.speech_synthesis_speaking_rate = speech_rate
+            
+            # 確保目錄存在
+            os.makedirs(VOICE_DIR, exist_ok=True)
+            
+            # 直接存到 VOICE_DIR
+            filename = f"{uuid.uuid4()}.wav"
+            audio_path = os.path.join(VOICE_DIR, filename)
+            print(f"[TTS Enhanced] Will save to {audio_path}")
+            
+            # 使用 SSML 增強語音效果
+            ssml_text = f"""
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
+       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-TW">
+  <voice name="{voice_name}">
+    <mstts:express-as style="{emotion_style}" styledegree="1.5">
+      <prosody rate="{speech_rate}" pitch="+0%" volume="+0%">
+        {order_text}
+      </prosody>
+    </mstts:express-as>
+  </voice>
+</speak>
+            """.strip()
+            
+            print(f"[TTS Enhanced] 使用 SSML: {ssml_text}")
+            
+            audio_config = AudioConfig(filename=audio_path)
+            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+            
+            # 使用 SSML 合成語音
+            result = synthesizer.speak_ssml_async(ssml_text).get()
+            
+            if result.reason == ResultReason.SynthesizingAudioCompleted:
+                # 檢查檔案是否真的生成
+                if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                    print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
+                    return audio_path
+                else:
+                    print(f"[TTS Enhanced] 檔案生成失敗或為空: {audio_path}")
+                    return generate_voice_order_fallback(order_id, speech_rate)
+            else:
+                print(f"語音生成失敗：{result.reason}")
+                return generate_voice_order_fallback(order_id, speech_rate)
+                
+        except Exception as e:
+            print(f"Azure TTS Enhanced 處理失敗：{e}")
+            return generate_voice_order_fallback(order_id, speech_rate)
+            
+    except Exception as e:
+        print(f"語音生成失敗：{e}")
+        return generate_voice_order_fallback(order_id, speech_rate)
+
+def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_style="cheerful", use_hd_voice=True):
+    """
+    使用 Azure TTS 生成增強版自訂語音檔（支援 SSML 和情感風格）
+    
+    Args:
+        text: 要轉換的文字
+        speech_rate: 語速倍率 (0.5-2.0)
+        emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")
+        use_hd_voice: 是否使用 HD 聲音
+    """
+    try:
+        # 取得語音配置
+        speech_config = get_speech_config()
+        if not speech_config:
+            print("Azure Speech Service 配置失敗")
+            return None
+        
+        # 選擇語音（支援 HD 聲音）
+        if use_hd_voice:
+            # 使用 HD 聲音（自動情感偵測）
+            voice_name = "zh-TW-HsiaoChenNeural"  # 目前台灣中文 HD 聲音
+            print(f"[TTS Enhanced] 使用 HD 聲音: {voice_name}")
+        else:
+            # 使用標準聲音
+            voice_name = "zh-TW-HsiaoChenNeural"
+            print(f"[TTS Enhanced] 使用標準聲音: {voice_name}")
+        
+        # 設定語音參數
+        speech_config.speech_synthesis_voice_name = voice_name
+        speech_config.speech_synthesis_speaking_rate = speech_rate
+        
+        # 確保目錄存在
+        os.makedirs(VOICE_DIR, exist_ok=True)
+        
+        # 生成檔案名
+        filename = f"{uuid.uuid4()}.wav"
+        audio_path = os.path.join(VOICE_DIR, filename)
+        print(f"[TTS Enhanced] Will save to {audio_path}")
+        
+        # 使用 SSML 增強語音效果
+        ssml_text = f"""
+<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
+       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-TW">
+  <voice name="{voice_name}">
+    <mstts:express-as style="{emotion_style}" styledegree="1.5">
+      <prosody rate="{speech_rate}" pitch="+0%" volume="+0%">
+        {text}
+      </prosody>
+    </mstts:express-as>
+  </voice>
+</speak>
+        """.strip()
+        
+        print(f"[TTS Enhanced] 使用 SSML: {ssml_text}")
+        
+        # 延遲導入 Azure Speech SDK
+        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
+        
+        audio_config = AudioConfig(filename=audio_path)
+        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
+        
+        # 使用 SSML 合成語音
+        result = synthesizer.speak_ssml_async(ssml_text).get()
+        
+        if result.reason == ResultReason.SynthesizingAudioCompleted:
+            # 檢查檔案是否真的生成
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
+                return audio_path
+            else:
+                print(f"[TTS Enhanced] 檔案生成失敗或為空: {audio_path}")
+                return None
+        else:
+            print(f"語音生成失敗：{result.reason}")
+            return None
+            
+    except Exception as e:
+        print(f"Azure TTS Enhanced 處理失敗：{e}")
+        return None
+
+def create_order_summary(order_id, user_language='zh'):
+    """
+    建立訂單摘要（雙語）
+    """
+    from ..models import Order, OrderItem, MenuItem, Store
+    
+    order = Order.query.get(order_id)
+    if not order:
+        return None
+    
+    store = Store.query.get(order.store_id)
+    
+    # 中文摘要
+    chinese_summary = f"訂單編號：{order.order_id}\n"
+    chinese_summary += f"店家：{store.store_name if store else '未知店家'}\n"
+    chinese_summary += "訂購項目：\n"
+    
+    for item in order.items:
+        menu_item = MenuItem.query.get(item.menu_item_id)
+        if menu_item:
+            chinese_summary += f"- {menu_item.item_name} x{item.quantity}\n"
+    
+    chinese_summary += f"總金額：${order.total_amount}"
+    
+    # 翻譯摘要（簡化版）
+    if user_language != 'zh':
+        # 這裡可以呼叫 Gemini API 進行翻譯
+        translated_summary = f"Order #{order.order_id}\n"
+        translated_summary += f"Store: {store.store_name if store else 'Unknown Store'}\n"
+        translated_summary += "Items:\n"
+        
+        for item in order.items:
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                translated_summary += f"- {menu_item.item_name} x{item.quantity}\n"
+        
+        translated_summary += f"Total: ${order.total_amount}"
+    else:
+        translated_summary = chinese_summary
+    
+    return {
+        "chinese": chinese_summary,
+        "translated": translated_summary
+    }

@@ -980,6 +980,51 @@ def generate_custom_voice():
     except Exception as e:
         return jsonify({"error": "生成語音檔失敗"}), 500
 
+@api_bp.route('/voice/generate-enhanced', methods=['POST'])
+def generate_enhanced_voice():
+    """生成增強版語音檔（支援 SSML 和情感風格）"""
+    try:
+        data = request.get_json()
+        
+        if not data or 'text' not in data:
+            return jsonify({"error": "缺少文字內容"}), 400
+        
+        text = data['text']
+        speech_rate = data.get('rate', 1.0, type=float)
+        emotion_style = data.get('emotion', 'cheerful')  # 情感風格
+        use_hd_voice = data.get('hd_voice', True, type=bool)  # 是否使用 HD 聲音
+        
+        # 限制語速範圍
+        speech_rate = max(0.5, min(2.0, speech_rate))
+        
+        # 驗證情感風格
+        valid_emotions = ['cheerful', 'friendly', 'excited', 'calm', 'sad']
+        if emotion_style not in valid_emotions:
+            emotion_style = 'cheerful'
+        
+        from .helpers import generate_voice_with_custom_rate_enhanced
+        voice_path = generate_voice_with_custom_rate_enhanced(text, speech_rate, emotion_style, use_hd_voice)
+        
+        if voice_path and os.path.exists(voice_path):
+            # 構建語音檔 URL
+            fname = os.path.basename(voice_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
+            
+            return jsonify({
+                "success": True,
+                "voice_url": audio_url,
+                "filename": fname,
+                "emotion_style": emotion_style,
+                "hd_voice": use_hd_voice,
+                "message": "增強版語音檔生成成功"
+            })
+        else:
+            return jsonify({"error": "增強版語音檔生成失敗"}), 500
+            
+    except Exception as e:
+        return jsonify({"error": f"生成增強版語音檔失敗: {str(e)}"}), 500
+
 @api_bp.route('/users/register', methods=['POST'])
 def register_user():
     """使用者註冊"""
