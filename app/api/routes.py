@@ -1393,6 +1393,39 @@ def upload_menu_image():
             menu_items = result.get('menu_items', [])
             dynamic_menu = []
             
+            # 如果是非合作店家，儲存到資料庫
+            ocr_menu_id = None
+            if not store_id or store_id == 'temp':
+                try:
+                    # 建立 OCR 菜單記錄到資料庫
+                    ocr_menu = OCRMenu(
+                        user_id=user_id or 1,  # 如果沒有提供 user_id，使用預設值
+                        store_name=result.get('store_info', {}).get('name', '臨時店家')
+                    )
+                    db.session.add(ocr_menu)
+                    db.session.flush()  # 獲取 ocr_menu_id
+                    ocr_menu_id = ocr_menu.ocr_menu_id
+                    
+                    # 儲存菜單項目到資料庫
+                    for item in menu_items:
+                        ocr_menu_item = OCRMenuItem(
+                            ocr_menu_id=ocr_menu.ocr_menu_id,
+                            item_name=item.get('original_name', ''),
+                            price_small=item.get('price', 0),
+                            price_big=item.get('price', 0),  # 暫時使用相同價格
+                            translated_desc=item.get('description', '') or item.get('translated_name', '')
+                        )
+                        db.session.add(ocr_menu_item)
+                    
+                    # 提交到資料庫
+                    db.session.commit()
+                    print(f"✅ 非合作店家菜單已儲存到資料庫，OCR 菜單 ID: {ocr_menu_id}")
+                    
+                except Exception as e:
+                    print(f"❌ 儲存到資料庫失敗: {e}")
+                    db.session.rollback()
+                    ocr_menu_id = None
+            
             for i, item in enumerate(menu_items):
                 # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
                 # 並提供前端需要的所有必要欄位
@@ -1425,7 +1458,7 @@ def upload_menu_image():
                     'processing_id': processing_id
                 })
             
-            response = jsonify({
+            response_data = {
                 "message": "菜單處理成功",
                 "processing_id": processing_id,
                 "store_info": result.get('store_info', {}),
@@ -1433,7 +1466,16 @@ def upload_menu_image():
                 "total_items": len(dynamic_menu),
                 "target_language": target_lang,
                 "processing_notes": result.get('processing_notes', '')
-            })
+            }
+            
+            # 如果儲存到資料庫，加入相關資訊
+            if ocr_menu_id:
+                response_data.update({
+                    "ocr_menu_id": ocr_menu_id,
+                    "saved_to_database": True
+                })
+            
+            response = jsonify(response_data)
             response.headers.add('Access-Control-Allow-Origin', '*')
             
             # 加入 API 回應的除錯 log
@@ -1631,7 +1673,7 @@ def migrate_database():
 
 @api_bp.route('/menu/simple-ocr', methods=['POST', 'OPTIONS'])
 def simple_menu_ocr():
-    """簡化的菜單 OCR 處理（非合作店家）- 不儲存資料庫"""
+    """簡化的菜單 OCR 處理（非合作店家）- 現在會儲存到資料庫"""
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
@@ -1661,7 +1703,8 @@ def simple_menu_ocr():
                 "error": "不支援的檔案格式"
             }), 400
         
-        # 取得目標語言
+        # 取得參數
+        user_id = request.form.get('user_id', type=int)
         target_lang = request.form.get('target_lang', 'en')
         
         # 儲存上傳的檔案
@@ -1673,12 +1716,37 @@ def simple_menu_ocr():
         
         if result and result.get('success', False):
             menu_items = result.get('menu_items', [])
+            store_info = result.get('store_info', {})
             
-            # 簡化菜單項目格式（不儲存資料庫）
+            # 建立 OCR 菜單記錄到資料庫
+            ocr_menu = OCRMenu(
+                user_id=user_id or 1,  # 如果沒有提供 user_id，使用預設值
+                store_name=store_info.get('name', '臨時店家')
+            )
+            db.session.add(ocr_menu)
+            db.session.flush()  # 獲取 ocr_menu_id
+            
+            # 儲存菜單項目到資料庫
+            saved_items = []
+            for item in menu_items:
+                ocr_menu_item = OCRMenuItem(
+                    ocr_menu_id=ocr_menu.ocr_menu_id,
+                    item_name=item.get('original_name', ''),
+                    price_small=item.get('price', 0),
+                    price_big=item.get('price', 0),  # 暫時使用相同價格
+                    translated_desc=item.get('description', '') or item.get('translated_name', '')
+                )
+                db.session.add(ocr_menu_item)
+                saved_items.append(ocr_menu_item)
+            
+            # 提交到資料庫
+            db.session.commit()
+            
+            # 準備回應資料
             simplified_items = []
             for i, item in enumerate(menu_items):
                 simplified_items.append({
-                    'id': f"simple_{i}",
+                    'id': f"ocr_{saved_items[i].ocr_menu_item_id if i < len(saved_items) else i}",
                     'name': str(item.get('original_name', '') or ''),
                     'translated_name': str(item.get('translated_name', '') or ''),
                     'price': item.get('price', 0),
@@ -1689,9 +1757,11 @@ def simple_menu_ocr():
             response = jsonify({
                 "success": True,
                 "menu_items": simplified_items,
-                "store_name": result.get('store_info', {}).get('store_name', '臨時店家'),
+                "store_name": store_info.get('name', '臨時店家'),
                 "target_language": target_lang,
-                "processing_notes": result.get('processing_notes', '')
+                "processing_notes": result.get('processing_notes', ''),
+                "ocr_menu_id": ocr_menu.ocr_menu_id,
+                "saved_to_database": True
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 200
@@ -1707,9 +1777,117 @@ def simple_menu_ocr():
     
     except Exception as e:
         print(f"簡化 OCR 處理失敗：{e}")
+        # 如果資料庫操作失敗，回滾
+        db.session.rollback()
         response = jsonify({
             "success": False,
             "error": "處理過程中發生錯誤"
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
+@api_bp.route('/menu/ocr/<int:ocr_menu_id>', methods=['GET', 'OPTIONS'])
+def get_ocr_menu(ocr_menu_id):
+    """取得已儲存的 OCR 菜單"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        # 查詢 OCR 菜單
+        ocr_menu = OCRMenu.query.get(ocr_menu_id)
+        if not ocr_menu:
+            response = jsonify({
+                "success": False,
+                "error": "找不到指定的 OCR 菜單"
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 404
+        
+        # 查詢菜單項目
+        menu_items = OCRMenuItem.query.filter_by(ocr_menu_id=ocr_menu_id).all()
+        
+        # 準備回應資料
+        items_data = []
+        for item in menu_items:
+            items_data.append({
+                'id': item.ocr_menu_item_id,
+                'name': item.item_name,
+                'price': item.price_small,
+                'price_big': item.price_big,
+                'description': item.translated_desc or ''
+            })
+        
+        response = jsonify({
+            "success": True,
+            "ocr_menu": {
+                "ocr_menu_id": ocr_menu.ocr_menu_id,
+                "store_name": ocr_menu.store_name,
+                "user_id": ocr_menu.user_id,
+                "upload_time": ocr_menu.upload_time.isoformat() if ocr_menu.upload_time else None,
+                "items": items_data,
+                "total_items": len(items_data)
+            }
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
+        
+    except Exception as e:
+        print(f"查詢 OCR 菜單失敗：{e}")
+        response = jsonify({
+            "success": False,
+            "error": "查詢過程中發生錯誤"
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
+
+@api_bp.route('/menu/ocr', methods=['GET', 'OPTIONS'])
+def list_ocr_menus():
+    """列出使用者的 OCR 菜單"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        # 取得使用者 ID
+        user_id = request.args.get('user_id', type=int)
+        if not user_id:
+            response = jsonify({
+                "success": False,
+                "error": "需要提供使用者 ID"
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
+        
+        # 查詢使用者的 OCR 菜單
+        ocr_menus = OCRMenu.query.filter_by(user_id=user_id).order_by(OCRMenu.upload_time.desc()).all()
+        
+        # 準備回應資料
+        menus_data = []
+        for menu in ocr_menus:
+            # 查詢菜單項目數量
+            item_count = OCRMenuItem.query.filter_by(ocr_menu_id=menu.ocr_menu_id).count()
+            
+            menus_data.append({
+                'ocr_menu_id': menu.ocr_menu_id,
+                'store_name': menu.store_name,
+                'upload_time': menu.upload_time.isoformat() if menu.upload_time else None,
+                'item_count': item_count
+            })
+        
+        response = jsonify({
+            "success": True,
+            "ocr_menus": menus_data,
+            "total_menus": len(menus_data)
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
+        
+    except Exception as e:
+        print(f"查詢使用者 OCR 菜單失敗：{e}")
+        response = jsonify({
+            "success": False,
+            "error": "查詢過程中發生錯誤"
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 500
