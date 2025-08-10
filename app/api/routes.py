@@ -140,21 +140,89 @@ def get_menu(store_id):
     except Exception as e:
         return jsonify({'error': '無法載入菜單'}), 500
 
+@api_bp.route('/menu/by-place-id/<place_id>', methods=['GET'])
+def get_menu_by_place_id(place_id):
+    """根據 place_id 取得店家菜單（支援多語言翻譯）"""
+    try:
+        # 取得使用者語言偏好
+        user_language = request.args.get('lang', 'zh')
+        
+        # 先根據 place_id 找到店家
+        store = Store.query.filter_by(place_id=place_id).first()
+        if not store:
+            return jsonify({"error": "找不到店家"}), 404
+        
+        # 嘗試查詢菜單項目
+        try:
+            menu_items = MenuItem.query.filter_by(store_id=store.store_id).all()
+        except Exception as e:
+            # 如果表格不存在，返回友好的錯誤訊息
+            return jsonify({
+                "error": "此店家目前沒有菜單資料",
+                "store_id": store.store_id,
+                "place_id": place_id,
+                "store_name": store.store_name,
+                "message": "請使用菜單圖片上傳功能來建立菜單"
+            }), 404
+        
+        if not menu_items:
+            return jsonify({
+                "error": "此店家目前沒有菜單項目",
+                "store_id": store.store_id,
+                "place_id": place_id,
+                "store_name": store.store_name,
+                "message": "請使用菜單圖片上傳功能來建立菜單"
+            }), 404
+        
+        # 使用新的翻譯功能（優先使用資料庫翻譯）
+        from .helpers import translate_menu_items_with_db_fallback
+        translated_menu = translate_menu_items_with_db_fallback(menu_items, user_language)
+        
+        # 統計翻譯來源
+        db_translations = sum(1 for item in translated_menu if item['translation_source'] == 'database')
+        ai_translations = sum(1 for item in translated_menu if item['translation_source'] == 'ai')
+        
+        return jsonify({
+            "store_id": store.store_id,
+            "place_id": place_id,
+            "user_language": user_language,
+            "menu_items": translated_menu,
+            "translation_stats": {
+                "database_translations": db_translations,
+                "ai_translations": ai_translations,
+                "total_items": len(translated_menu)
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': '無法載入菜單'}), 500
+
 @api_bp.route('/stores/check-partner-status', methods=['GET'])
 def check_partner_status():
-    """檢查店家合作狀態"""
+    """檢查店家合作狀態（支援 store_id 或 place_id）"""
     store_id = request.args.get('store_id', type=int)
-    if not store_id:
-        return jsonify({"error": "需要提供店家ID"}), 400
+    place_id = request.args.get('place_id')
+    
+    if not store_id and not place_id:
+        return jsonify({"error": "需要提供 store_id 或 place_id"}), 400
     
     try:
-        store = Store.query.get(store_id)
+        store = None
+        
+        if store_id:
+            # 使用 store_id 查詢
+            store = Store.query.get(store_id)
+        elif place_id:
+            # 使用 place_id 查詢
+            store = Store.query.filter_by(place_id=place_id).first()
+        
         if not store:
             return jsonify({"error": "找不到店家"}), 404
         
         return jsonify({
             "store_id": store.store_id,
             "store_name": store.store_name,
+            "place_id": store.place_id,
             "partner_level": store.partner_level,
             "is_partner": store.partner_level > 0,
             "has_menu": bool(store.menus and len(store.menus) > 0)
