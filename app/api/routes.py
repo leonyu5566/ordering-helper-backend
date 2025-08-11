@@ -424,6 +424,7 @@ def process_menu_ocr():
                         'category': str(item.get('category', '') or '其他'),
                         'image_url': '/static/images/default-dish.png',
                         'imageUrl': '/static/images/default-dish.png',
+                        'show_image': False,  # 控制是否顯示圖片框框
                         'inventory': 999,
                         'available': True,
                         'processing_id': ocr_menu.ocr_menu_id
@@ -1713,6 +1714,7 @@ def upload_menu_image():
                     'category': str(item.get('category', '') or '其他'),
                     'image_url': '/static/images/default-dish.png',  # 預設圖片
                     'imageUrl': '/static/images/default-dish.png',  # 前端可能用這個欄位名
+                    'show_image': False,  # 控制是否顯示圖片框框
                     'inventory': 999,  # 庫存數量
                     'available': True,  # 是否可購買
                     'processing_id': processing_id

@@ -1049,7 +1049,8 @@ def translate_menu_items_with_db_fallback(menu_items, target_language):
             'name': {
                 'original': item.item_name,
                 'translated': translated_name
-            }
+            },
+            'show_image': False  # 控制是否顯示圖片框框
         }
         translated_items.append(translated_item)
     
