@@ -20,8 +20,10 @@ from flask import request, abort, Blueprint, jsonify
 from ..models import db, User, Store, Order, VoiceFile
 import os
 import json
+import threading
+import logging
 from linebot import LineBotApi, WebhookHandler
-from linebot.exceptions import InvalidSignatureError
+from linebot.exceptions import InvalidSignatureError, LineBotApiError
 from linebot.models import (
     MessageEvent, TextMessage, TextSendMessage, 
     ImageMessage, LocationMessage, FlexSendMessage,
@@ -34,21 +36,25 @@ from linebot.models import (
 
 webhook_bp = Blueprint('webhook', __name__)
 
+# 設定日誌
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # LINE Bot 設定（延遲初始化）
 def get_line_bot_api():
     """取得 LINE Bot API 實例"""
     try:
         channel_access_token = os.getenv('LINE_CHANNEL_ACCESS_TOKEN')
         if not channel_access_token:
-            print("警告: LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
+            logger.warning("LINE_CHANNEL_ACCESS_TOKEN 環境變數未設定")
             return None
         return LineBotApi(channel_access_token)
     except Exception as e:
-        print(f"LINE Bot API 初始化失敗: {e}")
+        logger.error(f"LINE Bot API 初始化失敗: {e}")
         return None
 
 def get_line_bot_handler():
-    """取得 LINE Bot Handler 實例"""
+    """取得 LINE Bot Webhook Handler 實例"""
     try:
         channel_secret = os.getenv('LINE_CHANNEL_SECRET')
         if not channel_secret:
@@ -58,6 +64,85 @@ def get_line_bot_handler():
     except Exception as e:
         print(f"LINE Bot Handler 初始化失敗: {e}")
         return None
+
+# =============================================================================
+# 背景任務處理函數
+# 解決容器重啟中斷語音處理的問題
+# =============================================================================
+
+def process_voice_order_background(order_id, user_id):
+    """
+    背景處理語音訂單生成和推送
+    避免 webhook 超時和容器重啟中斷
+    """
+    try:
+        logger.info(f"🎵 開始背景處理語音訂單: {order_id}")
+        
+        # 1. 生成語音檔案
+        from ..api.helpers import generate_voice_order
+        voice_file_path = generate_voice_order(order_id)
+        
+        if voice_file_path and os.path.exists(voice_file_path):
+            logger.info(f"✅ 語音檔案生成成功: {voice_file_path}")
+            
+            # 2. 構建語音檔 URL
+            fname = os.path.basename(voice_file_path)
+            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
+            audio_url = f"{base_url}/api/voices/{fname}"
+            
+            # 3. 發送語音訊息到 LINE
+            line_bot_api = get_line_bot_api()
+            if line_bot_api:
+                try:
+                    line_bot_api.push_message(
+                        user_id,
+                        AudioSendMessage(
+                            original_content_url=audio_url,
+                            duration=30000  # 30秒
+                        )
+                    )
+                    logger.info(f"✅ 語音訊息推送成功: user={user_id}, audio_url={audio_url}")
+                except LineBotApiError as e:
+                    logger.exception(f"❌ LINE 語音推送失敗: status={getattr(e, 'status_code', None)}, error={getattr(e, 'error', None)}")
+                except Exception as e:
+                    logger.exception(f"❌ 語音推送異常: {e}")
+            else:
+                logger.error("❌ LINE Bot API 不可用")
+        else:
+            logger.warning(f"⚠️ 語音檔案生成失敗: {order_id}")
+            
+    except Exception as e:
+        logger.exception(f"❌ 背景語音處理失敗: order_id={order_id}, error={e}")
+
+def send_processing_message(event, user_language='zh'):
+    """
+    立即發送處理中訊息，避免 webhook 超時
+    """
+    try:
+        processing_messages = {
+            "en": "🔄 Processing your order... Please wait a moment.",
+            "ja": "🔄 注文を処理中です... しばらくお待ちください。",
+            "ko": "🔄 주문을 처리 중입니다... 잠시만 기다려 주세요.",
+            "zh": "🔄 正在處理您的訂單... 請稍候片刻。"
+        }
+        
+        message = processing_messages.get(user_language, processing_messages["zh"])
+        
+        line_bot_api = get_line_bot_api()
+        if line_bot_api:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=message)
+            )
+            logger.info(f"✅ 處理中訊息已發送: user_lang={user_language}")
+            return True
+        else:
+            logger.error("❌ LINE Bot API 不可用，無法發送處理中訊息")
+            return False
+            
+    except Exception as e:
+        logger.exception(f"❌ 發送處理中訊息失敗: {e}")
+        return False
 
 # Gemini API 設定（延遲初始化）
 def get_gemini_model():
@@ -895,13 +980,26 @@ def send_store_detail(event, store, user_language):
         )
     )
 
-def send_voice_order(order_id):
-    """發送語音訂單到 LINE"""
-    """這個函數會在訂單建立後被呼叫"""
-    from ..api.helpers import send_complete_order_notification
-    
-    # 使用新的完整訂單確認系統
-    send_complete_order_notification(order_id)
+def send_voice_order(order_id, user_id=None):
+    """
+    發送語音訂單到 LINE（使用背景處理）
+    這個函數會在訂單建立後被呼叫
+    """
+    if user_id:
+        # 使用背景處理，避免 webhook 超時
+        logger.info(f"🎵 啟動背景語音處理: order_id={order_id}, user_id={user_id}")
+        thread = threading.Thread(
+            target=process_voice_order_background,
+            args=(order_id, user_id),
+            daemon=True
+        )
+        thread.start()
+        logger.info(f"✅ 背景語音處理已啟動: order_id={order_id}")
+    else:
+        # 備用方案：使用舊的同步處理
+        logger.warning(f"⚠️ 未提供 user_id，使用同步處理: order_id={order_id}")
+        from ..api.helpers import send_complete_order_notification
+        send_complete_order_notification(order_id)
 
 def handle_postback(event):
     """處理 Postback 事件"""
@@ -929,7 +1027,7 @@ def handle_postback(event):
             print(f"未知的 postback 事件：{data}")
             
     except Exception as e:
-        print(f"處理 postback 事件失敗：{e}")
+        logger.exception(f"❌ 處理 postback 事件失敗：{e}")
         error_messages = {
             "en": "Sorry, there was an error processing your request. Please try again.",
             "ja": "リクエストの処理中にエラーが発生しました。もう一度お試しください。",
@@ -938,10 +1036,18 @@ def handle_postback(event):
         }
         message = error_messages.get(user.preferred_lang, error_messages["zh"])
         
-        get_line_bot_api().reply_message(
-            event.reply_token,
-            TextSendMessage(text=message)
-        )
+        try:
+            line_bot_api = get_line_bot_api()
+            if line_bot_api:
+                line_bot_api.reply_message(
+                    event.reply_token,
+                    TextSendMessage(text=message)
+                )
+                logger.info(f"✅ 錯誤訊息已發送: user_id={user.line_user_id}")
+            else:
+                logger.error("❌ LINE Bot API 不可用，無法發送錯誤訊息")
+        except Exception as reply_error:
+            logger.exception(f"❌ 發送錯誤訊息失敗: {reply_error}")
 
 def handle_store_detail(event, store_id, user):
     """處理店家詳細資訊查看"""
@@ -996,13 +1102,17 @@ def handle_store_detail(event, store_id, user):
         send_store_detail(event, store_data, user.preferred_lang)
         
     except Exception as e:
-        print(f"處理店家詳細資訊失敗：{e}")
+        logger.exception(f"❌ 處理店家詳細資訊失敗：{e}")
         raise
 
 def handle_start_ordering(event, store_id, user):
     """處理開始點餐"""
     try:
         from ..models import Store
+        
+        # 立即發送處理中訊息，避免 webhook 超時
+        if not send_processing_message(event, user.preferred_lang):
+            logger.error("❌ 無法發送處理中訊息，可能導致 webhook 超時")
         
         store = Store.query.get(store_id)
         if not store:
@@ -1089,22 +1199,30 @@ def handle_start_ordering(event, store_id, user):
             )
         
     except Exception as e:
-        print(f"處理開始點餐失敗：{e}")
+        logger.exception(f"❌ 處理開始點餐失敗：{e}")
         raise
 
 def handle_back_to_list(event, user):
     """處理返回店家清單"""
-    messages = {
-        "en": "Please share your location again to see the restaurant list.",
-        "ja": "レストランリストを表示するために、もう一度位置情報を共有してください。",
-        "ko": "레스토랑 목록을 보려면 위치를 다시 공유해 주세요.",
-        "zh": "請再次分享您的位置以查看餐廳清單。"
-    }
-    message = messages.get(user.preferred_lang, messages["zh"])
-    
-    get_line_bot_api().reply_message(
-        event.reply_token,
-        TextSendMessage(text=message)
-    )
+    try:
+        messages = {
+            "en": "Please share your location again to see the restaurant list.",
+            "ja": "レストランリストを表示するために、もう一度位置情報を共有してください。",
+            "ko": "레스토랑 목록을 보려면 위치를 다시 공유해 주세요.",
+            "zh": "請再次分享您的位置以查看餐廳清單。"
+        }
+        message = messages.get(user.preferred_lang, messages["zh"])
+        
+        line_bot_api = get_line_bot_api()
+        if line_bot_api:
+            line_bot_api.reply_message(
+                event.reply_token,
+                TextSendMessage(text=message)
+            )
+            logger.info(f"✅ 返回清單訊息已發送: user_id={user.line_user_id}")
+        else:
+            logger.error("❌ LINE Bot API 不可用，無法發送返回清單訊息")
+    except Exception as e:
+        logger.exception(f"❌ 處理返回店家清單失敗：{e}")
 
 # 語音控制處理函數已移除（節省成本）
