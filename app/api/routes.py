@@ -155,9 +155,12 @@ def get_menu(store_id):
         if not store:
             return jsonify({"error": "找不到店家"}), 404
         
-        # 嘗試查詢菜單項目
+        # 嘗試查詢菜單項目，過濾掉價格為 0 的商品
         try:
-            menu_items = MenuItem.query.filter_by(store_id=store_id).all()
+            menu_items = MenuItem.query.filter(
+                MenuItem.store_id == store_id,
+                MenuItem.price_small > 0  # 只返回價格大於 0 的商品
+            ).all()
         except Exception as e:
             # 如果表格不存在，返回友好的錯誤訊息
             return jsonify({
@@ -239,9 +242,12 @@ def get_menu_by_place_id(place_id):
         if not store:
             return jsonify({"error": "找不到店家"}), 404
         
-        # 嘗試查詢菜單項目
+        # 嘗試查詢菜單項目，過濾掉價格為 0 的商品
         try:
-            menu_items = MenuItem.query.filter_by(store_id=store.store_id).all()
+            menu_items = MenuItem.query.filter(
+                MenuItem.store_id == store.store_id,
+                MenuItem.price_small > 0  # 只返回價格大於 0 的商品
+            ).all()
         except Exception as e:
             # 如果表格不存在，返回友好的錯誤訊息
             return jsonify({
@@ -1605,6 +1611,10 @@ def upload_menu_image():
                 
                 price = safe_price(item.get('price', 0))
                 
+                # 過濾掉價格為 0 的商品，避免前端出現價格驗證錯誤
+                if price <= 0:
+                    continue
+                
                 dynamic_menu.append({
                     'temp_id': f"temp_{processing_id}_{i}",
                     'id': f"temp_{processing_id}_{i}",  # 前端可能需要 id 欄位
@@ -1894,8 +1904,11 @@ def get_ocr_menu(ocr_menu_id):
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 404
         
-        # 查詢菜單項目
-        menu_items = OCRMenuItem.query.filter_by(ocr_menu_id=ocr_menu_id).all()
+        # 查詢菜單項目，過濾掉價格為 0 的商品
+        menu_items = OCRMenuItem.query.filter(
+            OCRMenuItem.ocr_menu_id == ocr_menu_id,
+            OCRMenuItem.price_small > 0  # 只返回價格大於 0 的商品
+        ).all()
         
         # 準備回應資料
         items_data = []
