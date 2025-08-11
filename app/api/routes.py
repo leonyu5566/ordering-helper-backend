@@ -876,6 +876,55 @@ def create_temp_order():
             except Exception as e:
                 print(f"LINE 通知發送失敗: {e}")
         
+        # 儲存 OCR 菜單和訂單摘要到資料庫（新增功能）
+        try:
+            from .helpers import save_ocr_menu_and_summary_to_database
+            
+            # 檢查是否為 OCR 菜單訂單
+            if order_items and any(item.get('item_name') for item in order_items):
+                print("🔄 檢測到臨時 OCR 菜單訂單，開始儲存到資料庫...")
+                
+                # 準備 OCR 項目資料
+                ocr_items = []
+                for item in order_items:
+                    if item.get('item_name'):  # 只處理有菜名的項目
+                        ocr_items.append({
+                            'name': {
+                                'original': item.get('item_name', ''),
+                                'translated': item.get('item_name', '')
+                            },
+                            'price': item.get('price', 0),
+                            'item_name': item.get('item_name', ''),
+                            'translated_name': item.get('item_name', '')
+                        })
+                
+                if ocr_items:
+                    # 儲存到資料庫
+                    save_result = save_ocr_menu_and_summary_to_database(
+                        order_id=temp_order_id,
+                        ocr_items=ocr_items,
+                        chinese_summary=order_summary.get('summary', '臨時訂單摘要'),
+                        user_language_summary=order_summary.get('summary', '臨時訂單摘要'),
+                        user_language=data.get('language', 'zh'),
+                        total_amount=total_amount,
+                        user_id=user.user_id if user else None,
+                        store_name=data.get('store_id', '非合作店家')
+                    )
+                    
+                    if save_result['success']:
+                        print(f"✅ 臨時 OCR 菜單和訂單摘要已成功儲存到資料庫")
+                        print(f"   OCR 菜單 ID: {save_result['ocr_menu_id']}")
+                        print(f"   訂單摘要 ID: {save_result['summary_id']}")
+                    else:
+                        print(f"⚠️ 臨時 OCR 菜單和訂單摘要儲存失敗: {save_result['message']}")
+                else:
+                    print("ℹ️ 沒有 OCR 項目需要儲存")
+            else:
+                print("ℹ️ 此臨時訂單不是 OCR 菜單訂單，跳過資料庫儲存")
+        except Exception as e:
+            print(f"⚠️ 儲存臨時 OCR 菜單和訂單摘要時發生錯誤: {e}")
+            # 不影響主要流程，繼續執行
+        
         return jsonify({
             "message": "臨時訂單建立成功", 
             "order_id": temp_order_id,
@@ -1335,7 +1384,7 @@ def fix_database():
         existing_tables = inspector.get_table_names()
         
         # 檢查並創建必要的表
-        required_tables = ['ocr_menus', 'ocr_menu_items']
+        required_tables = ['ocr_menus', 'ocr_menu_items', 'order_summaries']
         
         for table_name in required_tables:
             if table_name not in existing_tables:
@@ -1377,6 +1426,28 @@ def fix_database():
                     db.session.commit()
                     print(f"✅ {table_name} 表創建成功")
                     
+                elif table_name == 'order_summaries':
+                    # 創建 order_summaries 表
+                    create_table_sql = """
+                    CREATE TABLE order_summaries (
+                        summary_id BIGINT NOT NULL AUTO_INCREMENT,
+                        order_id BIGINT NOT NULL,
+                        ocr_menu_id BIGINT NULL,
+                        chinese_summary TEXT NOT NULL,
+                        user_language_summary TEXT NOT NULL,
+                        user_language VARCHAR(10) NOT NULL,
+                        total_amount INT NOT NULL,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (summary_id),
+                        FOREIGN KEY (order_id) REFERENCES orders (order_id),
+                        FOREIGN KEY (ocr_menu_id) REFERENCES ocr_menus (ocr_menu_id)
+                    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='訂單摘要'
+                    """
+                    
+                    db.session.execute(text(create_table_sql))
+                    db.session.commit()
+                    print(f"✅ {table_name} 表創建成功")
+                    
                 else:
                     print(f"❌ 不支援創建 {table_name} 表")
                     return jsonify({
@@ -1406,6 +1477,20 @@ def fix_database():
                         
                 elif table_name == 'ocr_menu_items':
                     expected_columns = ['ocr_menu_item_id', 'ocr_menu_id', 'item_name', 'price_big', 'price_small', 'translated_desc']
+                    
+                    missing_columns = [col for col in expected_columns if col not in column_names]
+                    
+                    if missing_columns:
+                        print(f"⚠️  {table_name} 表缺少欄位: {missing_columns}")
+                        return jsonify({
+                            'status': 'error',
+                            'message': f'{table_name} 表結構不完整，缺少欄位: {missing_columns}'
+                        }), 500
+                    else:
+                        print(f"✅ {table_name} 表結構正確")
+                        
+                elif table_name == 'order_summaries':
+                    expected_columns = ['summary_id', 'order_id', 'ocr_menu_id', 'chinese_summary', 'user_language_summary', 'user_language', 'total_amount', 'created_at']
                     
                     missing_columns = [col for col in expected_columns if col not in column_names]
                     
@@ -2187,6 +2272,52 @@ def simple_order():
                 print(f"✅ 成功發送訂單到 LINE Bot，使用者: {line_user_id}")
             except Exception as e:
                 print(f"⚠️ LINE Bot 發送失敗: {e}")
+            
+            # 儲存 OCR 菜單和訂單摘要到資料庫（新增功能）
+            try:
+                from .helpers import save_ocr_menu_and_summary_to_database
+                
+                # 檢查是否為 OCR 菜單訂單
+                if order_result.get('zh_items') and any(item.get('name', {}).get('original') for item in order_result['zh_items']):
+                    print("🔄 檢測到 OCR 菜單訂單，開始儲存到資料庫...")
+                    
+                    # 準備 OCR 項目資料
+                    ocr_items = []
+                    for item in order_result['zh_items']:
+                        if item.get('name', {}).get('original'):  # 只處理有原始中文名稱的項目
+                            ocr_items.append({
+                                'name': item['name'],
+                                'price': item.get('price', 0),
+                                'item_name': item.get('name', {}).get('original', ''),
+                                'translated_name': item.get('name', {}).get('translated', '')
+                            })
+                    
+                    if ocr_items:
+                        # 儲存到資料庫
+                        save_result = save_ocr_menu_and_summary_to_database(
+                            order_id=order.order_id,
+                            ocr_items=ocr_items,
+                            chinese_summary=order_result['zh_summary'],
+                            user_language_summary=order_result['user_summary'],
+                            user_language=order_request.lang,
+                            total_amount=order_result['total_amount'],
+                            user_id=user.user_id,
+                            store_name=store.store_name if store else '非合作店家'
+                        )
+                        
+                        if save_result['success']:
+                            print(f"✅ OCR 菜單和訂單摘要已成功儲存到資料庫")
+                            print(f"   OCR 菜單 ID: {save_result['ocr_menu_id']}")
+                            print(f"   訂單摘要 ID: {save_result['summary_id']}")
+                        else:
+                            print(f"⚠️ OCR 菜單和訂單摘要儲存失敗: {save_result['message']}")
+                    else:
+                        print("ℹ️ 沒有 OCR 項目需要儲存")
+                else:
+                    print("ℹ️ 此訂單不是 OCR 菜單訂單，跳過資料庫儲存")
+            except Exception as e:
+                print(f"⚠️ 儲存 OCR 菜單和訂單摘要時發生錯誤: {e}")
+                # 不影響主要流程，繼續執行
             
             return jsonify({
                 "success": True,

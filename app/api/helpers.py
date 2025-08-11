@@ -1267,7 +1267,55 @@ def send_complete_order_notification(order_id):
         # 5. 語速控制卡片已移除（節省成本）
         print("語速控制卡片已移除")
         
-        # 6. 不立即清理語音檔案，讓靜態路由服務
+        # 6. 儲存 OCR 菜單和訂單摘要到資料庫（新增功能）
+        try:
+            # 檢查是否為 OCR 菜單訂單
+            order_items = order.items
+            if order_items and any(item.original_name for item in order_items):
+                print("🔄 檢測到 OCR 菜單訂單，開始儲存到資料庫...")
+                
+                # 準備 OCR 項目資料
+                ocr_items = []
+                for item in order_items:
+                    if item.original_name:  # 只處理有原始中文名稱的項目
+                        ocr_items.append({
+                            'name': {
+                                'original': item.original_name,
+                                'translated': item.translated_name or item.original_name
+                            },
+                            'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
+                            'item_name': item.original_name,
+                            'translated_name': item.translated_name
+                        })
+                
+                if ocr_items:
+                    # 儲存到資料庫
+                    save_result = save_ocr_menu_and_summary_to_database(
+                        order_id=order_id,
+                        ocr_items=ocr_items,
+                        chinese_summary=confirmation["chinese_summary"],
+                        user_language_summary=confirmation.get("translated_summary", confirmation["chinese_summary"]),
+                        user_language=user.preferred_lang,
+                        total_amount=order.total_amount,
+                        user_id=user.user_id,
+                        store_name=getattr(order.store, 'store_name', '非合作店家') if order.store else '非合作店家'
+                    )
+                    
+                    if save_result['success']:
+                        print(f"✅ OCR 菜單和訂單摘要已成功儲存到資料庫")
+                        print(f"   OCR 菜單 ID: {save_result['ocr_menu_id']}")
+                        print(f"   訂單摘要 ID: {save_result['summary_id']}")
+                    else:
+                        print(f"⚠️ OCR 菜單和訂單摘要儲存失敗: {save_result['message']}")
+                else:
+                    print("ℹ️ 沒有 OCR 項目需要儲存")
+            else:
+                print("ℹ️ 此訂單不是 OCR 菜單訂單，跳過資料庫儲存")
+        except Exception as e:
+            print(f"⚠️ 儲存 OCR 菜單和訂單摘要時發生錯誤: {e}")
+            # 不影響主要流程，繼續執行
+        
+        # 7. 不立即清理語音檔案，讓靜態路由服務
         # 語音檔案會在60分鐘後由cleanup_old_voice_files自動清理
         print(f"訂單通知發送完成: {order_id}")
             
@@ -2325,6 +2373,54 @@ def send_complete_order_notification_optimized(order_id):
         except Exception as e:
             print(f"❌ 語音生成處理失敗: {e}")
         
+        # 6. 儲存 OCR 菜單和訂單摘要到資料庫（新增功能）
+        try:
+            # 檢查是否為 OCR 菜單訂單
+            order_items = order.items
+            if order_items and any(item.original_name for item in order_items):
+                print("🔄 檢測到 OCR 菜單訂單，開始儲存到資料庫...")
+                
+                # 準備 OCR 項目資料
+                ocr_items = []
+                for item in order_items:
+                    if item.original_name:  # 只處理有原始中文名稱的項目
+                        ocr_items.append({
+                            'name': {
+                                'original': item.original_name,
+                                'translated': item.translated_name or item.original_name
+                            },
+                            'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
+                            'item_name': item.original_name,
+                            'translated_name': item.translated_name
+                        })
+                
+                if ocr_items:
+                    # 儲存到資料庫
+                    save_result = save_ocr_menu_and_summary_to_database(
+                        order_id=order_id,
+                        ocr_items=ocr_items,
+                        chinese_summary=chinese_summary,
+                        user_language_summary=chinese_summary,  # 簡化版本只使用中文摘要
+                        user_language=user.preferred_lang,
+                        total_amount=order.total_amount,
+                        user_id=user.user_id,
+                        store_name=getattr(order.store, 'store_name', '非合作店家') if order.store else '非合作店家'
+                    )
+                    
+                    if save_result['success']:
+                        print(f"✅ OCR 菜單和訂單摘要已成功儲存到資料庫")
+                        print(f"   OCR 菜單 ID: {save_result['ocr_menu_id']}")
+                        print(f"   訂單摘要 ID: {save_result['summary_id']}")
+                    else:
+                        print(f"⚠️ OCR 菜單和訂單摘要儲存失敗: {save_result['message']}")
+                else:
+                    print("ℹ️ 沒有 OCR 項目需要儲存")
+            else:
+                print("ℹ️ 此訂單不是 OCR 菜單訂單，跳過資料庫儲存")
+        except Exception as e:
+            print(f"⚠️ 儲存 OCR 菜單和訂單摘要時發生錯誤: {e}")
+            # 不影響主要流程，繼續執行
+        
         print(f"✅ 訂單通知發送完成: {order_id}")
             
     except Exception as e:
@@ -2943,3 +3039,86 @@ def create_order_summary(order_id, user_language='zh'):
         "chinese": chinese_summary,
         "translated": translated_summary
     }
+
+def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, user_language_summary, user_language, total_amount, user_id, store_name=None):
+    """
+    將 OCR 菜單和訂單摘要儲存到 Cloud MySQL 資料庫
+    
+    Args:
+        order_id: 訂單 ID
+        ocr_items: OCR 菜單項目列表
+        chinese_summary: 中文訂單摘要
+        user_language_summary: 使用者語言訂單摘要
+        user_language: 使用者語言代碼
+        total_amount: 訂單總金額
+        user_id: 使用者 ID
+        store_name: 店家名稱（可選）
+    
+    Returns:
+        dict: 包含 ocr_menu_id 和 summary_id 的結果
+    """
+    try:
+        from ..models import db, OCRMenu, OCRMenuItem, OrderSummary
+        
+        print(f"🔄 開始儲存 OCR 菜單和訂單摘要到資料庫...")
+        
+        # 1. 建立 OCR 菜單記錄
+        ocr_menu = OCRMenu(
+            user_id=user_id,
+            store_name=store_name or '非合作店家'
+        )
+        db.session.add(ocr_menu)
+        db.session.flush()  # 獲取 ocr_menu_id
+        
+        print(f"✅ 已建立 OCR 菜單記錄: {ocr_menu.ocr_menu_id}")
+        
+        # 2. 儲存 OCR 菜單項目
+        for item in ocr_items:
+            ocr_menu_item = OCRMenuItem(
+                ocr_menu_id=ocr_menu.ocr_menu_id,
+                item_name=item.get('name', {}).get('original', item.get('item_name', '未知項目')),
+                price_small=int(item.get('price', 0)),
+                price_big=int(item.get('price', 0)),
+                translated_desc=item.get('name', {}).get('translated', item.get('translated_name', ''))
+            )
+            db.session.add(ocr_menu_item)
+        
+        print(f"✅ 已儲存 {len(ocr_items)} 個 OCR 菜單項目")
+        
+        # 3. 建立訂單摘要記錄
+        order_summary = OrderSummary(
+            order_id=order_id,
+            ocr_menu_id=ocr_menu.ocr_menu_id,
+            chinese_summary=chinese_summary,
+            user_language_summary=user_language_summary,
+            user_language=user_language,
+            total_amount=total_amount
+        )
+        db.session.add(order_summary)
+        db.session.flush()  # 獲取 summary_id
+        
+        print(f"✅ 已建立訂單摘要記錄: {order_summary.summary_id}")
+        
+        # 4. 提交所有變更
+        db.session.commit()
+        
+        print(f"🎉 成功儲存 OCR 菜單和訂單摘要到資料庫")
+        print(f"   OCR 菜單 ID: {ocr_menu.ocr_menu_id}")
+        print(f"   訂單摘要 ID: {order_summary.summary_id}")
+        
+        return {
+            'success': True,
+            'ocr_menu_id': ocr_menu.ocr_menu_id,
+            'summary_id': order_summary.summary_id,
+            'message': 'OCR 菜單和訂單摘要已成功儲存到資料庫'
+        }
+        
+    except Exception as e:
+        print(f"❌ 儲存 OCR 菜單和訂單摘要到資料庫失敗: {e}")
+        db.session.rollback()
+        
+        return {
+            'success': False,
+            'error': str(e),
+            'message': '儲存 OCR 菜單和訂單摘要到資料庫失敗'
+        }

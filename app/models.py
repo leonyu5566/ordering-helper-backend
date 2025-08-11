@@ -208,3 +208,23 @@ class OCRMenuItem(db.Model):
 
 # 移除 SimpleOrder 和 SimpleMenuProcessing 模型
 # 因為非合作店家改為即時處理，不需要資料庫儲存
+
+class OrderSummary(db.Model):
+    """訂單摘要儲存模型"""
+    __tablename__ = 'order_summaries'
+    
+    summary_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id'), nullable=False)
+    ocr_menu_id = db.Column(db.BigInteger, db.ForeignKey('ocr_menus.ocr_menu_id'), nullable=True)  # 可為空，因為合作店家可能沒有 OCR 菜單
+    chinese_summary = db.Column(db.Text, nullable=False)  # 中文訂單摘要
+    user_language_summary = db.Column(db.Text, nullable=False)  # 使用者語言訂單摘要
+    user_language = db.Column(db.String(10), nullable=False)  # 使用者語言代碼
+    total_amount = db.Column(db.Integer, nullable=False)  # 訂單總金額
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    
+    # 關聯到訂單和 OCR 菜單
+    order = db.relationship('Order', backref='summaries', lazy=True)
+    ocr_menu = db.relationship('OCRMenu', backref='order_summaries', lazy=True)
+    
+    def __repr__(self):
+        return f'<OrderSummary {self.summary_id}>'
