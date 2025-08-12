@@ -1152,8 +1152,14 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         print(f"✅ 使用前端傳遞的店家名稱: '{store_name}'")
         store_name_for_display = store_name
     else:
-        # 檢查店名是否為自動生成格式（店家_ChIJ-xxxxx）
-        if store.store_name and store.store_name.startswith('店家_ChIJ'):
+        # 檢查店名是否為自動生成格式（店家_ChIJ-xxxxx 或其他預設格式）
+        is_auto_generated = (
+            (store.store_name and store.store_name.startswith('店家_ChIJ')) or
+            (store.store_name and store.store_name in ['非合作店家', 'OCR店家', 'Unknown Store']) or
+            (store.store_name and store.store_name.startswith('店家_'))
+        )
+        
+        if is_auto_generated:
             print(f"⚠️ 檢測到自動生成的店名: '{store.store_name}'")
             
             # 嘗試從 OCR 菜單中獲取正確的店名
