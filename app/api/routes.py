@@ -3327,9 +3327,12 @@ def create_ocr_order():
             print(f"📋 用戶偏好語言: {user.preferred_lang}")
             
             try:
-                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+                # 對於 OCR 訂單，使用前端傳遞的店名
+                frontend_store_name = data.get('store_name')
+                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang, frontend_store_name)
                 print(f"✅ 訂單確認生成成功")
                 print(f"📋 確認內容: {order_confirmation}")
+                print(f"📋 使用前端店名: {frontend_store_name}")
             except Exception as e:
                 print(f"❌ 訂單確認生成失敗: {e}")
                 print(f"錯誤類型: {type(e).__name__}")
