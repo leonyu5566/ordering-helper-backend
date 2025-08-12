@@ -1144,12 +1144,17 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     
     # 檢查是否有前端傳遞的店家名稱（優先使用）
     frontend_store_name = getattr(order, 'frontend_store_name', None)
+    print(f"🔍 檢查前端店家名稱: {frontend_store_name}")
+    print(f"🔍 訂單物件屬性: {dir(order)}")
+    
     if frontend_store_name:
         print(f"✅ 使用前端傳遞的店家名稱: '{frontend_store_name}'")
         store_name_for_display = frontend_store_name
     else:
         print(f"⚠️ 沒有前端店家名稱，使用資料庫名稱: '{store.store_name}'")
         store_name_for_display = store.store_name
+    
+    print(f"📋 最終使用的店家名稱: '{store_name_for_display}'")
     
     user = User.query.get(order.user_id)
     if not user:

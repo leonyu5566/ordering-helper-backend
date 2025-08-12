@@ -707,10 +707,20 @@ def create_order():
         # 保存前端傳遞的店家名稱
         frontend_store_name = data.get('store_name')
         print(f"📋 前端傳遞的店家名稱: {frontend_store_name}")
+        print(f"📋 前端傳遞的原始store_id: {raw_store_id}")
+        print(f"📋 前端傳遞的完整資料: {data}")
         
         try:
             store_db_id = safe_resolve_store_id(raw_store_id, frontend_store_name, default_id=1)
             print(f"✅ 訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
+            
+            # 查詢店家資料庫記錄
+            store_record = Store.query.get(store_db_id)
+            if store_record:
+                print(f"📋 資料庫店家記錄: store_id={store_record.store_id}, store_name='{store_record.store_name}', partner_level={store_record.partner_level}")
+            else:
+                print(f"❌ 找不到店家記錄: store_id={store_db_id}")
+                
         except Exception as e:
             print(f"❌ 訂單店家ID解析失敗: {e}")
             # 如果解析失敗，使用預設值
@@ -961,6 +971,14 @@ def create_order():
             print(f"   user_id: {user.user_id} (型態: {type(user.user_id)})")
             print(f"   store_id: {store_db_id} (型態: {type(store_db_id)})")
             print(f"   total_amount: {total_amount} (型態: {type(total_amount)})")
+            print(f"   frontend_store_name: {frontend_store_name} (型態: {type(frontend_store_name)})")
+            
+            # 查詢使用者資料
+            user_record = User.query.get(user.user_id)
+            if user_record:
+                print(f"📋 使用者資料: user_id={user_record.user_id}, line_user_id='{user_record.line_user_id}', preferred_lang='{user_record.preferred_lang}'")
+            else:
+                print(f"❌ 找不到使用者記錄: user_id={user.user_id}")
             
             # 使用原生SQL創建訂單
             order_sql = """
@@ -975,6 +993,10 @@ def create_order():
                 "order_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                 "status": "pending"
             }
+            
+            print(f"📋 SQL參數詳細資訊:")
+            for key, value in order_params.items():
+                print(f"   {key}: {value} (型態: {type(value)})")
             
             logging.info(f"Executing Order SQL: {order_sql}")
             logging.info(f"With parameters: {order_params}")
@@ -1032,6 +1054,15 @@ def create_order():
             if frontend_store_name:
                 new_order.frontend_store_name = frontend_store_name
                 print(f"✅ 已保存前端店家名稱: '{frontend_store_name}'")
+            else:
+                print(f"⚠️ 沒有前端店家名稱可保存")
+            
+            print(f"📋 訂單物件資訊:")
+            print(f"   order_id: {new_order.order_id}")
+            print(f"   user_id: {new_order.user_id}")
+            print(f"   store_id: {new_order.store_id}")
+            print(f"   total_amount: {new_order.total_amount}")
+            print(f"   frontend_store_name: {getattr(new_order, 'frontend_store_name', 'None')}")
             
             # 建立完整訂單確認內容
             from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
