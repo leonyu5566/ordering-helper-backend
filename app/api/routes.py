@@ -704,8 +704,12 @@ def create_order():
                 "received_data": {"store_id": raw_store_id}
             }), 400
         
+        # 保存前端傳遞的店家名稱
+        frontend_store_name = data.get('store_name')
+        print(f"📋 前端傳遞的店家名稱: {frontend_store_name}")
+        
         try:
-            store_db_id = safe_resolve_store_id(raw_store_id, data.get('store_name'), default_id=1)
+            store_db_id = safe_resolve_store_id(raw_store_id, frontend_store_name, default_id=1)
             print(f"✅ 訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
         except Exception as e:
             print(f"❌ 訂單店家ID解析失敗: {e}")
@@ -1023,6 +1027,11 @@ def create_order():
             new_order.user_id = user.user_id
             new_order.store_id = store_db_id
             new_order.total_amount = total_amount
+            
+            # 保存前端店家名稱供後續使用
+            if frontend_store_name:
+                new_order.frontend_store_name = frontend_store_name
+                print(f"✅ 已保存前端店家名稱: '{frontend_store_name}'")
             
             # 建立完整訂單確認內容
             from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order

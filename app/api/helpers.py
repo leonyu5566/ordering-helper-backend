@@ -1142,6 +1142,15 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     
     print(f"✅ 找到店家: store_id={store.store_id}, store_name='{store.store_name}'")
     
+    # 檢查是否有前端傳遞的店家名稱（優先使用）
+    frontend_store_name = getattr(order, 'frontend_store_name', None)
+    if frontend_store_name:
+        print(f"✅ 使用前端傳遞的店家名稱: '{frontend_store_name}'")
+        store_name_for_display = frontend_store_name
+    else:
+        print(f"⚠️ 沒有前端店家名稱，使用資料庫名稱: '{store.store_name}'")
+        store_name_for_display = store.store_name
+    
     user = User.query.get(order.user_id)
     if not user:
         print(f"❌ 找不到使用者: user_id={order.user_id}")
@@ -1214,7 +1223,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     
     # 2. 中文點餐紀錄（改善格式）
     chinese_summary = f"訂單編號：{order.order_id}\n"
-    chinese_summary += f"店家：{store.store_name}\n"
+    chinese_summary += f"店家：{store_name_for_display}\n"
     chinese_summary += "訂購項目：\n"
     
     for item_summary in items_for_summary:
