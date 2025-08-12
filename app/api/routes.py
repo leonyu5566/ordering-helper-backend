@@ -741,6 +741,7 @@ def create_order():
                         temp_menu = Menu.query.filter_by(store_id=store_db_id).first()
                         if not temp_menu:
                             temp_menu = Menu(store_id=store_db_id, version=1)
+                            # 移除 effective_date，讓資料庫使用預設值
                             db.session.add(temp_menu)
                             db.session.flush()
                         
@@ -814,6 +815,7 @@ def create_order():
                         temp_menu = Menu.query.filter_by(store_id=store_db_id).first()
                         if not temp_menu:
                             temp_menu = Menu(store_id=store_db_id, version=1)
+                            # 移除 effective_date，讓資料庫使用預設值
                             db.session.add(temp_menu)
                             db.session.flush()
                         
@@ -3025,6 +3027,7 @@ def create_ocr_order():
                         temp_menu = Menu.query.filter_by(store_id=data.get('store_id', 1)).first()
                         if not temp_menu:
                             temp_menu = Menu(store_id=data.get('store_id', 1), version=1)
+                            # 移除 effective_date，讓資料庫使用預設值
                             db.session.add(temp_menu)
                             db.session.flush()
                         
