@@ -1027,10 +1027,32 @@ def create_order():
             # 建立完整訂單確認內容
             from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
             
-            order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+            print(f"🔧 準備生成訂單確認...")
+            print(f"📋 訂單ID: {new_order.order_id}")
+            print(f"📋 用戶偏好語言: {user.preferred_lang}")
+            
+            try:
+                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+                print(f"✅ 訂單確認生成成功")
+                print(f"📋 確認內容: {order_confirmation}")
+            except Exception as e:
+                print(f"❌ 訂單確認生成失敗: {e}")
+                print(f"錯誤類型: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                raise e
             
             # 生成中文語音檔
-            voice_path = generate_voice_order(new_order.order_id)
+            print(f"🔧 準備生成語音檔...")
+            try:
+                voice_path = generate_voice_order(new_order.order_id)
+                print(f"✅ 語音檔生成成功: {voice_path}")
+            except Exception as e:
+                print(f"❌ 語音檔生成失敗: {e}")
+                print(f"錯誤類型: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                voice_path = None
             
             # 如果是OCR菜單訂單，建立訂單摘要並儲存到資料庫
             if ocr_menu_id:
@@ -3235,10 +3257,32 @@ def create_ocr_order():
             # 建立完整訂單確認內容
             from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
             
-            order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+            print(f"🔧 準備生成訂單確認...")
+            print(f"📋 訂單ID: {new_order.order_id}")
+            print(f"📋 用戶偏好語言: {user.preferred_lang}")
+            
+            try:
+                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+                print(f"✅ 訂單確認生成成功")
+                print(f"📋 確認內容: {order_confirmation}")
+            except Exception as e:
+                print(f"❌ 訂單確認生成失敗: {e}")
+                print(f"錯誤類型: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                raise e
             
             # 生成中文語音檔
-            voice_path = generate_voice_order(new_order.order_id)
+            print(f"🔧 準備生成語音檔...")
+            try:
+                voice_path = generate_voice_order(new_order.order_id)
+                print(f"✅ 語音檔生成成功: {voice_path}")
+            except Exception as e:
+                print(f"❌ 語音檔生成失敗: {e}")
+                print(f"錯誤類型: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                voice_path = None
             
             # 建立訂單摘要並儲存到資料庫
             try:
