@@ -3155,19 +3155,19 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
             for i, item in enumerate(ocr_items):
                 ocr_menu_item_sql = """
                 INSERT INTO ocr_menu_items (ocr_menu_id, item_name, price_big, price_small, translated_desc)
-                VALUES (?, ?, ?, ?, ?)
+                VALUES (:ocr_menu_id, :item_name, :price_big, :price_small, :translated_desc)
                 """
                 
                 item_name = item.get('name', {}).get('original', item.get('item_name', '未知項目'))
                 price = int(item.get('price', 0))
                 translated_desc = item.get('name', {}).get('translated', item.get('translated_name', ''))
-                ocr_menu_item_params = [
-                    ocr_menu_id,
-                    item_name,
-                    price,
-                    price, 
-                    translated_desc
-                ]
+                ocr_menu_item_params = {
+                    "ocr_menu_id": ocr_menu_id,
+                    "item_name": item_name,
+                    "price_big": price,
+                    "price_small": price,
+                    "translated_desc": translated_desc
+                }
                 
                 logging.info(f"Executing OCR Menu Item {i+1} SQL: {ocr_menu_item_sql}")
                 logging.info(f"With parameters: {ocr_menu_item_params}")
@@ -3182,17 +3182,17 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
         
         order_summary_sql = """
         INSERT INTO order_summaries (order_id, ocr_menu_id, chinese_summary, user_language_summary, user_language, total_amount, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (:order_id, :ocr_menu_id, :chinese_summary, :user_language_summary, :user_language, :total_amount, :created_at)
         """
-        order_summary_params = [
-            order_id,
-            ocr_menu_id,
-            chinese_summary,
-            user_language_summary,
-            user_language,
-            total_amount,
-            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        ]
+        order_summary_params = {
+            "order_id": order_id,
+            "ocr_menu_id": ocr_menu_id,
+            "chinese_summary": chinese_summary,
+            "user_language_summary": user_language_summary,
+            "user_language": user_language,
+            "total_amount": total_amount,
+            "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
         
         logging.info(f"Executing Order Summary SQL: {order_summary_sql}")
         logging.info(f"With parameters: {order_summary_params}")

@@ -961,16 +961,16 @@ def create_order():
             # 使用原生SQL創建訂單
             order_sql = """
             INSERT INTO orders (user_id, store_id, total_amount, order_time, status)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES (:user_id, :store_id, :total_amount, :order_time, :status)
             """
             
-            order_params = [
-                user.user_id,
-                store_db_id,
-                total_amount,
-                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                "pending"
-            ]
+            order_params = {
+                "user_id": user.user_id,
+                "store_id": store_db_id,
+                "total_amount": total_amount,
+                "order_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "status": "pending"
+            }
             
             logging.info(f"Executing Order SQL: {order_sql}")
             logging.info(f"With parameters: {order_params}")
@@ -996,18 +996,18 @@ def create_order():
             for i, order_item in enumerate(order_items_to_create):
                 order_item_sql = """
                 INSERT INTO order_items (order_id, menu_item_id, quantity_small, subtotal, original_name, translated_name, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (:order_id, :menu_item_id, :quantity_small, :subtotal, :original_name, :translated_name, :created_at)
                 """
                 
-                order_item_params = [
-                    order_id,
-                    order_item.menu_item_id,
-                    order_item.quantity_small,
-                    order_item.subtotal,
-                    order_item.original_name or '',
-                    order_item.translated_name or '',
-                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                ]
+                order_item_params = {
+                    "order_id": order_id,
+                    "menu_item_id": order_item.menu_item_id,
+                    "quantity_small": order_item.quantity_small,
+                    "subtotal": order_item.subtotal,
+                    "original_name": order_item.original_name or '',
+                    "translated_name": order_item.translated_name or '',
+                    "created_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                }
                 
                 logging.info(f"Executing Order Item {i+1} SQL: {order_item_sql}")
                 logging.info(f"With parameters: {order_item_params}")
