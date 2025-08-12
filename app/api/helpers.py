@@ -1058,6 +1058,8 @@ def translate_menu_items_with_db_fallback(menu_items, target_language):
 
 def translate_store_info_with_db_fallback(store, target_language):
     """翻譯店家資訊，優先使用資料庫翻譯，失敗時使用 AI 翻譯"""
+    from ..models import StoreTranslation
+    
     # 嘗試從資料庫獲取翻譯
     db_translation = None
     try:
@@ -1136,7 +1138,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     
     chinese_summary += f"總金額：${order.total_amount}"
     
-    # 3. 使用者語言的點餐紀錄（優先使用資料庫翻譯）
+    # 3. 使用者語言的點餐紀錄（根據用戶偏好語言）
     if user_language != 'zh':
         # 翻譯店家名稱
         store_translation = translate_store_info_with_db_fallback(store, user_language)
@@ -1151,8 +1153,8 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
             if menu_item:
                 # 優先使用資料庫翻譯
                 db_translation = get_menu_translation_from_db(menu_item.menu_item_id, user_language)
-                if db_translation and db_translation.item_name_trans:
-                    translated_name = db_translation.item_name_trans
+                if db_translation and db_translation.description:
+                    translated_name = db_translation.description
                 else:
                     translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
                 
@@ -1160,10 +1162,13 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
+        # 如果用戶語言是中文，使用者語言摘要就是中文摘要
         translated_summary = chinese_summary
     
     return {
         "chinese_voice_text": chinese_voice_text,
+        "chinese": chinese_summary,
+        "translated": translated_summary,
         "chinese_summary": chinese_summary,
         "translated_summary": translated_summary,
         "user_language": user_language
