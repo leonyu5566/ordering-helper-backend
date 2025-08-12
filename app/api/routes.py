@@ -947,15 +947,74 @@ def create_order():
         try:
             # store_id 已經在前面解析過了，這裡直接使用 store_db_id
             
-            new_order = Order(
-                user_id=user.user_id,
-                store_id=store_db_id,
-                total_amount=total_amount,
-                items=order_items_to_create
-            )
+            # 記錄訂單創建SQL
+            import logging
+            from sqlalchemy import text
+            logging.basicConfig(level=logging.INFO)
             
-            db.session.add(new_order)
+            print(f"📝 準備創建訂單記錄...")
+            print(f"📋 訂單參數:")
+            print(f"   user_id: {user.user_id} (型態: {type(user.user_id)})")
+            print(f"   store_id: {store_db_id} (型態: {type(store_db_id)})")
+            print(f"   total_amount: {total_amount} (型態: {type(total_amount)})")
+            
+            # 使用原生SQL創建訂單
+            order_sql = """
+            INSERT INTO orders (user_id, store_id, total_amount, order_time, status)
+            VALUES (?, ?, ?, ?, ?)
+            """
+            
+            order_params = [
+                user.user_id,
+                store_db_id,
+                total_amount,
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "pending"
+            ]
+            
+            logging.info(f"Executing Order SQL: {order_sql}")
+            logging.info(f"With parameters: {order_params}")
+            
+            result = db.session.execute(text(order_sql), order_params)
             db.session.commit()
+            
+            # 獲取訂單ID
+            order_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
+            order_id = order_id_result.fetchone()[0]
+            
+            print(f"✅ 訂單已創建，ID: {order_id}")
+            
+            # 創建訂單項目
+            for i, order_item in enumerate(order_items_to_create):
+                order_item_sql = """
+                INSERT INTO order_items (order_id, menu_item_id, quantity_small, subtotal, original_name, translated_name, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """
+                
+                order_item_params = [
+                    order_id,
+                    order_item.menu_item_id,
+                    order_item.quantity_small,
+                    order_item.subtotal,
+                    order_item.original_name or '',
+                    order_item.translated_name or '',
+                    datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                ]
+                
+                logging.info(f"Executing Order Item {i+1} SQL: {order_item_sql}")
+                logging.info(f"With parameters: {order_item_params}")
+                
+                db.session.execute(text(order_item_sql), order_item_params)
+            
+            db.session.commit()
+            print(f"✅ 已創建 {len(order_items_to_create)} 個訂單項目")
+            
+            # 創建Order物件用於後續處理
+            new_order = Order()
+            new_order.order_id = order_id
+            new_order.user_id = user.user_id
+            new_order.store_id = store_db_id
+            new_order.total_amount = total_amount
             
             # 建立完整訂單確認內容
             from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
@@ -994,7 +1053,8 @@ def create_order():
                             user_language=data.get('language', 'zh'),
                             total_amount=total_amount,
                             user_id=user.user_id if user else None,
-                            store_name=data.get('store_name', 'OCR店家')
+                            store_name=data.get('store_name', 'OCR店家'),
+                            existing_ocr_menu_id=ocr_menu_id
                         )
                         
                         if save_result['success']:

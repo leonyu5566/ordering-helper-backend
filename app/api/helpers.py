@@ -3079,7 +3079,7 @@ def create_order_summary(order_id, user_language='zh'):
         "translated": translated_summary
     }
 
-def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, user_language_summary, user_language, total_amount, user_id, store_name=None):
+def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, user_language_summary, user_language, total_amount, user_id, store_name=None, existing_ocr_menu_id=None):
     """
     將 OCR 菜單和訂單摘要儲存到 Cloud MySQL 資料庫
     
@@ -3092,69 +3092,145 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
         total_amount: 訂單總金額
         user_id: 使用者 ID
         store_name: 店家名稱（可選）
+        existing_ocr_menu_id: 現有的OCR菜單ID（可選）
     
     Returns:
         dict: 包含 ocr_menu_id 和 summary_id 的結果
     """
+    import logging
+    import datetime
+    logging.basicConfig(level=logging.INFO)
+    
     try:
         from ..models import db, OCRMenu, OCRMenuItem, OrderSummary
+        from sqlalchemy import text
         
         print(f"🔄 開始儲存 OCR 菜單和訂單摘要到資料庫...")
+        print(f"📋 輸入參數:")
+        print(f"   order_id: {order_id} (型態: {type(order_id)})")
+        print(f"   user_id: {user_id} (型態: {type(user_id)})")
+        print(f"   total_amount: {total_amount} (型態: {type(total_amount)})")
+        print(f"   user_language: {user_language} (型態: {type(user_language)})")
+        print(f"   existing_ocr_menu_id: {existing_ocr_menu_id} (型態: {type(existing_ocr_menu_id)})")
+        print(f"   store_name: {store_name} (型態: {type(store_name)})")
+        print(f"   ocr_items 數量: {len(ocr_items) if ocr_items else 0}")
         
-        # 1. 建立 OCR 菜單記錄
-        ocr_menu = OCRMenu(
-            user_id=user_id,
-            store_name=store_name or '非合作店家'
-        )
-        db.session.add(ocr_menu)
-        db.session.flush()  # 獲取 ocr_menu_id
+        # 1. 使用現有的OCR菜單ID或創建新的OCR菜單記錄
+        if existing_ocr_menu_id:
+            # 使用現有的OCR菜單ID
+            ocr_menu_id = existing_ocr_menu_id
+            print(f"✅ 使用現有的 OCR 菜單 ID: {ocr_menu_id}")
+        else:
+            # 創建新的OCR菜單記錄
+            print(f"📝 準備創建新的 OCR 菜單記錄...")
+            
+            # 記錄OCR菜單插入SQL
+            ocr_menu_sql = """
+            INSERT INTO ocr_menus (user_id, store_name, upload_time)
+            VALUES (:user_id, :store_name, :upload_time)
+            """
+            ocr_menu_params = {
+                "user_id": user_id,
+                "store_name": store_name or '非合作店家',
+                "upload_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            
+            logging.info(f"Executing OCR Menu SQL: {ocr_menu_sql}")
+            logging.info(f"With parameters: {ocr_menu_params}")
+            
+            # 使用原生SQL執行
+            result = db.session.execute(text(ocr_menu_sql), ocr_menu_params)
+            db.session.commit()
+            
+            # 獲取插入的ID
+            ocr_menu_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
+            ocr_menu_id = ocr_menu_id_result.fetchone()[0]
+            
+            print(f"✅ 已建立新的 OCR 菜單記錄: {ocr_menu_id}")
         
-        print(f"✅ 已建立 OCR 菜單記錄: {ocr_menu.ocr_menu_id}")
-        
-        # 2. 儲存 OCR 菜單項目
-        for item in ocr_items:
-            ocr_menu_item = OCRMenuItem(
-                ocr_menu_id=ocr_menu.ocr_menu_id,
-                item_name=item.get('name', {}).get('original', item.get('item_name', '未知項目')),
-                price_small=int(item.get('price', 0)),
-                price_big=int(item.get('price', 0)),
-                translated_desc=item.get('name', {}).get('translated', item.get('translated_name', ''))
-            )
-            db.session.add(ocr_menu_item)
-        
-        print(f"✅ 已儲存 {len(ocr_items)} 個 OCR 菜單項目")
+        # 2. 儲存 OCR 菜單項目（只有在沒有現有OCR菜單ID時才創建）
+        if not existing_ocr_menu_id and ocr_items:
+            print(f"📝 準備創建 {len(ocr_items)} 個 OCR 菜單項目...")
+            
+            for i, item in enumerate(ocr_items):
+                ocr_menu_item_sql = """
+                INSERT INTO ocr_menu_items (ocr_menu_id, item_name, price_big, price_small, translated_desc)
+                VALUES (?, ?, ?, ?, ?)
+                """
+                
+                item_name = item.get('name', {}).get('original', item.get('item_name', '未知項目'))
+                price = int(item.get('price', 0))
+                translated_desc = item.get('name', {}).get('translated', item.get('translated_name', ''))
+                
+                            ocr_menu_item_params = {
+                    "ocr_menu_id": ocr_menu_id,
+                    "item_name": item_name,
+                    "price_big": price,
+                    "price_small": price,
+                    "translated_desc": translated_desc
+                }
+                
+                logging.info(f"Executing OCR Menu Item {i+1} SQL: {ocr_menu_item_sql}")
+                logging.info(f"With parameters: {ocr_menu_item_params}")
+                
+                db.session.execute(text(ocr_menu_item_sql), ocr_menu_item_params)
+            
+            db.session.commit()
+            print(f"✅ 已儲存 {len(ocr_items)} 個 OCR 菜單項目")
         
         # 3. 建立訂單摘要記錄
-        order_summary = OrderSummary(
-            order_id=order_id,
-            ocr_menu_id=ocr_menu.ocr_menu_id,
-            chinese_summary=chinese_summary,
-            user_language_summary=user_language_summary,
-            user_language=user_language,
-            total_amount=total_amount
-        )
-        db.session.add(order_summary)
-        db.session.flush()  # 獲取 summary_id
+        print(f"📝 準備創建訂單摘要記錄...")
         
-        print(f"✅ 已建立訂單摘要記錄: {order_summary.summary_id}")
+        order_summary_sql = """
+        INSERT INTO order_summaries (order_id, ocr_menu_id, chinese_summary, user_language_summary, user_language, total_amount, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """
+        order_summary_params = [
+            order_id,
+            ocr_menu_id,
+            chinese_summary,
+            user_language_summary,
+            user_language,
+            total_amount,
+            datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        ]
         
-        # 4. 提交所有變更
+        logging.info(f"Executing Order Summary SQL: {order_summary_sql}")
+        logging.info(f"With parameters: {order_summary_params}")
+        
+        # 使用原生SQL執行
+        result = db.session.execute(text(order_summary_sql), order_summary_params)
         db.session.commit()
         
+        # 獲取插入的ID
+        summary_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
+        summary_id = summary_id_result.fetchone()[0]
+        
+        print(f"✅ 已建立訂單摘要記錄: {summary_id}")
+        
+        # 4. 提交所有變更
         print(f"🎉 成功儲存 OCR 菜單和訂單摘要到資料庫")
-        print(f"   OCR 菜單 ID: {ocr_menu.ocr_menu_id}")
-        print(f"   訂單摘要 ID: {order_summary.summary_id}")
+        print(f"   OCR 菜單 ID: {ocr_menu_id}")
+        print(f"   訂單摘要 ID: {summary_id}")
         
         return {
             'success': True,
-            'ocr_menu_id': ocr_menu.ocr_menu_id,
-            'summary_id': order_summary.summary_id,
+            'ocr_menu_id': ocr_menu_id,
+            'summary_id': summary_id,
             'message': 'OCR 菜單和訂單摘要已成功儲存到資料庫'
         }
         
     except Exception as e:
         print(f"❌ 儲存 OCR 菜單和訂單摘要到資料庫失敗: {e}")
-        db.session.rollback()
+        print(f"錯誤類型: {type(e).__name__}")
+        import traceback
+        traceback.print_exc()
+        
+        try:
+            db.session.rollback()
+            print("✅ 資料庫回滾成功")
+        except Exception as rollback_error:
+            print(f"❌ 資料庫回滾失敗: {rollback_error}")
         
         return {
             'success': False,

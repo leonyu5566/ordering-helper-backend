@@ -214,8 +214,8 @@ class OrderSummary(db.Model):
     __tablename__ = 'order_summaries'
     
     summary_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id'), nullable=False)
-    ocr_menu_id = db.Column(db.BigInteger, db.ForeignKey('ocr_menus.ocr_menu_id'), nullable=True)  # 可為空，因為合作店家可能沒有 OCR 菜單
+    order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id', ondelete='CASCADE'), nullable=False)
+    ocr_menu_id = db.Column(db.BigInteger, db.ForeignKey('ocr_menus.ocr_menu_id', ondelete='CASCADE'), nullable=True)  # 可為空，因為合作店家可能沒有 OCR 菜單
     chinese_summary = db.Column(db.Text, nullable=False)  # 中文訂單摘要
     user_language_summary = db.Column(db.Text, nullable=False)  # 使用者語言訂單摘要
     user_language = db.Column(db.String(10), nullable=False)  # 使用者語言代碼
