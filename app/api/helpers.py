@@ -3336,15 +3336,14 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
                 # 儲存翻譯到 ocr_menu_translations 表
                 if translated_desc and translated_desc != item_name:
                     ocr_menu_translation_sql = """
-                    INSERT INTO ocr_menu_translations (ocr_menu_item_id, lang_code, translated_name, translated_description)
-                    VALUES (:ocr_menu_item_id, :lang_code, :translated_name, :translated_description)
+                    INSERT INTO ocr_menu_translations (menu_item_id, lang_code, description)
+                    VALUES (:menu_item_id, :lang_code, :description)
                     """
                     
                     ocr_menu_translation_params = {
-                        "ocr_menu_item_id": ocr_menu_item_id,
+                        "menu_item_id": ocr_menu_item_id,
                         "lang_code": user_language,
-                        "translated_name": translated_desc,
-                        "translated_description": item.get('description', '') or translated_desc
+                        "description": translated_desc
                     }
                     
                     logging.info(f"Executing OCR Menu Translation SQL: {ocr_menu_translation_sql}")
