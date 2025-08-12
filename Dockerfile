@@ -54,21 +54,14 @@ COPY . .
 RUN mkdir -p /tmp/voices && chmod 755 /tmp/voices
 
 # 設定啟動腳本權限
-RUN chmod +x startup.sh
+RUN chmod +x startup.sh startup_simple.sh
 
-# 設定環境變數
-ENV FLASK_APP=run.py
-ENV FLASK_ENV=production
+# 設定環境變數 - 移除可能衝突的變數
 ENV PYTHONPATH=/app
 ENV PYTHONWARNINGS=ignore
-ENV PORT=8080
 
 # 暴露端口
 EXPOSE 8080
 
-# 健康檢查
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8080/health || exit 1
-
-# 使用啟動腳本
-CMD ["./startup.sh"] 
+# 使用簡化啟動腳本
+CMD ["./startup_simple.sh"] 
