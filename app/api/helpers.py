@@ -1262,11 +1262,18 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     print(f"📋 使用者語言: {user_language}")
     
     if user_language != 'zh':
-        # 翻譯店家名稱
+        # 翻譯店家名稱 - 使用前端傳遞的店名
         print(f"🔧 開始翻譯店家名稱...")
-        store_translation = translate_store_info_with_db_fallback(store, user_language)
-        translated_store_name = store_translation['translated_name']
-        print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
+        if store_name_for_display and store_name_for_display != store.store_name:
+            # 使用前端傳遞的店名進行翻譯
+            print(f"📝 使用前端傳遞的店名進行翻譯: '{store_name_for_display}'")
+            translated_store_name = translate_text_with_fallback(store_name_for_display, user_language)
+            print(f"📝 店家翻譯結果: '{store_name_for_display}' → '{translated_store_name}'")
+        else:
+            # 使用資料庫中的店名進行翻譯
+            store_translation = translate_store_info_with_db_fallback(store, user_language)
+            translated_store_name = store_translation['translated_name']
+            print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
         
         translated_summary = f"Store: {translated_store_name}\n"
         translated_summary += "Items:\n"
