@@ -580,6 +580,9 @@ def generate_voice_order(order_id, speech_rate=1.0):
     """
     使用 Azure TTS 生成訂單語音
     """
+    print(f"🔧 開始生成語音檔...")
+    print(f"📋 輸入參數: order_id={order_id}, speech_rate={speech_rate}")
+    
     # 先 cleanup（延長清理時間）
     cleanup_old_voice_files(3600)  # 60分鐘
     
@@ -589,39 +592,24 @@ def generate_voice_order(order_id, speech_rate=1.0):
         # 取得訂單資訊
         order = Order.query.get(order_id)
         if not order:
-            print(f"找不到訂單: {order_id}")
+            print(f"❌ 找不到訂單: {order_id}")
             return None
         
-        # 建立自然的中文訂單文字
-        items_for_voice = []
+        print(f"✅ 找到訂單: order_id={order.order_id}")
         
-        for item in order.items:
-            menu_item = MenuItem.query.get(item.menu_item_id)
-            if menu_item:
-                # 改進：根據菜名類型選擇合適的量詞
-                item_name = menu_item.item_name
-                quantity = item.quantity_small
-                
-                # 判斷是飲料還是餐點
-                if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
-                    # 飲料類用「杯」
-                    if quantity == 1:
-                        items_for_voice.append(f"{item_name}一杯")
-                    else:
-                        items_for_voice.append(f"{item_name}{quantity}杯")
-                else:
-                    # 餐點類用「份」
-                    if quantity == 1:
-                        items_for_voice.append(f"{item_name}一份")
-                    else:
-                        items_for_voice.append(f"{item_name}{quantity}份")
+        # 使用 create_complete_order_confirmation 生成正確的中文語音文字
+        print(f"🔧 調用 create_complete_order_confirmation 生成語音文字...")
+        confirmation = create_complete_order_confirmation(order_id, 'zh')  # 強制使用中文
+        if not confirmation:
+            print(f"❌ 無法生成訂單確認內容")
+            return None
         
-        # 生成自然的中文語音
-        if len(items_for_voice) == 1:
-            order_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
-        else:
-            voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
-            order_text = f"老闆，我要{voice_items}，謝謝。"
+        order_text = confirmation.get('chinese_voice_text', '')
+        print(f"🎤 使用中文語音文字: '{order_text}'")
+        
+        if not order_text:
+            print(f"❌ 語音文字為空，使用備用方案")
+            return generate_voice_order_fallback(order_id, speech_rate)
         
         # 應用文本預處理（確保沒有遺漏的 x1 格式）
         order_text = normalize_order_text_for_tts(order_text)
@@ -1096,30 +1084,64 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     """
     建立完整的訂單確認內容（包含語音、中文紀錄、使用者語言紀錄）
     """
+    import logging
+    logging.basicConfig(level=logging.INFO)
+    
     from ..models import Order, OrderItem, MenuItem, Store, User
+    
+    print(f"🔧 開始生成訂單確認...")
+    print(f"📋 輸入參數: order_id={order_id}, user_language={user_language}")
     
     order = Order.query.get(order_id)
     if not order:
+        print(f"❌ 找不到訂單: {order_id}")
         return None
     
+    print(f"✅ 找到訂單: order_id={order.order_id}, user_id={order.user_id}, store_id={order.store_id}")
+    
     store = Store.query.get(order.store_id)
+    if not store:
+        print(f"❌ 找不到店家: store_id={order.store_id}")
+        return None
+    
+    print(f"✅ 找到店家: store_id={store.store_id}, store_name='{store.store_name}'")
+    
     user = User.query.get(order.user_id)
+    if not user:
+        print(f"❌ 找不到使用者: user_id={order.user_id}")
+        return None
+    
+    print(f"✅ 找到使用者: user_id={user.user_id}, preferred_lang='{user.preferred_lang}'")
     
     # 1. 中文語音內容（改善格式，更自然）
     items_for_voice = []
     items_for_summary = []
     
-    for item in order.items:
+    print(f"🔧 開始處理訂單項目...")
+    print(f"📋 訂單項目數量: {len(order.items)}")
+    
+    for i, item in enumerate(order.items):
+        print(f"📋 處理第 {i+1} 個項目: menu_item_id={item.menu_item_id}, quantity_small={item.quantity_small}")
+        
         menu_item = MenuItem.query.get(item.menu_item_id)
         if menu_item:
+            print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}', price_small={menu_item.price_small}")
+            
             # 為語音準備：自然的中文表達
             if item.quantity_small == 1:
-                items_for_voice.append(f"{menu_item.item_name}一份")
+                voice_text = f"{menu_item.item_name}一份"
             else:
-                items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
+                voice_text = f"{menu_item.item_name}{item.quantity_small}份"
+            
+            items_for_voice.append(voice_text)
+            print(f"📝 語音文字: '{voice_text}'")
             
             # 為摘要準備：清晰的格式
-            items_for_summary.append(f"{menu_item.item_name} x{item.quantity_small}")
+            summary_text = f"{menu_item.item_name} x{item.quantity_small}"
+            items_for_summary.append(summary_text)
+            print(f"📝 摘要文字: '{summary_text}'")
+        else:
+            print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
     
     # 生成自然的中文語音
     if len(items_for_voice) == 1:
@@ -1127,6 +1149,8 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     else:
         voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
         chinese_voice_text = f"老闆，我要{voice_items}，謝謝。"
+    
+    print(f"🎤 生成中文語音文字: '{chinese_voice_text}'")
     
     # 2. 中文點餐紀錄（改善格式）
     chinese_summary = f"訂單編號：{order.order_id}\n"
@@ -1138,11 +1162,19 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     
     chinese_summary += f"總金額：${order.total_amount}"
     
+    print(f"📝 生成中文摘要:")
+    print(f"   {chinese_summary.replace(chr(10), chr(10) + '   ')}")
+    
     # 3. 使用者語言的點餐紀錄（根據用戶偏好語言）
+    print(f"🔧 開始生成使用者語言摘要...")
+    print(f"📋 使用者語言: {user_language}")
+    
     if user_language != 'zh':
         # 翻譯店家名稱
+        print(f"🔧 開始翻譯店家名稱...")
         store_translation = translate_store_info_with_db_fallback(store, user_language)
         translated_store_name = store_translation['translated_name']
+        print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
         
         translated_summary = f"Order #{order.order_id}\n"
         translated_summary += f"Store: {translated_store_name}\n"
@@ -1151,21 +1183,29 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
+                print(f"🔧 翻譯菜品: '{menu_item.item_name}'")
+                
                 # 優先使用資料庫翻譯
                 db_translation = get_menu_translation_from_db(menu_item.menu_item_id, user_language)
                 if db_translation and db_translation.description:
                     translated_name = db_translation.description
+                    print(f"✅ 使用資料庫翻譯: '{translated_name}'")
                 else:
                     translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
+                    print(f"✅ 使用AI翻譯: '{translated_name}'")
                 
                 translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
         # 如果用戶語言是中文，使用者語言摘要就是中文摘要
+        print(f"📝 使用者語言是中文，使用中文摘要")
         translated_summary = chinese_summary
     
-    return {
+    print(f"📝 生成使用者語言摘要:")
+    print(f"   {translated_summary.replace(chr(10), chr(10) + '   ')}")
+    
+    result = {
         "chinese_voice_text": chinese_voice_text,
         "chinese": chinese_summary,
         "translated": translated_summary,
@@ -1173,6 +1213,15 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         "translated_summary": translated_summary,
         "user_language": user_language
     }
+    
+    print(f"🎉 訂單確認生成完成!")
+    print(f"📋 返回結果:")
+    print(f"   chinese_voice_text: '{result['chinese_voice_text']}'")
+    print(f"   chinese: '{result['chinese'][:100]}...'")
+    print(f"   translated: '{result['translated'][:100]}...'")
+    print(f"   user_language: '{result['user_language']}'")
+    
+    return result
 
 def send_complete_order_notification(order_id):
     """
