@@ -1245,8 +1245,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     print(f"🎤 生成中文語音文字: '{chinese_voice_text}'")
     
     # 2. 中文點餐紀錄（改善格式）
-    chinese_summary = f"訂單編號：{order.order_id}\n"
-    chinese_summary += f"店家：{store_name_for_display}\n"
+    chinese_summary = f"店家：{store_name_for_display}\n"
     chinese_summary += "訂購項目：\n"
     
     for item_summary in items_for_summary:
@@ -1268,8 +1267,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         translated_store_name = store_translation['translated_name']
         print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
         
-        translated_summary = f"Order #{order.order_id}\n"
-        translated_summary += f"Store: {translated_store_name}\n"
+        translated_summary = f"Store: {translated_store_name}\n"
         translated_summary += "Items:\n"
         
         for item in order.items:
@@ -1422,11 +1420,8 @@ def send_complete_order_notification(order_id):
         # 3. 發送中文點餐紀錄
         line_bot_api = get_line_bot_api()
         if line_bot_api:
-            # 如果是OCR菜單訂單，在摘要中加入OCR菜單ID
+            # 使用純淨的摘要內容，不包含系統資訊
             chinese_summary = confirmation["chinese_summary"]
-            if is_ocr_order and ocr_menu_id:
-                chinese_summary += f"\n\n📋 OCR菜單ID: {ocr_menu_id}"
-                chinese_summary += "\n💾 菜單已儲存到資料庫"
             
             line_bot_api.push_message(
                 user.line_user_id,
@@ -1438,15 +1433,7 @@ def send_complete_order_notification(order_id):
         if user.preferred_lang != 'zh':
             translated_summary = confirmation.get("translated_summary", confirmation["chinese_summary"])
             
-            # 如果是OCR菜單訂單，在摘要中加入OCR菜單ID
-            if is_ocr_order and ocr_menu_id:
-                ocr_info = {
-                    "en": f"\n\n📋 OCR Menu ID: {ocr_menu_id}\n💾 Menu saved to database",
-                    "ja": f"\n\n📋 OCRメニューID: {ocr_menu_id}\n💾 メニューがデータベースに保存されました",
-                    "ko": f"\n\n📋 OCR 메뉴 ID: {ocr_menu_id}\n💾 메뉴가 데이터베이스에 저장되었습니다",
-                    "zh": f"\n\n📋 OCR菜單ID: {ocr_menu_id}\n💾 菜單已儲存到資料庫"
-                }
-                translated_summary += ocr_info.get(user.preferred_lang, ocr_info["en"])
+            # 使用純淨的摘要內容，不包含系統資訊
             
             line_bot_api.push_message(
                 user.line_user_id,
@@ -2470,8 +2457,7 @@ def generate_chinese_summary_optimized(order_id):
         store = Store.query.get(order.store_id)
         
         # 中文摘要
-        chinese_summary = f"訂單編號：{order.order_id}\n"
-        chinese_summary += f"店家：{store.store_name if store else '未知店家'}\n"
+        chinese_summary = f"店家：{store.store_name if store else '未知店家'}\n"
         chinese_summary += "訂購項目：\n"
         
         for item in order.items:
