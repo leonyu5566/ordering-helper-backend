@@ -3377,8 +3377,8 @@ def create_ocr_order():
                         user_language=data.get('language', 'zh'),
                         total_amount=total_amount,
                         user_id=user.user_id if user else None,
-                        store_id=ocr_menu.store_id,  # 新增 store_id
-                        store_name=ocr_menu.store_name
+                        store_id=store_db_id,  # 使用解析後的店家ID
+                        store_name=data.get('store_name', 'OCR店家')
                     )
                     
                     if save_result['success']:
@@ -3393,7 +3393,7 @@ def create_ocr_order():
             
             # 只在非訪客模式下發送 LINE 通知
             if not guest_mode:
-                send_complete_order_notification(new_order.order_id, ocr_menu.store_name)
+                send_complete_order_notification(new_order.order_id, data.get('store_name'))
             
             return jsonify({
                 "message": "OCR訂單建立成功", 
@@ -3403,7 +3403,7 @@ def create_ocr_order():
                 "confirmation": order_confirmation,
                 "voice_generated": voice_path is not None,
                 "ocr_menu_id": ocr_menu_id,
-                "store_name": ocr_menu.store_name
+                "store_name": data.get('store_name', 'OCR店家')
             }), 201
             
         except Exception as e:

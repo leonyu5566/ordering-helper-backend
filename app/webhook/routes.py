@@ -999,7 +999,8 @@ def send_voice_order(order_id, user_id=None):
         # 備用方案：使用舊的同步處理
         logger.warning(f"⚠️ 未提供 user_id，使用同步處理: order_id={order_id}")
         from ..api.helpers import send_complete_order_notification
-        send_complete_order_notification(order_id)
+        # 在 webhook 中沒有 store_name 資訊，傳遞 None 使用資料庫中的店名
+        send_complete_order_notification(order_id, None)
 
 def handle_postback(event):
     """處理 Postback 事件"""
