@@ -1131,20 +1131,20 @@ def create_order():
                 except Exception as e:
                     print(f"⚠️ 儲存OCR訂單摘要時發生錯誤: {e}")
                     # 不影響主要流程，繼續執行
-            
-            # 只在非訪客模式下發送 LINE 通知
-            if not guest_mode:
-                send_complete_order_notification(new_order.order_id)
-            
-            return jsonify({
-                "message": "訂單建立成功", 
-                "order_id": new_order.order_id,
-                "order_details": order_details,
-                "total_amount": total_amount,
-                "confirmation": order_confirmation,
-                "voice_generated": voice_path is not None,
-                "ocr_menu_id": ocr_menu_id
-            }), 201
+                
+                # 只在非訪客模式下發送 LINE 通知
+                if not guest_mode:
+                    send_complete_order_notification(new_order.order_id, frontend_store_name)
+                
+                return jsonify({
+                    "message": "訂單建立成功", 
+                    "order_id": new_order.order_id,
+                    "order_details": order_details,
+                    "total_amount": total_amount,
+                    "confirmation": order_confirmation,
+                    "voice_generated": voice_path is not None,
+                    "ocr_menu_id": ocr_menu_id
+                }), 201
             
         except Exception as e:
             db.session.rollback()
@@ -3393,7 +3393,7 @@ def create_ocr_order():
             
             # 只在非訪客模式下發送 LINE 通知
             if not guest_mode:
-                send_complete_order_notification(new_order.order_id)
+                send_complete_order_notification(new_order.order_id, ocr_menu.store_name)
             
             return jsonify({
                 "message": "OCR訂單建立成功", 

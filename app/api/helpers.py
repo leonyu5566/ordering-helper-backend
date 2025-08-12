@@ -1321,11 +1321,15 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     
     return result
 
-def send_complete_order_notification(order_id):
+def send_complete_order_notification(order_id, store_name=None):
     """
     發送完整的訂單確認通知到 LINE
     包含：兩則訂單文字摘要、中文語音檔、語速控制按鈕
     支援OCR菜單訂單的特殊處理
+    
+    Args:
+        order_id: 訂單ID
+        store_name: 前端傳遞的店家名稱（可選）
     """
     from ..models import Order, User
     from ..webhook.routes import get_line_bot_api
@@ -1345,7 +1349,7 @@ def send_complete_order_notification(order_id):
         return
     
     # 建立完整訂單確認內容
-    confirmation = create_complete_order_confirmation(order_id, user.preferred_lang)
+    confirmation = create_complete_order_confirmation(order_id, user.preferred_lang, store_name)
     if not confirmation:
         print(f"無法建立訂單確認內容: {order_id}")
         return
