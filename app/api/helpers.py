@@ -924,14 +924,28 @@ def get_menu_translation_from_db(menu_item_id, target_language):
     try:
         from ..models import MenuTranslation
         
+        print(f"🔍 查詢菜品翻譯: menu_item_id={menu_item_id}, target_language={target_language}")
+        
         translation = MenuTranslation.query.filter_by(
             menu_item_id=menu_item_id,
             lang_code=target_language
         ).first()
         
+        if translation:
+            print(f"✅ 找到資料庫翻譯: description='{translation.description}'")
+        else:
+            print(f"❌ 資料庫中沒有找到翻譯")
+            
+            # 檢查是否有其他語言的翻譯
+            all_translations = MenuTranslation.query.filter_by(menu_item_id=menu_item_id).all()
+            if all_translations:
+                print(f"📋 該菜品有其他語言翻譯: {[(t.lang_code, t.description) for t in all_translations]}")
+            else:
+                print(f"📋 該菜品完全沒有翻譯資料")
+        
         return translation
     except Exception as e:
-        print(f"取得資料庫翻譯失敗：{e}")
+        print(f"❌ 取得資料庫翻譯失敗：{e}")
         return None
 
 def get_store_translation_from_db(store_id, target_language):
@@ -1048,6 +1062,8 @@ def translate_store_info_with_db_fallback(store, target_language):
     """翻譯店家資訊，優先使用資料庫翻譯，失敗時使用 AI 翻譯"""
     from ..models import StoreTranslation
     
+    print(f"🔍 查詢店家翻譯: store_id={store.store_id}, store_name='{store.store_name}', target_language={target_language}")
+    
     # 嘗試從資料庫獲取翻譯
     db_translation = None
     try:
@@ -1055,22 +1071,39 @@ def translate_store_info_with_db_fallback(store, target_language):
             store_id=store.store_id,
             language_code=target_language
         ).first()
+        
+        if db_translation:
+            print(f"✅ 找到店家資料庫翻譯: description='{db_translation.description}'")
+        else:
+            print(f"❌ 資料庫中沒有找到店家翻譯")
+            
+            # 檢查是否有其他語言的翻譯
+            all_translations = StoreTranslation.query.filter_by(store_id=store.store_id).all()
+            if all_translations:
+                print(f"📋 該店家有其他語言翻譯: {[(t.language_code, t.description) for t in all_translations]}")
+            else:
+                print(f"📋 該店家完全沒有翻譯資料")
+                
     except Exception as e:
-        print(f"店家翻譯查詢失敗: {e}")
+        print(f"❌ 店家翻譯查詢失敗: {e}")
     
     # 如果資料庫有翻譯，使用資料庫翻譯
     if db_translation and db_translation.description:
         translated_name = db_translation.description
         translation_source = 'database'
+        print(f"✅ 使用資料庫翻譯: '{translated_name}'")
     else:
         # 使用 AI 翻譯
         try:
+            print(f"🔧 嘗試AI翻譯店家名稱: '{store.store_name}'")
             translated_name = translate_text_with_fallback(store.store_name, target_language)
             translation_source = 'ai'
+            print(f"✅ AI翻譯結果: '{translated_name}'")
         except Exception as e:
-            print(f"AI 翻譯失敗: {e}")
+            print(f"❌ AI 翻譯失敗: {e}")
             translated_name = store.store_name
             translation_source = 'original'
+            print(f"⚠️ 使用原始名稱: '{translated_name}'")
     
     return {
         'store_id': store.store_id,
