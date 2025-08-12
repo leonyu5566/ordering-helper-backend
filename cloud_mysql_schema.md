@@ -13,7 +13,7 @@
 |  | `store_id` | `int(11)` NOT NULL | 所屬店家 |
 |  | `template_id` | `int(11)` NULL | VIP 模板 ID |
 |  | `version` | `int(11)` NOT NULL DEFAULT 1 | 版本號 |
-|  | `effective_date` | `datetime` NOT NULL | 生效日 |
+|  | `effective_date` | `datetime` NOT NULL DEFAULT CURRENT_TIMESTAMP | 生效日 |
 |  | `created_at` | `datetime` DEFAULT CURRENT_TIMESTAMP | 建立時間 |
 | **menu_crawls** | `crawl_id` | `bigint(20)` PK | 爬蟲紀錄 |
 |  | `store_id` | `int(11)` NOT NULL | 店家 ID |

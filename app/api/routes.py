@@ -2478,8 +2478,8 @@ def simple_order():
                         if not menu:
                             menu = Menu(
                                 store_id=store.store_id,
-                                version=1,
-                                effective_date=datetime.datetime.now()
+                                version=1
+                                # 移除 effective_date，讓資料庫使用預設值
                             )
                             db.session.add(menu)
                             db.session.flush()
