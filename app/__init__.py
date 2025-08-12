@@ -9,7 +9,7 @@
 # - 設定 CORS 支援
 # =============================================================================
 
-from flask import Flask
+from flask import Flask, jsonify
 from flask_cors import CORS
 from .models import db
 from .errors import register_error_handlers
@@ -17,6 +17,7 @@ from .admin.routes import admin_bp
 from .api.routes import api_bp
 from .webhook.routes import webhook_bp
 import os
+import datetime
 
 def create_app():
     """建立 Flask 應用程式"""
@@ -57,6 +58,9 @@ def create_app():
     
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # 設定 PORT 配置 - 確保 Cloud Run 能正確綁定端口
+    app.config['PORT'] = int(os.environ.get('PORT', 8080))
     
     # 初始化資料庫
     db.init_app(app)
@@ -125,6 +129,16 @@ def create_app():
         """根路徑處理"""
         from .api.routes import handle_root_path
         return handle_root_path()
+    
+    # 健康檢查端點 - Cloud Run 需要這個來確認服務狀態
+    @app.route('/health')
+    def health_check():
+        """健康檢查端點"""
+        return jsonify({
+            'status': 'healthy',
+            'timestamp': datetime.datetime.utcnow().isoformat(),
+            'port': app.config.get('PORT', 8080)
+        }), 200
     
     return app
 

@@ -34,6 +34,10 @@ for var in key_vars:
     else:
         print(f"✗ {var} is not set")
 
+# 檢查 PORT 環境變數
+port = int(os.environ.get('PORT', 8080))
+print(f"Server will listen on port: {port}")
+
 # =============================================================================
 # 應用程式建立區塊
 # 功能：呼叫 app 套件的 create_app() 函數來建立 Flask 應用程式
@@ -45,12 +49,12 @@ app = create_app()
 # 應用程式啟動區塊
 # 功能：當直接執行此檔案時，啟動 Flask 開發伺服器
 # 設定：
-# - debug=True：啟用除錯模式，程式碼修改會自動重啟
-# - port=5001：指定伺服器監聽的埠號
+# - debug=False：關閉除錯模式，適合生產環境
+# - port=PORT：使用環境變數指定的埠號，Cloud Run 預設為 8080
 # 注意：正式上線時務必關閉 debug 模式
 # =============================================================================
 if __name__ == '__main__':
     # Cloud Run 需要監聽 PORT=8080
-    port = int(os.environ.get('PORT', 8080))
+    print(f"Starting Flask application on port {port}")
     app.run(host='0.0.0.0', port=port, debug=False)
 

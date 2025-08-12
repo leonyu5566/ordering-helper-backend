@@ -62,6 +62,15 @@ def allowed_file(filename):
 # 功能：提供 LIFF 前端所需的核心功能
 # =============================================================================
 
+@api_bp.route('/test', methods=['GET'])
+def test_api():
+    """API 連線測試端點"""
+    return jsonify({
+        'message': 'API 連線正常',
+        'timestamp': datetime.datetime.utcnow().isoformat(),
+        'status': 'success'
+    })
+
 @api_bp.route('/translate', methods=['POST', 'OPTIONS'])
 def translate_text():
     """批次翻譯文字內容（支援任意語言）"""
