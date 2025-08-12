@@ -1197,43 +1197,43 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
             
         else:
             # 使用傳統的MenuItem查詢
-                    menu_item = MenuItem.query.get(item.menu_item_id)
-        if menu_item:
-            print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}', price_small={menu_item.price_small}")
-            
-            # 嘗試獲取中文翻譯
-            print(f"🔍 嘗試獲取菜品中文翻譯: menu_item_id={item.menu_item_id}")
-            db_translation = get_menu_translation_from_db(item.menu_item_id, 'zh')
-            
-            if db_translation and db_translation.description:
-                chinese_name = db_translation.description
-                print(f"✅ 找到中文翻譯: '{chinese_name}'")
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}', price_small={menu_item.price_small}")
+                
+                # 嘗試獲取中文翻譯
+                print(f"🔍 嘗試獲取菜品中文翻譯: menu_item_id={item.menu_item_id}")
+                db_translation = get_menu_translation_from_db(item.menu_item_id, 'zh')
+                
+                if db_translation and db_translation.description:
+                    chinese_name = db_translation.description
+                    print(f"✅ 找到中文翻譯: '{chinese_name}'")
+                else:
+                    # 如果沒有資料庫翻譯，嘗試AI翻譯
+                    print(f"🔧 嘗試AI翻譯菜品名稱: '{menu_item.item_name}'")
+                    try:
+                        chinese_name = translate_text_with_fallback(menu_item.item_name, 'zh')
+                        print(f"✅ AI翻譯結果: '{chinese_name}'")
+                    except Exception as e:
+                        print(f"❌ AI翻譯失敗: {e}")
+                        chinese_name = menu_item.item_name
+                        print(f"⚠️ 使用原始名稱: '{chinese_name}'")
+                
+                # 為語音準備：使用中文名稱
+                if item.quantity_small == 1:
+                    voice_text = f"{chinese_name}一份"
+                else:
+                    voice_text = f"{chinese_name}{item.quantity_small}份"
+                
+                items_for_voice.append(voice_text)
+                print(f"📝 語音文字: '{voice_text}'")
+                
+                # 為摘要準備：使用中文名稱
+                summary_text = f"{chinese_name} x{item.quantity_small}"
+                items_for_summary.append(summary_text)
+                print(f"📝 摘要文字: '{summary_text}'")
             else:
-                # 如果沒有資料庫翻譯，嘗試AI翻譯
-                print(f"🔧 嘗試AI翻譯菜品名稱: '{menu_item.item_name}'")
-                try:
-                    chinese_name = translate_text_with_fallback(menu_item.item_name, 'zh')
-                    print(f"✅ AI翻譯結果: '{chinese_name}'")
-                except Exception as e:
-                    print(f"❌ AI翻譯失敗: {e}")
-                    chinese_name = menu_item.item_name
-                    print(f"⚠️ 使用原始名稱: '{chinese_name}'")
-            
-            # 為語音準備：使用中文名稱
-            if item.quantity_small == 1:
-                voice_text = f"{chinese_name}一份"
-            else:
-                voice_text = f"{chinese_name}{item.quantity_small}份"
-            
-            items_for_voice.append(voice_text)
-            print(f"📝 語音文字: '{voice_text}'")
-            
-            # 為摘要準備：使用中文名稱
-            summary_text = f"{chinese_name} x{item.quantity_small}"
-            items_for_summary.append(summary_text)
-            print(f"📝 摘要文字: '{summary_text}'")
-        else:
-            print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
+                print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
     
     # 生成自然的中文語音
     if len(items_for_voice) == 1:
