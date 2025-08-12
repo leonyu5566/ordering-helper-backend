@@ -975,8 +975,16 @@ def create_order():
             logging.info(f"Executing Order SQL: {order_sql}")
             logging.info(f"With parameters: {order_params}")
             
-            result = db.session.execute(text(order_sql), order_params)
-            db.session.commit()
+            try:
+                result = db.session.execute(text(order_sql), order_params)
+                db.session.commit()
+                print(f"✅ SQL執行成功，影響行數: {result.rowcount}")
+            except Exception as sql_error:
+                print(f"❌ SQL執行失敗: {sql_error}")
+                print(f"錯誤類型: {type(sql_error).__name__}")
+                import traceback
+                traceback.print_exc()
+                raise sql_error
             
             # 獲取訂單ID
             order_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
