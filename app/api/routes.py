@@ -459,9 +459,22 @@ def process_menu_ocr():
         
         # 檢查處理結果
         if result and result.get('success', False):
+            # 處理 user_id - 如果沒有提供，創建一個臨時使用者
+            actual_user_id = user_id
+            if not actual_user_id:
+                # 創建一個臨時使用者
+                temp_user = User(
+                    line_user_id=f"temp_guest_{int(time.time())}",
+                    preferred_lang=target_lang or 'zh'
+                )
+                db.session.add(temp_user)
+                db.session.flush()  # 獲取 user_id
+                actual_user_id = temp_user.user_id
+                print(f"✅ 創建臨時使用者，ID: {actual_user_id}")
+            
             # 建立 OCR 菜單記錄（使用解析後的整數 store_id）
             ocr_menu = OCRMenu(
-                user_id=user_id or 1,
+                user_id=actual_user_id,
                 store_name=result.get('store_info', {}).get('name', '臨時店家')
             )
             db.session.add(ocr_menu)
@@ -1932,9 +1945,22 @@ def upload_menu_image():
             # 建立 OCR 菜單記錄到資料庫（使用解析後的整數 store_id）
             ocr_menu_id = None
             try:
+                # 處理 user_id - 如果沒有提供，創建一個臨時使用者
+                actual_user_id = user_id
+                if not actual_user_id:
+                    # 創建一個臨時使用者
+                    temp_user = User(
+                        line_user_id=f"temp_guest_{int(time.time())}",
+                        preferred_lang=target_lang or 'zh'
+                    )
+                    db.session.add(temp_user)
+                    db.session.flush()  # 獲取 user_id
+                    actual_user_id = temp_user.user_id
+                    print(f"✅ 創建臨時使用者，ID: {actual_user_id}")
+                
                 # 建立 OCR 菜單記錄到資料庫
                 ocr_menu = OCRMenu(
-                    user_id=user_id or 1,  # 如果沒有提供 user_id，使用預設值
+                    user_id=actual_user_id,
                     store_name=result.get('store_info', {}).get('name', '臨時店家')
                 )
                 db.session.add(ocr_menu)
