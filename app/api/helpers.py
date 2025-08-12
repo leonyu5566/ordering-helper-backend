@@ -1111,13 +1111,13 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         menu_item = MenuItem.query.get(item.menu_item_id)
         if menu_item:
             # 為語音準備：自然的中文表達
-            if item.quantity == 1:
+            if item.quantity_small == 1:
                 items_for_voice.append(f"{menu_item.item_name}一份")
             else:
-                items_for_voice.append(f"{menu_item.item_name}{item.quantity}份")
+                items_for_voice.append(f"{menu_item.item_name}{item.quantity_small}份")
             
             # 為摘要準備：清晰的格式
-            items_for_summary.append(f"{menu_item.item_name} x{item.quantity}")
+            items_for_summary.append(f"{menu_item.item_name} x{item.quantity_small}")
     
     # 生成自然的中文語音
     if len(items_for_voice) == 1:
@@ -1156,7 +1156,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
                 else:
                     translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
                 
-                translated_summary += f"- {translated_name} x{item.quantity} (${item.subtotal})\n"
+                translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
@@ -2324,7 +2324,7 @@ def generate_chinese_summary_optimized(order_id):
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                chinese_summary += f"- {menu_item.item_name} x{item.quantity}\n"
+                chinese_summary += f"- {menu_item.item_name} x{item.quantity_small}\n"
         
         chinese_summary += f"總金額：${order.total_amount}"
         
