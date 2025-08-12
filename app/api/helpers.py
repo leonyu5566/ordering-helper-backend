@@ -3161,14 +3161,13 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
                 item_name = item.get('name', {}).get('original', item.get('item_name', '未知項目'))
                 price = int(item.get('price', 0))
                 translated_desc = item.get('name', {}).get('translated', item.get('translated_name', ''))
-                
-                            ocr_menu_item_params = {
-                    "ocr_menu_id": ocr_menu_id,
-                    "item_name": item_name,
-                    "price_big": price,
-                    "price_small": price,
-                    "translated_desc": translated_desc
-                }
+                ocr_menu_item_params = [
+                    ocr_menu_id,
+                    item_name,
+                    price,
+                    price, 
+                    translated_desc
+                ]
                 
                 logging.info(f"Executing OCR Menu Item {i+1} SQL: {ocr_menu_item_sql}")
                 logging.info(f"With parameters: {ocr_menu_item_params}")

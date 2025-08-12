@@ -1,138 +1,157 @@
-# Cloud Run 部署問題修復指南
+# Cloud Run 部署修復指南
 
 ## 問題描述
-Cloud Run 部署失敗，錯誤訊息顯示容器無法在指定的 PORT=8080 上啟動和監聽。
+Cloud Run 部署失敗，錯誤訊息：
+```
+ERROR: (gcloud.run.deploy) Revision 'ordering-helper-backend-00426-z5l' is not ready and cannot serve traffic. The user-provided container failed to start and listen on the port defined provided by the PORT=8080 environment variable within the allocated timeout.
+```
 
-## 根本原因
-1. **端口配置問題**: Flask 應用程式沒有正確處理 Cloud Run 提供的 PORT 環境變數
-2. **啟動配置**: 缺少適當的健康檢查端點和啟動腳本
-3. **Docker 配置**: Dockerfile 中的啟動命令需要優化
+## 已修復的問題
 
-## 修復內容
+### 1. 端口監聽配置 ✅
+- **run.py**: 已正確配置監聽 `PORT` 環境變數
+- **Dockerfile**: 已添加 `ENV PORT=8080` 和 `EXPOSE 8080`
+- **startup_simple.sh**: 已正確使用 `--bind "0.0.0.0:$PORT"`
 
-### 1. 更新 Flask 應用程式配置 (`app/__init__.py`)
-- 添加 PORT 配置到 Flask 應用程式設定
-- 新增健康檢查端點 `/health`
-- 確保應用程式能正確讀取環境變數
+### 2. 啟動腳本優化 ✅
+- 添加了更詳細的錯誤檢查和日誌輸出
+- 改進了環境變數檢查
+- 添加了 `--enable-stdio-inheritance` 參數
 
-### 2. 優化啟動腳本 (`run.py`)
-- 改進 PORT 環境變數處理
-- 添加啟動日誌
-- 確保生產環境配置
-
-### 3. 創建啟動腳本 (`startup.sh`)
-- 提供詳細的啟動日誌
-- 確保正確的端口綁定
-- 添加環境變數檢查
-
-### 4. 更新 Dockerfile
-- 設定 PORT 環境變數
-- 添加健康檢查
-- 使用啟動腳本
-- 優化 gunicorn 配置
-
-### 5. 新增測試端點 (`app/api/routes.py`)
-- 添加 `/api/test` 端點用於 API 測試
-- 提供基本的連線驗證
-
-### 6. 創建部署驗證腳本 (`deploy_verify.py`)
-- 本地部署測試
-- Docker 建置測試
-- 端點連線測試
+### 3. 健康檢查端點 ✅
+- 應用程式已包含 `/health` 端點
+- Dockerfile 已添加健康檢查配置
 
 ## 部署步驟
 
 ### 1. 本地測試
 ```bash
-# 安裝依賴
-pip install -r requirements.txt
+# 運行部署驗證
+python3 deploy_verify.py
 
-# 執行驗證腳本
-python deploy_verify.py
-
-# 或直接測試
-python run.py
+# 測試應用程式啟動
+python3 test_startup.py
 ```
 
-### 2. Docker 測試
+### 2. 建置 Docker 映像
 ```bash
 # 建置映像
 docker build -t ordering-helper-backend .
 
-# 本地運行
+# 本地測試容器
 docker run -p 8080:8080 -e PORT=8080 ordering-helper-backend
-
-# 測試端點
-curl http://localhost:8080/health
-curl http://localhost:8080/api/test
 ```
 
-### 3. Cloud Run 部署
+### 3. 部署到 Cloud Run
 ```bash
+# 設定專案 ID
+export PROJECT_ID="your-project-id"
+
 # 建置並推送映像
-gcloud builds submit --tag gcr.io/PROJECT_ID/ordering-helper-backend
+gcloud builds submit --tag gcr.io/$PROJECT_ID/ordering-helper-backend
 
 # 部署到 Cloud Run
 gcloud run deploy ordering-helper-backend \
-  --image gcr.io/PROJECT_ID/ordering-helper-backend \
+  --image gcr.io/$PROJECT_ID/ordering-helper-backend \
   --platform managed \
-  --region REGION \
+  --region asia-east1 \
   --allow-unauthenticated \
   --port 8080 \
   --memory 1Gi \
   --cpu 1 \
   --timeout 300 \
-  --concurrency 80
+  --set-env-vars "PORT=8080"
 ```
+
+### 4. 設定環境變數
+在 Cloud Run 控制台中設定以下環境變數：
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_HOST`
+- `DB_DATABASE`
+- `LINE_CHANNEL_ACCESS_TOKEN`
+- `LINE_CHANNEL_SECRET`
+- `PORT=8080`
 
 ## 關鍵修復點
 
-### 端口綁定
-- 確保應用程式監聽 `0.0.0.0:8080`
-- 正確處理 PORT 環境變數
-- 使用 gunicorn 的 `--bind` 參數
+### 1. 端口配置
+```python
+# run.py
+port = int(os.environ.get('PORT', 8080))
+app.run(host='0.0.0.0', port=port, debug=False)
+```
 
-### 健康檢查
-- 提供 `/health` 端點
-- 在 Dockerfile 中添加 HEALTHCHECK
-- 確保 Cloud Run 能檢測到服務狀態
+### 2. Dockerfile 配置
+```dockerfile
+ENV PORT=8080
+EXPOSE 8080
+CMD ["./startup_simple.sh"]
+```
 
-### 啟動腳本
-- 詳細的啟動日誌
-- 環境變數驗證
-- 錯誤處理和報告
+### 3. 啟動腳本
+```bash
+# startup_simple.sh
+exec gunicorn \
+    --bind "0.0.0.0:$PORT" \
+    --workers 1 \
+    --timeout 300 \
+    --enable-stdio-inheritance \
+    run:app
+```
 
-### 錯誤處理
-- 添加啟動日誌
-- 提供診斷資訊
-- 優化 gunicorn 配置
+## 驗證部署
 
-## 驗證清單
+### 1. 健康檢查
+```bash
+curl https://your-service-url/health
+```
 
-部署前請確認：
-- [ ] 本地測試通過
-- [ ] Docker 建置成功
-- [ ] 本地 Docker 運行正常
-- [ ] 所有端點可訪問
-- [ ] 環境變數正確設定
-- [ ] 健康檢查端點正常
+### 2. 測試端點
+```bash
+curl https://your-service-url/api/test
+```
 
-## 故障排除
+### 3. 查看日誌
+```bash
+gcloud logs read --service=ordering-helper-backend --limit=50
+```
 
-### 如果仍然失敗：
-1. 檢查 Cloud Run 日誌
-2. 確認環境變數設定
-3. 驗證資料庫連線
-4. 檢查依賴套件版本
+## 常見問題解決
 
-### 常見問題：
-- **端口衝突**: 確保沒有其他服務使用 8080 端口
-- **環境變數**: 確認 Cloud Run 中設定了必要的環境變數
-- **依賴問題**: 檢查 requirements.txt 中的套件版本相容性
+### 1. 容器啟動超時
+- 檢查啟動腳本是否有錯誤
+- 確認所有依賴都已安裝
+- 查看容器日誌
 
-## 聯絡支援
+### 2. 端口綁定失敗
+- 確認 `PORT` 環境變數已設定
+- 檢查防火牆設定
+- 確認應用程式監聽 `0.0.0.0`
 
-如果問題持續存在，請：
-1. 檢查 Cloud Run 日誌
-2. 執行本地驗證腳本
-3. 提供錯誤日誌和配置資訊
+### 3. 環境變數缺失
+- 在 Cloud Run 控制台中設定所有必要環境變數
+- 確認變數名稱和值正確
+
+## 監控和除錯
+
+### 1. 查看即時日誌
+```bash
+gcloud logs tail --service=ordering-helper-backend
+```
+
+### 2. 檢查服務狀態
+```bash
+gcloud run services describe ordering-helper-backend --region=asia-east1
+```
+
+### 3. 重新部署
+```bash
+gcloud run deploy ordering-helper-backend --image gcr.io/$PROJECT_ID/ordering-helper-backend
+```
+
+## 成功指標
+- 服務狀態顯示為 "Ready"
+- 健康檢查端點返回 200
+- 應用程式日誌顯示正常啟動訊息
+- 可以正常訪問 API 端點

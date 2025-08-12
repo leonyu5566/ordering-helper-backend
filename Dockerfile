@@ -59,9 +59,14 @@ RUN chmod +x startup.sh startup_simple.sh
 # 設定環境變數 - 移除可能衝突的變數
 ENV PYTHONPATH=/app
 ENV PYTHONWARNINGS=ignore
+ENV PORT=8080
 
-# 暴露端口
+# 暴露端口 - 確保 Cloud Run 能正確識別
 EXPOSE 8080
+
+# 健康檢查
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
 # 使用簡化啟動腳本
 CMD ["./startup_simple.sh"] 
