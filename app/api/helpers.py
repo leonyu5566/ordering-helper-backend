@@ -1152,8 +1152,59 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         print(f"✅ 使用前端傳遞的店家名稱: '{store_name}'")
         store_name_for_display = store_name
     else:
-        print(f"⚠️ 沒有前端店家名稱，使用資料庫名稱: '{store.store_name}'")
-        store_name_for_display = store.store_name
+        # 檢查店名是否為自動生成格式（店家_ChIJ-xxxxx）
+        if store.store_name and store.store_name.startswith('店家_ChIJ'):
+            print(f"⚠️ 檢測到自動生成的店名: '{store.store_name}'")
+            
+            # 嘗試從 OCR 菜單中獲取正確的店名
+            print(f"🔍 嘗試從 OCR 菜單中獲取正確的店名...")
+            from sqlalchemy import text
+            from app.models import db
+            try:
+                # 查詢該店家的 OCR 菜單，優先選擇看起來像真實店名的名稱
+                result = db.session.execute(text("""
+                    SELECT store_name, COUNT(*) as count 
+                    FROM ocr_menus 
+                    WHERE store_id = :store_id 
+                      AND store_name IS NOT NULL 
+                      AND store_name != ''
+                      AND store_name NOT LIKE '店家_ChIJ%'
+                      AND store_name NOT LIKE '%非合作店家%'
+                      AND store_name NOT LIKE '%OCR店家%'
+                    GROUP BY store_name 
+                    ORDER BY count DESC, store_name ASC
+                    LIMIT 1
+                """), {"store_id": store.store_id})
+                
+                ocr_store_name = result.fetchone()
+                if ocr_store_name and ocr_store_name[0]:
+                    print(f"✅ 從 OCR 菜單中找到真實店名: '{ocr_store_name[0]}'")
+                    store_name_for_display = ocr_store_name[0]
+                else:
+                    # 如果沒有找到真實店名，再查詢所有店名
+                    print(f"⚠️ 沒有找到真實店名，查詢所有店名...")
+                    result = db.session.execute(text("""
+                        SELECT store_name, COUNT(*) as count 
+                        FROM ocr_menus 
+                        WHERE store_id = :store_id AND store_name IS NOT NULL AND store_name != ''
+                        GROUP BY store_name 
+                        ORDER BY count DESC, store_name ASC
+                        LIMIT 1
+                    """), {"store_id": store.store_id})
+                    
+                    ocr_store_name = result.fetchone()
+                    if ocr_store_name and ocr_store_name[0]:
+                        print(f"✅ 從 OCR 菜單中找到店名: '{ocr_store_name[0]}'")
+                        store_name_for_display = ocr_store_name[0]
+                    else:
+                        print(f"⚠️ 沒有找到 OCR 菜單中的店名，使用資料庫名稱: '{store.store_name}'")
+                        store_name_for_display = store.store_name
+            except Exception as e:
+                print(f"❌ 查詢 OCR 菜單店名時發生錯誤: {e}")
+                store_name_for_display = store.store_name
+        else:
+            print(f"✅ 使用資料庫名稱: '{store.store_name}'")
+            store_name_for_display = store.store_name
     
     print(f"📋 最終使用的店家名稱: '{store_name_for_display}'")
     
