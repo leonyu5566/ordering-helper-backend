@@ -330,8 +330,8 @@ def process_menu_with_gemini(image_path, target_language='en'):
   "success": true,
   "menu_items": [
     {{
-      "original_name": "原始菜名",
-      "translated_name": "翻譯菜名", 
+      "original_name": "原始中文菜名",
+      "translated_name": "翻譯為{target_language}的菜名", 
       "price": 數字,
       "description": "描述或null",
       "category": "分類或null"
@@ -345,14 +345,17 @@ def process_menu_with_gemini(image_path, target_language='en'):
   "processing_notes": "備註或null"
 }}
 
-## 規則：
-1. 圖片中沒有的店家資訊請回 `null`，不要猜測
-2. 一律不要使用 ``` 或任何程式碼區塊語法
-3. 價格輸出數字，無法辨識時用 0
-4. **只輸出 JSON**，不要其他文字
-5. 若圖片模糊或無法辨識，將 success 設為 false
-6. 優先處理清晰可見的菜單項目
-7. 菜名翻譯為 {target_language} 語言
+## 重要規則：
+1. **original_name 必須是圖片中的原始中文菜名**，不要翻譯
+2. **translated_name 必須是翻譯為 {target_language} 的菜名**
+3. 如果圖片中的菜名已經是 {target_language}，則 original_name 和 translated_name 可以相同
+4. 圖片中沒有的店家資訊請回 `null`，不要猜測
+5. 一律不要使用 ``` 或任何程式碼區塊語法
+6. 價格輸出數字，無法辨識時用 0
+7. **只輸出 JSON**，不要其他文字
+8. 若圖片模糊或無法辨識，將 success 設為 false
+9. 優先處理清晰可見的菜單項目
+10. **確保每個菜品都有原始中文名稱和翻譯名稱**
 """
         
         # 呼叫 Gemini 2.5 Flash API（添加超時控制）
@@ -1156,25 +1159,49 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     for i, item in enumerate(order.items):
         print(f"📋 處理第 {i+1} 個項目: menu_item_id={item.menu_item_id}, quantity_small={item.quantity_small}")
         
-        menu_item = MenuItem.query.get(item.menu_item_id)
-        if menu_item:
-            print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}', price_small={menu_item.price_small}")
+        # 檢查是否為OCR菜單項目（有original_name）
+        if hasattr(item, 'original_name') and item.original_name:
+            print(f"✅ 檢測到OCR菜單項目: original_name='{item.original_name}', translated_name='{getattr(item, 'translated_name', '')}'")
+            
+            # 使用原始中文名稱進行語音和摘要
+            item_name_for_voice = item.original_name
+            item_name_for_summary = item.original_name
             
             # 為語音準備：自然的中文表達
             if item.quantity_small == 1:
-                voice_text = f"{menu_item.item_name}一份"
+                voice_text = f"{item_name_for_voice}一份"
             else:
-                voice_text = f"{menu_item.item_name}{item.quantity_small}份"
+                voice_text = f"{item_name_for_voice}{item.quantity_small}份"
             
             items_for_voice.append(voice_text)
             print(f"📝 語音文字: '{voice_text}'")
             
             # 為摘要準備：清晰的格式
-            summary_text = f"{menu_item.item_name} x{item.quantity_small}"
+            summary_text = f"{item_name_for_summary} x{item.quantity_small}"
             items_for_summary.append(summary_text)
             print(f"📝 摘要文字: '{summary_text}'")
+            
         else:
-            print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
+            # 使用傳統的MenuItem查詢
+            menu_item = MenuItem.query.get(item.menu_item_id)
+            if menu_item:
+                print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}', price_small={menu_item.price_small}")
+                
+                # 為語音準備：自然的中文表達
+                if item.quantity_small == 1:
+                    voice_text = f"{menu_item.item_name}一份"
+                else:
+                    voice_text = f"{menu_item.item_name}{item.quantity_small}份"
+                
+                items_for_voice.append(voice_text)
+                print(f"📝 語音文字: '{voice_text}'")
+                
+                # 為摘要準備：清晰的格式
+                summary_text = f"{menu_item.item_name} x{item.quantity_small}"
+                items_for_summary.append(summary_text)
+                print(f"📝 摘要文字: '{summary_text}'")
+            else:
+                print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
     
     # 生成自然的中文語音
     if len(items_for_voice) == 1:
@@ -1214,20 +1241,27 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
         translated_summary += "Items:\n"
         
         for item in order.items:
-            menu_item = MenuItem.query.get(item.menu_item_id)
-            if menu_item:
-                print(f"🔧 翻譯菜品: '{menu_item.item_name}'")
-                
-                # 優先使用資料庫翻譯
-                db_translation = get_menu_translation_from_db(menu_item.menu_item_id, user_language)
-                if db_translation and db_translation.description:
-                    translated_name = db_translation.description
-                    print(f"✅ 使用資料庫翻譯: '{translated_name}'")
-                else:
-                    translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
-                    print(f"✅ 使用AI翻譯: '{translated_name}'")
-                
+            # 檢查是否為OCR菜單項目（有translated_name）
+            if hasattr(item, 'translated_name') and item.translated_name:
+                print(f"✅ 檢測到OCR菜單項目，使用已翻譯名稱: '{item.translated_name}'")
+                translated_name = item.translated_name
                 translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
+            else:
+                # 使用傳統的MenuItem查詢和翻譯
+                menu_item = MenuItem.query.get(item.menu_item_id)
+                if menu_item:
+                    print(f"🔧 翻譯菜品: '{menu_item.item_name}'")
+                    
+                    # 優先使用資料庫翻譯
+                    db_translation = get_menu_translation_from_db(menu_item.menu_item_id, user_language)
+                    if db_translation and db_translation.description:
+                        translated_name = db_translation.description
+                        print(f"✅ 使用資料庫翻譯: '{translated_name}'")
+                    else:
+                        translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
+                        print(f"✅ 使用AI翻譯: '{translated_name}'")
+                    
+                    translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
