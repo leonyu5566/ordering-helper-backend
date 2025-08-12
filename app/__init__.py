@@ -42,28 +42,40 @@ def create_app():
          supports_credentials=True,
          max_age=3600)
     
-    # 設定資料庫
-    # 從個別環境變數構建資料庫 URL
-    db_username = os.getenv('DB_USER')
-    db_password = os.getenv('DB_PASSWORD')
-    db_host = os.getenv('DB_HOST')
-    db_name = os.getenv('DB_DATABASE')
-    
-    if all([db_username, db_password, db_host, db_name]):
-        # 使用 MySQL 連線，添加 SSL 參數
-        database_url = f"mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}?ssl={{'ssl': {{}}}}&ssl_verify_cert=false"
-    else:
-        # 回退到 SQLite
-        database_url = 'sqlite:///app.db'
-    
-    app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
     # 設定 PORT 配置 - 確保 Cloud Run 能正確綁定端口
     app.config['PORT'] = int(os.environ.get('PORT', 8080))
     
-    # 初始化資料庫
-    db.init_app(app)
+    # 設定資料庫 - 使用 try-catch 避免啟動失敗
+    try:
+        # 從個別環境變數構建資料庫 URL
+        db_username = os.getenv('DB_USER')
+        db_password = os.getenv('DB_PASSWORD')
+        db_host = os.getenv('DB_HOST')
+        db_name = os.getenv('DB_DATABASE')
+        
+        if all([db_username, db_password, db_host, db_name]):
+            # 使用 MySQL 連線，添加 SSL 參數
+            database_url = f"mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}?ssl={{'ssl': {{}}}}&ssl_verify_cert=false"
+            app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+            print(f"✓ 使用 MySQL 資料庫: {db_host}/{db_name}")
+        else:
+            # 回退到 SQLite
+            app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+            print("⚠️ 使用 SQLite 資料庫 (開發模式)")
+        
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        # 初始化資料庫
+        db.init_app(app)
+        print("✓ 資料庫初始化成功")
+        
+    except Exception as e:
+        print(f"⚠️ 資料庫初始化失敗: {e}")
+        print("應用程式將在沒有資料庫的情況下啟動")
+        # 設定一個簡單的 SQLite 配置作為後備
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        db.init_app(app)
     
     # 註冊 Blueprint
     app.register_blueprint(admin_bp, url_prefix='/admin')

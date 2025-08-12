@@ -100,9 +100,9 @@ def translate_text():
         current_app.logger.error(f"翻譯API錯誤: {str(e)}")
         return jsonify({"error": f"翻譯失敗: {str(e)}"}), 500
 
-@api_bp.route('/stores/resolve', methods=['GET'])
-def resolve_store():
-    """解析店家識別碼，將 Place ID 轉換為內部 store_id"""
+@api_bp.route('/stores/resolve-old', methods=['GET'])
+def resolve_store_old():
+    """解析店家識別碼，將 Place ID 轉換為內部 store_id (舊版本)"""
     try:
         place_id = request.args.get('place_id')
         store_name = request.args.get('name')
