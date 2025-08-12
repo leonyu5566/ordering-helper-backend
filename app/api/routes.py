@@ -423,7 +423,7 @@ def process_menu_ocr():
     
     # 取得參數
     raw_store_id = request.form.get('store_id')  # 可能是整數、數字字串或 Google Place ID
-    user_id = request.form.get('user_id', type=int)
+    user_id = request.form.get('user_id')  # 移除 type=int，因為前端傳遞的是字串格式的 LINE 用戶 ID
     target_lang = request.form.get('lang', 'en')
     
     # 新增：簡化模式參數
@@ -459,10 +459,25 @@ def process_menu_ocr():
         
         # 檢查處理結果
         if result and result.get('success', False):
-            # 處理 user_id - 如果沒有提供，創建一個臨時使用者
-            actual_user_id = user_id
-            if not actual_user_id:
-                # 創建一個臨時使用者
+            # 處理 user_id - 使用 LINE 用戶 ID 或創建臨時使用者
+            if user_id:
+                # 檢查是否已存在該 LINE 用戶
+                existing_user = User.query.filter_by(line_user_id=user_id).first()
+                if existing_user:
+                    actual_user_id = existing_user.user_id
+                    print(f"✅ 使用現有使用者，ID: {actual_user_id} (LINE ID: {user_id})")
+                else:
+                    # 創建新使用者
+                    new_user = User(
+                        line_user_id=user_id,
+                        preferred_lang=target_lang or 'zh'
+                    )
+                    db.session.add(new_user)
+                    db.session.flush()  # 獲取 user_id
+                    actual_user_id = new_user.user_id
+                    print(f"✅ 創建新使用者，ID: {actual_user_id} (LINE ID: {user_id})")
+            else:
+                # 沒有提供 user_id，創建臨時使用者
                 temp_user = User(
                     line_user_id=f"temp_guest_{int(time.time())}",
                     preferred_lang=target_lang or 'zh'
