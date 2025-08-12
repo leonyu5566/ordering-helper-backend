@@ -1051,19 +1051,12 @@ def create_order():
             new_order.store_id = store_db_id
             new_order.total_amount = total_amount
             
-            # 保存前端店家名稱供後續使用
-            if frontend_store_name:
-                new_order.frontend_store_name = frontend_store_name
-                print(f"✅ 已保存前端店家名稱: '{frontend_store_name}'")
-            else:
-                print(f"⚠️ 沒有前端店家名稱可保存")
-            
             print(f"📋 訂單物件資訊:")
             print(f"   order_id: {new_order.order_id}")
             print(f"   user_id: {new_order.user_id}")
             print(f"   store_id: {new_order.store_id}")
             print(f"   total_amount: {new_order.total_amount}")
-            print(f"   frontend_store_name: {getattr(new_order, 'frontend_store_name', 'None')}")
+            print(f"   frontend_store_name: {frontend_store_name}")
             
             # 建立完整訂單確認內容
             from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
@@ -1073,7 +1066,7 @@ def create_order():
             print(f"📋 用戶偏好語言: {user.preferred_lang}")
             
             try:
-                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang)
+                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang, frontend_store_name)
                 print(f"✅ 訂單確認生成成功")
                 print(f"📋 確認內容: {order_confirmation}")
             except Exception as e:

@@ -1116,9 +1116,14 @@ def translate_store_info_with_db_fallback(store, target_language):
         'translation_source': translation_source
     }
 
-def create_complete_order_confirmation(order_id, user_language='zh'):
+def create_complete_order_confirmation(order_id, user_language='zh', store_name=None):
     """
     建立完整的訂單確認內容（包含語音、中文紀錄、使用者語言紀錄）
+    
+    Args:
+        order_id: 訂單ID
+        user_language: 使用者語言
+        store_name: 前端傳遞的店家名稱（優先使用）
     """
     import logging
     logging.basicConfig(level=logging.INFO)
@@ -1126,7 +1131,7 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     from ..models import Order, OrderItem, MenuItem, Store, User
     
     print(f"🔧 開始生成訂單確認...")
-    print(f"📋 輸入參數: order_id={order_id}, user_language={user_language}")
+    print(f"📋 輸入參數: order_id={order_id}, user_language={user_language}, store_name={store_name}")
     
     order = Order.query.get(order_id)
     if not order:
@@ -1142,14 +1147,10 @@ def create_complete_order_confirmation(order_id, user_language='zh'):
     
     print(f"✅ 找到店家: store_id={store.store_id}, store_name='{store.store_name}'")
     
-    # 檢查是否有前端傳遞的店家名稱（優先使用）
-    frontend_store_name = getattr(order, 'frontend_store_name', None)
-    print(f"🔍 檢查前端店家名稱: {frontend_store_name}")
-    print(f"🔍 訂單物件屬性: {dir(order)}")
-    
-    if frontend_store_name:
-        print(f"✅ 使用前端傳遞的店家名稱: '{frontend_store_name}'")
-        store_name_for_display = frontend_store_name
+    # 優先使用前端傳遞的店家名稱
+    if store_name:
+        print(f"✅ 使用前端傳遞的店家名稱: '{store_name}'")
+        store_name_for_display = store_name
     else:
         print(f"⚠️ 沒有前端店家名稱，使用資料庫名稱: '{store.store_name}'")
         store_name_for_display = store.store_name
