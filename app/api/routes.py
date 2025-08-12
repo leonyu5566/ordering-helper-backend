@@ -3299,10 +3299,12 @@ def create_ocr_order():
         try:
             # 使用 store resolver 解析店家 ID
             raw_store_id = data.get('store_id', 1)
+            frontend_store_name = data.get('store_name')
             try:
                 from .store_resolver import resolve_store_id
-                store_db_id = resolve_store_id(raw_store_id)
+                store_db_id = resolve_store_id(raw_store_id, frontend_store_name)
                 print(f"✅ OCR訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
+                print(f"📋 使用前端店名: {frontend_store_name}")
             except Exception as e:
                 print(f"❌ OCR訂單店家ID解析失敗: {e}")
                 # 如果解析失敗，使用預設值
