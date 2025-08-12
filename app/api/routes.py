@@ -713,8 +713,14 @@ def create_order():
             if menu_item_id and menu_item_id.startswith('ocr_'):
                 # 處理OCR菜單項目
                 price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
-                item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
-                translated_name = item_data.get('translated_name') or item_data.get('en_name') or item_name
+                
+                # 處理新的雙語格式 {name: {original: "中文", translated: "English"}}
+                if item_data.get('name') and isinstance(item_data['name'], dict):
+                    item_name = item_data['name'].get('original') or f"項目 {i+1}"
+                    translated_name = item_data['name'].get('translated') or item_name
+                else:
+                    item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
+                    translated_name = item_data.get('translated_name') or item_data.get('en_name') or item_name
                 
                 # 提取OCR菜單ID
                 if not ocr_menu_id:
@@ -3025,8 +3031,14 @@ def create_ocr_order():
             if menu_item_id and menu_item_id.startswith('ocr_'):
                 # 處理OCR菜單項目
                 price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
-                item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
-                translated_name = item_data.get('translated_name') or item_data.get('en_name') or item_name
+                
+                # 處理新的雙語格式 {name: {original: "中文", translated: "English"}}
+                if item_data.get('name') and isinstance(item_data['name'], dict):
+                    item_name = item_data['name'].get('original') or f"項目 {i+1}"
+                    translated_name = item_data['name'].get('translated') or item_name
+                else:
+                    item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
+                    translated_name = item_data.get('translated_name') or item_data.get('en_name') or item_name
                 
                 # 驗證數量
                 if not quantity:
