@@ -1475,6 +1475,7 @@ def send_complete_order_notification(order_id):
                         user_language=user.preferred_lang,
                         total_amount=order.total_amount,
                         user_id=user.user_id,
+                        store_id=order.store_id if order.store else None,  # 新增 store_id
                         store_name=getattr(order.store, 'store_name', '非合作店家') if order.store else '非合作店家'
                     )
                     
@@ -2582,6 +2583,7 @@ def send_complete_order_notification_optimized(order_id):
                         user_language=user.preferred_lang,
                         total_amount=order.total_amount,
                         user_id=user.user_id,
+                        store_id=order.store_id if order.store else None,  # 新增 store_id
                         store_name=getattr(order.store, 'store_name', '非合作店家') if order.store else '非合作店家'
                     )
                     
@@ -3218,7 +3220,7 @@ def create_order_summary(order_id, user_language='zh'):
         "translated": translated_summary
     }
 
-def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, user_language_summary, user_language, total_amount, user_id, store_name=None, existing_ocr_menu_id=None):
+def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, user_language_summary, user_language, total_amount, user_id, store_id=None, store_name=None, existing_ocr_menu_id=None):
     """
     將 OCR 菜單和訂單摘要儲存到 Cloud MySQL 資料庫
     
@@ -3230,6 +3232,7 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
         user_language: 使用者語言代碼
         total_amount: 訂單總金額
         user_id: 使用者 ID
+        store_id: 店家 ID（可選）
         store_name: 店家名稱（可選）
         existing_ocr_menu_id: 現有的OCR菜單ID（可選）
     
@@ -3265,11 +3268,12 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
             
             # 記錄OCR菜單插入SQL
             ocr_menu_sql = """
-            INSERT INTO ocr_menus (user_id, store_name, upload_time)
-            VALUES (:user_id, :store_name, :upload_time)
+            INSERT INTO ocr_menus (user_id, store_id, store_name, upload_time)
+            VALUES (:user_id, :store_id, :store_name, :upload_time)
             """
             ocr_menu_params = {
                 "user_id": user_id,
+                "store_id": store_id,  # 新增 store_id
                 "store_name": store_name or '非合作店家',
                 "upload_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             }
@@ -3313,8 +3317,31 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
                 
                 db.session.execute(text(ocr_menu_item_sql), ocr_menu_item_params)
             
+                # 獲取插入的 OCR 菜單項目 ID
+                ocr_menu_item_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
+                ocr_menu_item_id = ocr_menu_item_id_result.fetchone()[0]
+                
+                # 儲存翻譯到 ocr_menu_translations 表
+                if translated_desc and translated_desc != item_name:
+                    ocr_menu_translation_sql = """
+                    INSERT INTO ocr_menu_translations (ocr_menu_item_id, lang_code, translated_name, translated_description)
+                    VALUES (:ocr_menu_item_id, :lang_code, :translated_name, :translated_description)
+                    """
+                    
+                    ocr_menu_translation_params = {
+                        "ocr_menu_item_id": ocr_menu_item_id,
+                        "lang_code": user_language,
+                        "translated_name": translated_desc,
+                        "translated_description": item.get('description', '') or translated_desc
+                    }
+                    
+                    logging.info(f"Executing OCR Menu Translation SQL: {ocr_menu_translation_sql}")
+                    logging.info(f"With parameters: {ocr_menu_translation_params}")
+                    
+                    db.session.execute(text(ocr_menu_translation_sql), ocr_menu_translation_params)
+            
             db.session.commit()
-            print(f"✅ 已儲存 {len(ocr_items)} 個 OCR 菜單項目")
+            print(f"✅ 已儲存 {len(ocr_items)} 個 OCR 菜單項目和翻譯")
         
         # 3. 建立訂單摘要記錄
         print(f"📝 準備創建訂單摘要記錄...")
@@ -3375,3 +3402,113 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
             'error': str(e),
             'message': '儲存 OCR 菜單和訂單摘要到資料庫失敗'
         }
+
+def get_ocr_menu_translation_from_db(ocr_menu_item_id, target_language):
+    """
+    從資料庫取得 OCR 菜單翻譯
+    """
+    try:
+        from ..models import OCRMenuTranslation
+        
+        print(f"🔍 查詢 OCR 菜單翻譯: ocr_menu_item_id={ocr_menu_item_id}, target_language={target_language}")
+        
+        translation = OCRMenuTranslation.query.filter_by(
+            ocr_menu_item_id=ocr_menu_item_id,
+            lang_code=target_language
+        ).first()
+        
+        if translation:
+            print(f"✅ 找到 OCR 菜單翻譯: translated_name='{translation.translated_name}'")
+        else:
+            print(f"❌ 資料庫中沒有找到 OCR 菜單翻譯")
+            
+            # 檢查是否有其他語言的翻譯
+            all_translations = OCRMenuTranslation.query.filter_by(ocr_menu_item_id=ocr_menu_item_id).all()
+            if all_translations:
+                print(f"📋 該 OCR 菜單項目有其他語言翻譯: {[(t.lang_code, t.translated_name) for t in all_translations]}")
+            else:
+                print(f"📋 該 OCR 菜單項目完全沒有翻譯資料")
+        
+        return translation
+    except Exception as e:
+        print(f"❌ 取得 OCR 菜單翻譯失敗：{e}")
+        return None
+
+def translate_ocr_menu_items_with_db_fallback(ocr_menu_items, target_language):
+    """
+    翻譯 OCR 菜單項目，優先使用資料庫翻譯，如果沒有則使用 AI 翻譯
+    """
+    try:
+        from ..models import OCRMenuTranslation
+        
+        print(f"🔄 開始翻譯 OCR 菜單項目，目標語言: {target_language}")
+        
+        # 正規化語言碼
+        normalized_lang = normalize_language_code(target_language)
+        print(f"📋 正規化語言碼: {target_language} -> {normalized_lang}")
+        
+        translated_items = []
+        
+        for item in ocr_menu_items:
+            # 嘗試從資料庫獲取翻譯
+            db_translation = None
+            try:
+                # 先嘗試完整語言碼
+                db_translation = OCRMenuTranslation.query.filter_by(
+                    ocr_menu_item_id=item.ocr_menu_item_id,
+                    lang_code=target_language
+                ).first()
+                
+                # 如果沒有找到，嘗試主要語言碼
+                if not db_translation and '-' in target_language:
+                    main_lang = target_language.split('-')[0]
+                    db_translation = OCRMenuTranslation.query.filter_by(
+                        ocr_menu_item_id=item.ocr_menu_item_id,
+                        lang_code=main_lang
+                    ).first()
+                    
+            except Exception as e:
+                print(f"資料庫翻譯查詢失敗: {e}")
+            
+            # 如果資料庫有翻譯，使用資料庫翻譯
+            if db_translation and db_translation.translated_name:
+                translated_name = db_translation.translated_name
+                translation_source = 'database'
+            else:
+                # 使用 AI 翻譯
+                try:
+                    # 使用正規化後的語言碼進行翻譯
+                    translated_name = translate_text_with_fallback(item.item_name, normalized_lang)
+                    translation_source = 'ai'
+                except Exception as e:
+                    print(f"AI 翻譯失敗: {e}")
+                    translated_name = item.item_name
+                    translation_source = 'original'
+            
+            # 建立翻譯後的項目
+            translated_item = {
+                'ocr_menu_item_id': item.ocr_menu_item_id,
+                'original_name': item.item_name,
+                'translated_name': translated_name,
+                'price_small': item.price_small,
+                'price_big': item.price_big,
+                'translation_source': translation_source
+            }
+            
+            translated_items.append(translated_item)
+            print(f"✅ 項目 {item.ocr_menu_item_id}: '{item.item_name}' -> '{translated_name}' ({translation_source})")
+        
+        print(f"🎉 OCR 菜單翻譯完成，共處理 {len(translated_items)} 個項目")
+        return translated_items
+        
+    except Exception as e:
+        print(f"❌ OCR 菜單翻譯失敗: {e}")
+        # 返回原始項目
+        return [{
+            'ocr_menu_item_id': item.ocr_menu_item_id,
+            'original_name': item.item_name,
+            'translated_name': item.item_name,
+            'price_small': item.price_small,
+            'price_big': item.price_big,
+            'translation_source': 'error'
+        } for item in ocr_menu_items]

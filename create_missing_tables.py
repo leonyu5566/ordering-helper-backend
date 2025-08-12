@@ -40,7 +40,7 @@ def create_missing_tables():
             print(f"現有資料表: {existing_tables}")
             
             # 檢查並創建必要的表
-            required_tables = ['ocr_menus', 'ocr_menu_items', 'order_summaries']
+            required_tables = ['ocr_menus', 'ocr_menu_items', 'ocr_menu_translations', 'order_summaries']
             
             for table_name in required_tables:
                 if table_name not in existing_tables:
@@ -52,11 +52,33 @@ def create_missing_tables():
                         CREATE TABLE ocr_menus (
                             ocr_menu_id BIGINT NOT NULL AUTO_INCREMENT,
                             user_id BIGINT NOT NULL,
+                            store_id INT DEFAULT NULL,
                             store_name VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
                             upload_time DATETIME DEFAULT CURRENT_TIMESTAMP,
                             PRIMARY KEY (ocr_menu_id),
-                            FOREIGN KEY (user_id) REFERENCES users (user_id)
+                            FOREIGN KEY (user_id) REFERENCES users (user_id),
+                            FOREIGN KEY (store_id) REFERENCES stores (store_id)
                         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='非合作店家用戶OCR菜單主檔'
+                        """
+                        
+                        db.session.execute(text(create_table_sql))
+                        db.session.commit()
+                        print(f"✅ {table_name} 表創建成功")
+                        
+                    elif table_name == 'ocr_menu_translations':
+                        # 創建 ocr_menu_translations 表
+                        create_table_sql = """
+                        CREATE TABLE ocr_menu_translations (
+                            ocr_menu_translation_id BIGINT NOT NULL AUTO_INCREMENT,
+                            ocr_menu_item_id BIGINT NOT NULL,
+                            lang_code VARCHAR(10) NOT NULL,
+                            translated_name VARCHAR(100) COLLATE utf8mb4_bin NOT NULL,
+                            translated_description TEXT COLLATE utf8mb4_bin,
+                            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                            PRIMARY KEY (ocr_menu_translation_id),
+                            FOREIGN KEY (ocr_menu_item_id) REFERENCES ocr_menu_items (ocr_menu_item_id),
+                            FOREIGN KEY (lang_code) REFERENCES languages (line_lang_code)
+                        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_bin COMMENT='OCR菜單翻譯表'
                         """
                         
                         db.session.execute(text(create_table_sql))

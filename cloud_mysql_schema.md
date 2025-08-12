@@ -47,6 +47,7 @@
 | --- | --- | --- | --- |
 | **ocr_menus** | `ocr_menu_id` PK | `bigint(20)` | OCR 菜單主檔 |
 |  | `user_id` | `bigint(20)` NOT NULL | 上傳者 |
+|  | `store_id` | `int(11)` NULL | 店家 ID |
 |  | `store_name` | `varchar(100)` NULL | 店名 |
 |  | `upload_time` | `datetime` DEFAULT CURRENT_TIMESTAMP | 上傳 |
 | **ocr_menu_items** | `ocr_menu_item_id` PK | `bigint(20)` | OCR 菜單品項 |
@@ -55,6 +56,12 @@
 |  | `price_big` | `int(11)` NULL | 大份價格 |
 |  | `price_small` | `int(11)` NOT NULL | 小份價格 |
 |  | `translated_desc` | `text` NULL | AI 翻譯介紹 |
+| **ocr_menu_translations** | `ocr_menu_translation_id` PK | `bigint(20)` | OCR 菜單翻譯 |
+|  | `ocr_menu_item_id` | `bigint(20)` NOT NULL | 對應 OCR 菜單品項 |
+|  | `lang_code` | `varchar(10)` NOT NULL | 語言 |
+|  | `translated_name` | `varchar(100)` NOT NULL | 翻譯後菜名 |
+|  | `translated_description` | `text` NULL | 翻譯後描述 |
+|  | `created_at` | `datetime` DEFAULT CURRENT_TIMESTAMP | 建立時間 |
 
 ## 4. 訂單主檔與明細
 

@@ -177,6 +177,7 @@ class OCRMenu(db.Model):
     
     ocr_menu_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     user_id = db.Column(db.BigInteger, db.ForeignKey('users.user_id'), nullable=False)
+    store_id = db.Column(db.Integer, db.ForeignKey('stores.store_id'), nullable=True)  # 新增 store_id 欄位
     store_name = db.Column(db.String(100))  # 非合作店家名稱
     upload_time = db.Column(db.DateTime, server_default=db.func.current_timestamp())
     
@@ -199,6 +200,23 @@ class OCRMenuItem(db.Model):
     
     def __repr__(self):
         return f'<OCRMenuItem {self.ocr_menu_item_id}>'
+
+class OCRMenuTranslation(db.Model):
+    """OCR 菜單翻譯（儲存翻譯後的 OCR 菜單）"""
+    __tablename__ = 'ocr_menu_translations'
+    
+    ocr_menu_translation_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    ocr_menu_item_id = db.Column(db.BigInteger, db.ForeignKey('ocr_menu_items.ocr_menu_item_id'), nullable=False)
+    lang_code = db.Column(db.String(10), db.ForeignKey('languages.line_lang_code'), nullable=False)
+    translated_name = db.Column(db.String(100), nullable=False)  # 翻譯後的菜名
+    translated_description = db.Column(db.Text)  # 翻譯後的描述
+    created_at = db.Column(db.DateTime, server_default=db.func.current_timestamp())
+    
+    # 關聯到 OCR 菜單項目
+    ocr_menu_item = db.relationship('OCRMenuItem', backref='translations', lazy=True)
+    
+    def __repr__(self):
+        return f'<OCRMenuTranslation {self.ocr_menu_translation_id}>'
 
 # =============================================================================
 # 簡化系統模型（非合作店家）
