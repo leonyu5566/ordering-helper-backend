@@ -91,6 +91,68 @@ def translate_text():
         current_app.logger.error(f"翻譯API錯誤: {str(e)}")
         return jsonify({"error": f"翻譯失敗: {str(e)}"}), 500
 
+@api_bp.route('/stores/resolve', methods=['GET'])
+def resolve_store():
+    """解析店家識別碼，將 Place ID 轉換為內部 store_id"""
+    try:
+        place_id = request.args.get('place_id')
+        store_name = request.args.get('name')
+        
+        if not place_id:
+            return jsonify({"error": "place_id 參數是必需的"}), 400
+        
+        from .store_resolver import resolve_store_id
+        store_db_id = resolve_store_id(place_id, store_name)
+        
+        return jsonify({
+            "success": True,
+            "place_id": place_id,
+            "store_id": store_db_id,
+            "message": f"成功解析店家識別碼: {place_id} -> {store_db_id}"
+        }), 200
+        
+    except ValueError as e:
+        return jsonify({
+            "success": False,
+            "error": "無效的店家識別碼",
+            "details": str(e)
+        }), 400
+    except Exception as e:
+        current_app.logger.error(f"解析店家識別碼失敗: {e}")
+        return jsonify({
+            "success": False,
+            "error": "解析失敗",
+            "details": str(e)
+        }), 500
+
+@api_bp.route('/stores/debug', methods=['GET'])
+def debug_store_id():
+    """除錯用：分析 store_id 的詳細資訊"""
+    try:
+        store_id = request.args.get('store_id')
+        
+        if not store_id:
+            return jsonify({"error": "store_id 參數是必需的"}), 400
+        
+        from .store_resolver import debug_store_id_info
+        
+        # 分析 store_id
+        debug_info = debug_store_id_info(store_id)
+        
+        return jsonify({
+            "success": True,
+            "debug_info": debug_info,
+            "message": "store_id 分析完成"
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"除錯 store_id 失敗: {e}")
+        return jsonify({
+            "success": False,
+            "error": "除錯失敗",
+            "details": str(e)
+        }), 500
+
 @api_bp.route('/stores/<int:store_id>', methods=['GET'])
 def get_store(store_id):
     """取得店家資訊（支援多語言翻譯）"""
@@ -592,6 +654,28 @@ def create_order():
                     "details": str(e)
                 }), 500
 
+        # 先解析 store_id，確保後續所有操作都使用正確的整數 ID
+        raw_store_id = data.get('store_id', 1)
+        
+        # 先進行格式驗證
+        from .store_resolver import validate_store_id_format, safe_resolve_store_id
+        
+        if not validate_store_id_format(raw_store_id):
+            return jsonify({
+                "error": "訂單資料驗證失敗",
+                "validation_errors": [f"無效的 store_id 格式: {raw_store_id}"],
+                "received_data": {"store_id": raw_store_id}
+            }), 400
+        
+        try:
+            store_db_id = safe_resolve_store_id(raw_store_id, data.get('store_name'), default_id=1)
+            print(f"✅ 訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
+        except Exception as e:
+            print(f"❌ 訂單店家ID解析失敗: {e}")
+            # 如果解析失敗，使用預設值
+            store_db_id = 1
+            print(f"⚠️ 使用預設店家ID: {store_db_id}")
+        
         total_amount = 0
         order_items_to_create = []
         order_details = []
@@ -644,9 +728,10 @@ def create_order():
                         from app.models import Menu
                         
                         # 找到或創建一個臨時菜單
-                        temp_menu = Menu.query.filter_by(store_id=data.get('store_id', 1)).first()
+                        # 修正：使用解析後的 store_db_id 而不是原始的 store_id
+                        temp_menu = Menu.query.filter_by(store_id=store_db_id).first()
                         if not temp_menu:
-                            temp_menu = Menu(store_id=data.get('store_id', 1), version=1)
+                            temp_menu = Menu(store_id=store_db_id, version=1)
                             db.session.add(temp_menu)
                             db.session.flush()
                         
@@ -716,9 +801,10 @@ def create_order():
                         from app.models import Menu
                         
                         # 找到或創建一個臨時菜單
-                        temp_menu = Menu.query.filter_by(store_id=data['store_id']).first()
+                        # 修正：使用解析後的 store_db_id 而不是原始的 store_id
+                        temp_menu = Menu.query.filter_by(store_id=store_db_id).first()
                         if not temp_menu:
-                            temp_menu = Menu(store_id=data['store_id'], version=1)
+                            temp_menu = Menu(store_id=store_db_id, version=1)
                             db.session.add(temp_menu)
                             db.session.flush()
                         
@@ -808,17 +894,7 @@ def create_order():
             }), 400
 
         try:
-            # 使用 store resolver 解析店家 ID
-            raw_store_id = data.get('store_id', 1)
-            try:
-                from .store_resolver import resolve_store_id
-                store_db_id = resolve_store_id(raw_store_id)
-                print(f"✅ 訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
-            except Exception as e:
-                print(f"❌ 訂單店家ID解析失敗: {e}")
-                # 如果解析失敗，使用預設值
-                store_db_id = 1
-                print(f"⚠️ 使用預設店家ID: {store_db_id}")
+            # store_id 已經在前面解析過了，這裡直接使用 store_db_id
             
             new_order = Order(
                 user_id=user.user_id,
