@@ -1173,6 +1173,7 @@ def send_complete_order_notification(order_id):
     """
     發送完整的訂單確認通知到 LINE
     包含：兩則訂單文字摘要、中文語音檔、語速控制按鈕
+    支援OCR菜單訂單的特殊處理
     """
     from ..models import Order, User
     from ..webhook.routes import get_line_bot_api
@@ -1199,6 +1200,23 @@ def send_complete_order_notification(order_id):
     
     try:
         print(f"開始發送訂單通知: {order_id} -> {user.line_user_id}")
+        
+        # 檢查是否為OCR菜單訂單
+        is_ocr_order = any(item.original_name for item in order.items)
+        ocr_menu_id = None
+        
+        if is_ocr_order:
+            # 嘗試從訂單項目中提取OCR菜單ID
+            for item in order.items:
+                if item.original_name:
+                    # 檢查是否有相關的OCR菜單記錄
+                    from ..models import OCRMenu, OCRMenuItem
+                    ocr_menu_item = OCRMenuItem.query.filter_by(
+                        item_name=item.original_name
+                    ).first()
+                    if ocr_menu_item:
+                        ocr_menu_id = ocr_menu_item.ocr_menu_id
+                        break
         
         # 1. 生成中文語音檔（標準語速）
         voice_result = generate_voice_order(order_id, 1.0)
@@ -1251,17 +1269,35 @@ def send_complete_order_notification(order_id):
         # 3. 發送中文點餐紀錄
         line_bot_api = get_line_bot_api()
         if line_bot_api:
+            # 如果是OCR菜單訂單，在摘要中加入OCR菜單ID
+            chinese_summary = confirmation["chinese_summary"]
+            if is_ocr_order and ocr_menu_id:
+                chinese_summary += f"\n\n📋 OCR菜單ID: {ocr_menu_id}"
+                chinese_summary += "\n💾 菜單已儲存到資料庫"
+            
             line_bot_api.push_message(
                 user.line_user_id,
-                TextSendMessage(text=confirmation["chinese_summary"])
+                TextSendMessage(text=chinese_summary)
             )
             print("中文訂單摘要已發送到 LINE")
         
         # 4. 發送使用者語言的點餐紀錄
         if user.preferred_lang != 'zh':
+            translated_summary = confirmation.get("translated_summary", confirmation["chinese_summary"])
+            
+            # 如果是OCR菜單訂單，在摘要中加入OCR菜單ID
+            if is_ocr_order and ocr_menu_id:
+                ocr_info = {
+                    "en": f"\n\n📋 OCR Menu ID: {ocr_menu_id}\n💾 Menu saved to database",
+                    "ja": f"\n\n📋 OCRメニューID: {ocr_menu_id}\n💾 メニューがデータベースに保存されました",
+                    "ko": f"\n\n📋 OCR 메뉴 ID: {ocr_menu_id}\n💾 메뉴가 데이터베이스에 저장되었습니다",
+                    "zh": f"\n\n📋 OCR菜單ID: {ocr_menu_id}\n💾 菜單已儲存到資料庫"
+                }
+                translated_summary += ocr_info.get(user.preferred_lang, ocr_info["en"])
+            
             line_bot_api.push_message(
                 user.line_user_id,
-                TextSendMessage(text=confirmation["translated_summary"])
+                TextSendMessage(text=translated_summary)
             )
             print(f"{user.preferred_lang} 語訂單摘要已發送到 LINE")
         
@@ -1319,6 +1355,8 @@ def send_complete_order_notification(order_id):
         # 7. 不立即清理語音檔案，讓靜態路由服務
         # 語音檔案會在60分鐘後由cleanup_old_voice_files自動清理
         print(f"訂單通知發送完成: {order_id}")
+        if is_ocr_order:
+            print(f"📋 OCR菜單訂單處理完成，OCR菜單ID: {ocr_menu_id}")
             
     except Exception as e:
         print(f"發送訂單確認失敗：{e}")
