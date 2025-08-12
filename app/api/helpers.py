@@ -1480,8 +1480,8 @@ def send_complete_order_notification(order_id, store_name=None):
                         user_language=user.preferred_lang,
                         total_amount=order.total_amount,
                         user_id=user.user_id,
-                        store_id=order.store_id if order.store else None,  # 新增 store_id
-                        store_name=getattr(order.store, 'store_name', '非合作店家') if order.store else '非合作店家'
+                        store_id=order.store_id,  # 使用訂單的 store_id
+                        store_name='非合作店家'  # 對於 OCR 訂單，使用預設店名
                     )
                     
                     if save_result['success']:
@@ -2588,8 +2588,8 @@ def send_complete_order_notification_optimized(order_id):
                         user_language=user.preferred_lang,
                         total_amount=order.total_amount,
                         user_id=user.user_id,
-                        store_id=order.store_id if order.store else None,  # 新增 store_id
-                        store_name=getattr(order.store, 'store_name', '非合作店家') if order.store else '非合作店家'
+                        store_id=order.store_id,  # 使用訂單的 store_id
+                        store_name='非合作店家'  # 對於 OCR 訂單，使用預設店名
                     )
                     
                     if save_result['success']:
