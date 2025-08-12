@@ -351,15 +351,30 @@ def process_menu_ocr():
         return response, 400
     
     # 取得參數
-    store_id = request.form.get('store_id', type=int)
+    raw_store_id = request.form.get('store_id')  # 可能是整數、數字字串或 Google Place ID
     user_id = request.form.get('user_id', type=int)
     target_lang = request.form.get('lang', 'en')
     
     # 新增：簡化模式參數
     simple_mode = request.form.get('simple_mode', 'false').lower() == 'true'
     
-    if not store_id:
+    if not raw_store_id:
         response = jsonify({"error": "需要提供店家ID"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 400
+    
+    # 使用 store resolver 解析店家 ID
+    try:
+        from .store_resolver import resolve_store_id
+        store_db_id = resolve_store_id(raw_store_id)
+        print(f"✅ 店家ID解析成功: {raw_store_id} -> {store_db_id}")
+    except Exception as e:
+        print(f"❌ 店家ID解析失敗: {e}")
+        response = jsonify({
+            "error": "店家ID格式錯誤",
+            "details": str(e),
+            "received_store_id": raw_store_id
+        })
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 400
     
@@ -373,7 +388,7 @@ def process_menu_ocr():
         
         # 檢查處理結果
         if result and result.get('success', False):
-            # 建立 OCR 菜單記錄
+            # 建立 OCR 菜單記錄（使用解析後的整數 store_id）
             ocr_menu = OCRMenu(
                 user_id=user_id or 1,
                 store_name=result.get('store_info', {}).get('name', '臨時店家')
@@ -793,12 +808,21 @@ def create_order():
             }), 400
 
         try:
-            # 確保 store_id 有值
-            store_id = data.get('store_id', 1)
+            # 使用 store resolver 解析店家 ID
+            raw_store_id = data.get('store_id', 1)
+            try:
+                from .store_resolver import resolve_store_id
+                store_db_id = resolve_store_id(raw_store_id)
+                print(f"✅ 訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
+            except Exception as e:
+                print(f"❌ 訂單店家ID解析失敗: {e}")
+                # 如果解析失敗，使用預設值
+                store_db_id = 1
+                print(f"⚠️ 使用預設店家ID: {store_db_id}")
             
             new_order = Order(
                 user_id=user.user_id,
-                store_id=store_id,
+                store_id=store_db_id,
                 total_amount=total_amount,
                 items=order_items_to_create
             )
@@ -1763,17 +1787,32 @@ def upload_menu_image():
             return response, 400
         
         # 取得參數
-        store_id = request.form.get('store_id')  # 移除 type=int，接受字串
+        raw_store_id = request.form.get('store_id')  # 可能是整數、數字字串或 Google Place ID
         user_id = request.form.get('user_id', type=int)
         target_lang = request.form.get('lang', 'en')
         
-        print(f"店家ID: {store_id}")
+        print(f"原始店家ID: {raw_store_id}")
         print(f"使用者ID: {user_id}")
         print(f"目標語言: {target_lang}")
         
-        if not store_id:
+        if not raw_store_id:
             print("錯誤：沒有提供店家ID")
             response = jsonify({"error": "需要提供店家ID"})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
+        
+        # 使用 store resolver 解析店家 ID
+        try:
+            from .store_resolver import resolve_store_id
+            store_db_id = resolve_store_id(raw_store_id)
+            print(f"✅ 店家ID解析成功: {raw_store_id} -> {store_db_id}")
+        except Exception as e:
+            print(f"❌ 店家ID解析失敗: {e}")
+            response = jsonify({
+                "error": "店家ID格式錯誤",
+                "details": str(e),
+                "received_store_id": raw_store_id
+            })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
         
@@ -1797,38 +1836,37 @@ def upload_menu_image():
             menu_items = result.get('menu_items', [])
             dynamic_menu = []
             
-            # 如果是非合作店家，儲存到資料庫
+            # 建立 OCR 菜單記錄到資料庫（使用解析後的整數 store_id）
             ocr_menu_id = None
-            if not store_id or store_id == 'temp':
-                try:
-                    # 建立 OCR 菜單記錄到資料庫
-                    ocr_menu = OCRMenu(
-                        user_id=user_id or 1,  # 如果沒有提供 user_id，使用預設值
-                        store_name=result.get('store_info', {}).get('name', '臨時店家')
+            try:
+                # 建立 OCR 菜單記錄到資料庫
+                ocr_menu = OCRMenu(
+                    user_id=user_id or 1,  # 如果沒有提供 user_id，使用預設值
+                    store_name=result.get('store_info', {}).get('name', '臨時店家')
+                )
+                db.session.add(ocr_menu)
+                db.session.flush()  # 獲取 ocr_menu_id
+                ocr_menu_id = ocr_menu.ocr_menu_id
+                
+                # 儲存菜單項目到資料庫
+                for item in menu_items:
+                    ocr_menu_item = OCRMenuItem(
+                        ocr_menu_id=ocr_menu.ocr_menu_id,
+                        item_name=item.get('original_name', ''),
+                        price_small=item.get('price', 0),
+                        price_big=item.get('price', 0),  # 暫時使用相同價格
+                        translated_desc=item.get('description', '') or item.get('translated_name', '')
                     )
-                    db.session.add(ocr_menu)
-                    db.session.flush()  # 獲取 ocr_menu_id
-                    ocr_menu_id = ocr_menu.ocr_menu_id
-                    
-                    # 儲存菜單項目到資料庫
-                    for item in menu_items:
-                        ocr_menu_item = OCRMenuItem(
-                            ocr_menu_id=ocr_menu.ocr_menu_id,
-                            item_name=item.get('original_name', ''),
-                            price_small=item.get('price', 0),
-                            price_big=item.get('price', 0),  # 暫時使用相同價格
-                            translated_desc=item.get('description', '') or item.get('translated_name', '')
-                        )
-                        db.session.add(ocr_menu_item)
-                    
-                    # 提交到資料庫
-                    db.session.commit()
-                    print(f"✅ 非合作店家菜單已儲存到資料庫，OCR 菜單 ID: {ocr_menu_id}")
-                    
-                except Exception as e:
-                    print(f"❌ 儲存到資料庫失敗: {e}")
-                    db.session.rollback()
-                    ocr_menu_id = None
+                    db.session.add(ocr_menu_item)
+                
+                # 提交到資料庫
+                db.session.commit()
+                print(f"✅ OCR菜單已儲存到資料庫，OCR 菜單 ID: {ocr_menu_id}")
+                
+            except Exception as e:
+                print(f"❌ 儲存到資料庫失敗: {e}")
+                db.session.rollback()
+                ocr_menu_id = None
             
             for i, item in enumerate(menu_items):
                 # 確保所有字串欄位都不是 null/undefined，避免前端 charAt() 錯誤
@@ -1874,7 +1912,9 @@ def upload_menu_image():
                 "menu_items": dynamic_menu,
                 "total_items": len(dynamic_menu),
                 "target_language": target_lang,
-                "processing_notes": result.get('processing_notes', '')
+                "processing_notes": result.get('processing_notes', ''),
+                "store_id": store_db_id,  # 加入解析後的整數 store_id
+                "original_store_id": raw_store_id  # 保留原始輸入的 store_id
             }
             
             # 如果儲存到資料庫，加入相關資訊
@@ -2952,12 +2992,21 @@ def create_ocr_order():
             }), 400
 
         try:
-            # 確保 store_id 有值
-            store_id = data.get('store_id', 1)
+            # 使用 store resolver 解析店家 ID
+            raw_store_id = data.get('store_id', 1)
+            try:
+                from .store_resolver import resolve_store_id
+                store_db_id = resolve_store_id(raw_store_id)
+                print(f"✅ OCR訂單店家ID解析成功: {raw_store_id} -> {store_db_id}")
+            except Exception as e:
+                print(f"❌ OCR訂單店家ID解析失敗: {e}")
+                # 如果解析失敗，使用預設值
+                store_db_id = 1
+                print(f"⚠️ 使用預設店家ID: {store_db_id}")
             
             new_order = Order(
                 user_id=user.user_id,
-                store_id=store_id,
+                store_id=store_db_id,
                 total_amount=total_amount,
                 items=order_items_to_create
             )
@@ -3042,3 +3091,74 @@ def create_ocr_order():
             "error": "OCR訂單建立失敗",
             "details": str(e)
         }), 500
+
+@api_bp.route('/stores/resolve', methods=['GET', 'POST', 'OPTIONS'])
+def resolve_store():
+    """解析店家識別碼（測試用）"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        if request.method == 'GET':
+            # GET 請求：從查詢參數取得
+            place_id = request.args.get('place_id')
+            store_name = request.args.get('store_name')
+        else:
+            # POST 請求：從 JSON 取得
+            data = request.get_json() or {}
+            place_id = data.get('place_id')
+            store_name = data.get('store_name')
+        
+        if not place_id:
+            response = jsonify({
+                "error": "需要提供 place_id 參數",
+                "usage": {
+                    "GET": "/api/stores/resolve?place_id=ChlJ0boght2rQjQRsH-_buCo3S4&store_name=店家名稱",
+                    "POST": '{"place_id": "ChlJ0boght2rQjQRsH-_buCo3S4", "store_name": "店家名稱"}'
+                }
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
+        
+        # 使用 store resolver 解析
+        from .store_resolver import resolve_store_id, validate_store_id
+        
+        # 先驗證格式
+        if not validate_store_id(place_id):
+            response = jsonify({
+                "error": "無效的 place_id 格式",
+                "place_id": place_id,
+                "valid_formats": [
+                    "整數 (如: 123)",
+                    "數字字串 (如: '456')", 
+                    "Google Place ID (如: 'ChlJ0boght2rQjQRsH-_buCo3S4')"
+                ]
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 400
+        
+        # 解析店家 ID
+        store_db_id = resolve_store_id(place_id, store_name)
+        
+        response_data = {
+            "success": True,
+            "original_place_id": place_id,
+            "resolved_store_id": store_db_id,
+            "store_name": store_name or f"店家_{place_id[:8]}",
+            "message": f"成功解析店家識別碼: {place_id} -> {store_db_id}"
+        }
+        
+        response = jsonify(response_data)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
+        
+    except Exception as e:
+        print(f"❌ Store resolver 測試失敗: {e}")
+        response = jsonify({
+            "error": "店家識別碼解析失敗",
+            "details": str(e),
+            "place_id": place_id if 'place_id' in locals() else None
+        })
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 500
