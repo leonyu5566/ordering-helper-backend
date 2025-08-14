@@ -7,9 +7,12 @@
 # =============================================================================
 
 from .urls import URLConfig, BASE_URL, API_BASE_URL
+from .settings import AppConfig, config
 
 __all__ = [
     'URLConfig',
     'BASE_URL', 
-    'API_BASE_URL'
+    'API_BASE_URL',
+    'AppConfig',
+    'config'
 ]
