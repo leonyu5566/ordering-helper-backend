@@ -1451,8 +1451,8 @@ def send_complete_order_notification(order_id, store_name=None):
                 try:
                     # 構建正確的HTTPS URL
                     fname = os.path.basename(voice_result)
-                    base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
-                    audio_url = f"{base_url}/api/voices/{fname}"
+                    from ..config import URLConfig
+                    audio_url = URLConfig.get_voice_url(fname)
                     
                     line_bot_api = get_line_bot_api()
                     if line_bot_api:
@@ -2202,8 +2202,8 @@ def send_voice_with_rate(user_id, order_id, rate=1.0):
         if voice_path and os.path.exists(voice_path):
             # 構建語音檔 URL
             fname = os.path.basename(voice_path)
-            base_url = os.getenv('BASE_URL', 'https://ordering-helper-backend-1095766716155.asia-east1.run.app')
-            audio_url = f"{base_url}/api/voices/{fname}"
+            from ..config import URLConfig
+            audio_url = URLConfig.get_voice_url(fname)
             print(f"[Webhook] Reply with voice URL: {audio_url}")
             
             # 使用 LINE Bot API 發送語音
