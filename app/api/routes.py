@@ -1086,7 +1086,15 @@ def create_order():
             print(f"✅ 訂單已創建，ID: {order_id}")
             
             # 創建訂單項目
+            print(f"📝 準備創建 {len(order_items_to_create)} 個訂單項目...")
             for i, order_item in enumerate(order_items_to_create):
+                print(f"📋 處理訂單項目 {i+1}:")
+                print(f"   menu_item_id: {order_item.menu_item_id}")
+                print(f"   quantity_small: {order_item.quantity_small}")
+                print(f"   subtotal: {order_item.subtotal}")
+                print(f"   original_name: {order_item.original_name}")
+                print(f"   translated_name: {order_item.translated_name}")
+                
                 order_item_sql = """
                 INSERT INTO order_items (order_id, menu_item_id, quantity_small, subtotal, original_name, translated_name, created_at)
                 VALUES (:order_id, :menu_item_id, :quantity_small, :subtotal, :original_name, :translated_name, :created_at)
@@ -1231,10 +1239,14 @@ def create_order():
             
         except Exception as e:
             db.session.rollback()
+            import traceback
+            error_traceback = traceback.format_exc()
             print(f"❌ 訂單建立失敗: {str(e)}")
+            print(f"❌ 錯誤追蹤: {error_traceback}")
             return jsonify({
                 "error": "訂單建立失敗",
                 "details": str(e),
+                "traceback": error_traceback,
                 "debug_info": {
                     "store_id": store_db_id,
                     "user_id": user.user_id if user else None,
@@ -1245,9 +1257,14 @@ def create_order():
         
     except Exception as e:
         db.session.rollback()
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"❌ 訂單建立失敗（外層異常）: {str(e)}")
+        print(f"❌ 錯誤追蹤: {error_traceback}")
         return jsonify({
             "error": "訂單建立失敗",
-            "details": str(e)
+            "details": str(e),
+            "traceback": error_traceback
         }), 500
 
 @api_bp.route('/orders/temp', methods=['POST', 'OPTIONS'])
