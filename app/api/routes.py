@@ -1144,6 +1144,7 @@ def create_order():
             
             # 生成中文語音檔
             print(f"🔧 準備生成語音檔...")
+            voice_path = None
             try:
                 voice_path = generate_voice_order(new_order.order_id)
                 print(f"✅ 語音檔生成成功: {voice_path}")
@@ -1152,6 +1153,7 @@ def create_order():
                 print(f"錯誤類型: {type(e).__name__}")
                 import traceback
                 traceback.print_exc()
+                # 不拋出異常，繼續執行
                 voice_path = None
             
             # 如果是OCR菜單訂單，建立訂單摘要並儲存到資料庫

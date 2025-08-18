@@ -1441,7 +1441,12 @@ def send_complete_order_notification(order_id, store_name=None):
                         break
         
         # 1. 生成中文語音檔（標準語速）
-        voice_result = generate_voice_order(order_id, 1.0)
+        voice_result = None
+        try:
+            voice_result = generate_voice_order(order_id, 1.0)
+        except Exception as e:
+            print(f"語音生成失敗，跳過語音發送: {e}")
+            voice_result = None
         
         # 2. 處理語音結果
         if voice_result and isinstance(voice_result, str) and os.path.exists(voice_result):
@@ -2481,7 +2486,7 @@ def generate_voice_order_fallback(order_id, speech_rate=1.0):
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
                 item_name = menu_item.item_name
-                quantity = item.quantity
+                quantity = item.quantity_small
                 
                 # 判斷是飲料還是餐點
                 if any(keyword in item_name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
