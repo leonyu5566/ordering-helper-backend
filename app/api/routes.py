@@ -408,13 +408,31 @@ def check_partner_status():
         if not store:
             return jsonify({"error": "找不到店家"}), 404
         
+        # 檢查是否有菜單（需要實際查詢菜單項目）
+        try:
+            # 先查詢店家的菜單
+            menus = Menu.query.filter(Menu.store_id == store.store_id).all()
+            has_menu = False
+            
+            if menus:
+                # 檢查菜單是否有項目
+                menu_ids = [menu.menu_id for menu in menus]
+                menu_items = MenuItem.query.filter(
+                    MenuItem.menu_id.in_(menu_ids),
+                    MenuItem.price_small > 0  # 只計算有價格的項目
+                ).count()
+                has_menu = menu_items > 0
+        except Exception as e:
+            print(f"檢查菜單時發生錯誤: {e}")
+            has_menu = False
+        
         return jsonify({
             "store_id": store.store_id,
             "store_name": store.store_name,
             "place_id": store.place_id,
             "partner_level": store.partner_level,
             "is_partner": store.partner_level > 0,
-            "has_menu": bool(store.menus and len(store.menus) > 0)
+            "has_menu": has_menu
         })
         
     except Exception as e:
