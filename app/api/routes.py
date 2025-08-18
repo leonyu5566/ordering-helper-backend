@@ -226,10 +226,22 @@ def get_menu(store_id):
         if not store:
             return jsonify({"error": "找不到店家"}), 404
         
-        # 嘗試查詢菜單項目，過濾掉價格為 0 的商品
+        # 嘗試查詢菜單項目，透過菜單關聯查詢，過濾掉價格為 0 的商品
         try:
+            # 先查詢店家的菜單
+            menus = Menu.query.filter(Menu.store_id == store_id).all()
+            if not menus:
+                return jsonify({
+                    "error": "此店家目前沒有菜單",
+                    "store_id": store_id,
+                    "store_name": store.store_name,
+                    "message": "請使用菜單圖片上傳功能來建立菜單"
+                }), 404
+            
+            # 透過菜單查詢菜單項目
+            menu_ids = [menu.menu_id for menu in menus]
             menu_items = MenuItem.query.filter(
-                MenuItem.store_id == store_id,
+                MenuItem.menu_id.in_(menu_ids),
                 MenuItem.price_small > 0  # 只返回價格大於 0 的商品
             ).all()
         except Exception as e:
@@ -313,10 +325,23 @@ def get_menu_by_place_id(place_id):
         if not store:
             return jsonify({"error": "找不到店家"}), 404
         
-        # 嘗試查詢菜單項目，過濾掉價格為 0 的商品
+        # 嘗試查詢菜單項目，透過菜單關聯查詢，過濾掉價格為 0 的商品
         try:
+            # 先查詢店家的菜單
+            menus = Menu.query.filter(Menu.store_id == store.store_id).all()
+            if not menus:
+                return jsonify({
+                    "error": "此店家目前沒有菜單",
+                    "store_id": store.store_id,
+                    "place_id": place_id,
+                    "store_name": store.store_name,
+                    "message": "請使用菜單圖片上傳功能來建立菜單"
+                }), 404
+            
+            # 透過菜單查詢菜單項目
+            menu_ids = [menu.menu_id for menu in menus]
             menu_items = MenuItem.query.filter(
-                MenuItem.store_id == store.store_id,
+                MenuItem.menu_id.in_(menu_ids),
                 MenuItem.price_small > 0  # 只返回價格大於 0 的商品
             ).all()
         except Exception as e:
