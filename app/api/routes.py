@@ -782,8 +782,11 @@ def create_order():
             menu_item_id = item_data.get('menu_item_id') or item_data.get('id')
             quantity = item_data.get('quantity') or item_data.get('qty') or item_data.get('quantity_small')
             
+            # 將 menu_item_id 轉換為字串以便檢查前綴
+            menu_item_id_str = str(menu_item_id) if menu_item_id is not None else None
+            
             # 檢查是否為OCR菜單項目（以 ocr_ 開頭）
-            if menu_item_id and menu_item_id.startswith('ocr_'):
+            if menu_item_id_str and menu_item_id_str.startswith('ocr_'):
                 # 處理OCR菜單項目
                 price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
                 
@@ -797,7 +800,7 @@ def create_order():
                 
                 # 提取OCR菜單ID
                 if not ocr_menu_id:
-                    parts = menu_item_id.split('_')
+                    parts = menu_item_id_str.split('_')
                     if len(parts) >= 3:
                         ocr_menu_id = int(parts[1])
                 
@@ -873,7 +876,7 @@ def create_order():
                     validation_errors.append(f"項目 {i+1}: 創建OCR菜單項目失敗 - {str(e)}")
                     continue
             # 檢查是否為臨時菜單項目（以 temp_ 開頭）
-            elif menu_item_id and menu_item_id.startswith('temp_'):
+            elif menu_item_id_str and menu_item_id_str.startswith('temp_'):
                 # 處理臨時菜單項目
                 price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
                 item_name = item_data.get('item_name') or item_data.get('name') or item_data.get('original_name') or f"項目 {i+1}"
@@ -3304,8 +3307,11 @@ def create_ocr_order():
             menu_item_id = item_data.get('menu_item_id') or item_data.get('id')
             quantity = item_data.get('quantity') or item_data.get('qty') or item_data.get('quantity_small')
             
+            # 將 menu_item_id 轉換為字串以便檢查前綴
+            menu_item_id_str = str(menu_item_id) if menu_item_id is not None else None
+            
             # 檢查是否為OCR菜單項目（以 ocr_ 開頭）
-            if menu_item_id and menu_item_id.startswith('ocr_'):
+            if menu_item_id_str and menu_item_id_str.startswith('ocr_'):
                 # 處理OCR菜單項目
                 price = item_data.get('price') or item_data.get('price_small') or item_data.get('price_unit') or 0
                 
