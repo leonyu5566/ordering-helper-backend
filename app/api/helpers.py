@@ -1006,10 +1006,6 @@ def translate_text_with_fallback(text, target_language='en'):
     """
     翻譯文字（優先使用資料庫翻譯，如果沒有才使用AI翻譯）
     """
-    # 如果是中文，直接回傳
-    if target_language == 'zh':
-        return text
-    
     # 嘗試使用AI翻譯
     try:
         return translate_text(text, target_language)
