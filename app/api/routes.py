@@ -87,18 +87,59 @@ def translate_text():
         if not contents or not target:
             return jsonify({"error": "contents/target required"}), 400
         
-        # 允許 BCP47，先取主要語言碼給 API（ex: "fr-FR" -> "fr"）
-        target_short = target.split('-')[0]
+        # 使用新的翻譯服務進行語言碼正規化
+        from .translation_service import normalize_lang, translate_texts
+        normalized_target = normalize_lang(target)
         
-        # 使用 Google Cloud Translation API
-        from .helpers import translate_text_batch
-        translated_texts = translate_text_batch(contents, target_short, source)
+        # 批次翻譯
+        translated_texts = translate_texts(contents, normalized_target, source)
         
-        return jsonify({"translated": translated_texts})
+        response = jsonify({"translated": translated_texts})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Cache-Control', 'public, max-age=300')  # 5分鐘快取
+        return response
         
     except Exception as e:
         current_app.logger.error(f"翻譯API錯誤: {str(e)}")
+        # 即使出錯也要回傳 200，避免前端卡住
+        response = jsonify({"translated": contents, "error": "翻譯失敗，回傳原文"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
         return jsonify({"error": f"翻譯失敗: {str(e)}"}), 500
+
+@api_bp.route('/api/translate', methods=['POST', 'OPTIONS'])
+def translate_single_text():
+    """翻譯單一文字（前端 fallback 用）"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        data = request.get_json(silent=True) or {}
+        text = data.get('text', '')
+        target = request.args.get('target', 'en')
+        
+        if not text:
+            response = jsonify({"translated": ""})
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 200
+        
+        # 使用新的翻譯服務
+        from .translation_service import normalize_lang, translate_text
+        normalized_target = normalize_lang(target)
+        translated = translate_text(text, normalized_target)
+        
+        response = jsonify({"translated": translated})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Cache-Control', 'public, max-age=300')  # 5分鐘快取
+        return response, 200
+        
+    except Exception as e:
+        current_app.logger.error(f"單一文字翻譯失敗: {str(e)}")
+        # 即使出錯也要回傳 200，避免前端卡住
+        response = jsonify({"translated": text, "error": "翻譯失敗，回傳原文"})
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
 
 @api_bp.route('/stores/resolve-old', methods=['GET'])
 def resolve_store_old():
@@ -386,15 +427,21 @@ def get_menu_by_place_id(place_id):
     except Exception as e:
         return jsonify({'error': '無法載入菜單'}), 500
 
-@api_bp.route('/stores/check-partner-status', methods=['GET'])
+@api_bp.route('/stores/check-partner-status', methods=['GET', 'OPTIONS'])
 def check_partner_status():
     """檢查店家合作狀態（支援 store_id 或 place_id）"""
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
     store_id = request.args.get('store_id', type=int)
     place_id = request.args.get('place_id')
-    target_language = request.args.get('lang', 'zh')  # 新增語言參數
+    name = request.args.get('name', '')
+    lang = request.args.get('lang', 'en')
     
-    if not store_id and not place_id:
-        return jsonify({"error": "需要提供 store_id 或 place_id"}), 400
+    # 使用新的翻譯服務進行語言碼正規化
+    from .translation_service import normalize_lang, translate_text
+    normalized_lang = normalize_lang(lang)
     
     try:
         store = None
@@ -406,42 +453,79 @@ def check_partner_status():
             # 使用 place_id 查詢
             store = Store.query.filter_by(place_id=place_id).first()
         
-        if not store:
-            return jsonify({"error": "找不到店家"}), 404
-        
-        # 檢查是否有菜單（需要實際查詢菜單項目）
-        try:
-            # 先查詢店家的菜單
-            menus = Menu.query.filter(Menu.store_id == store.store_id).all()
-            has_menu = False
+        if store:
+            # 找到合作店家
+            original_name = store.store_name
+            display_name = translate_text(original_name, normalized_lang)
             
-            if menus:
-                # 檢查菜單是否有項目
-                menu_ids = [menu.menu_id for menu in menus]
-                menu_items = MenuItem.query.filter(
-                    MenuItem.menu_id.in_(menu_ids),
-                    MenuItem.price_small > 0  # 只計算有價格的項目
-                ).count()
-                has_menu = menu_items > 0
-        except Exception as e:
-            print(f"檢查菜單時發生錯誤: {e}")
-            has_menu = False
+            # 檢查是否有菜單
+            try:
+                menus = Menu.query.filter(Menu.store_id == store.store_id).all()
+                has_menu = False
+                
+                if menus:
+                    menu_ids = [menu.menu_id for menu in menus]
+                    menu_items = MenuItem.query.filter(
+                        MenuItem.menu_id.in_(menu_ids),
+                        MenuItem.price_small > 0
+                    ).count()
+                    has_menu = menu_items > 0
+            except Exception as e:
+                current_app.logger.warning(f"檢查菜單時發生錯誤: {e}")
+                has_menu = False
+            
+            response_data = {
+                "store_id": store.store_id,
+                "store_name": store.store_name,
+                "display_name": display_name,
+                "original_name": original_name,
+                "place_id": store.place_id,
+                "partner_level": store.partner_level,
+                "is_partner": store.partner_level > 0,
+                "has_menu": has_menu
+            }
+        else:
+            # 找不到店家，回傳非合作狀態
+            original_name = name or f"店家_{place_id[:8] if place_id else 'unknown'}"
+            display_name = translate_text(original_name, normalized_lang)
+            
+            response_data = {
+                "store_id": None,
+                "store_name": "",
+                "display_name": display_name,
+                "original_name": original_name,
+                "place_id": place_id,
+                "partner_level": 0,
+                "is_partner": False,
+                "has_menu": False
+            }
         
-        # 使用翻譯功能取得翻譯後的店名
-        translated_store = translate_store_info_with_db_fallback(store, target_language)
-        
-        return jsonify({
-            "store_id": store.store_id,
-            "store_name": store.store_name,
-            "translated_name": translated_store['translated_name'],  # 新增翻譯後的店名
-            "place_id": store.place_id,
-            "partner_level": store.partner_level,
-            "is_partner": store.partner_level > 0,
-            "has_menu": has_menu
-        })
+        response = jsonify(response_data)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Cache-Control', 'public, max-age=300')  # 5分鐘快取
+        return response, 200
         
     except Exception as e:
-        return jsonify({'error': '無法檢查店家狀態'}), 500
+        current_app.logger.error(f"檢查店家狀態失敗: {str(e)}")
+        # 明確 fallback，避免 5xx 讓前端停在 loading
+        original_name = name or f"店家_{place_id[:8] if place_id else 'unknown'}"
+        display_name = translate_text(original_name, normalized_lang)
+        
+        response_data = {
+            "store_id": None,
+            "store_name": "",
+            "display_name": display_name,
+            "original_name": original_name,
+            "place_id": place_id,
+            "partner_level": 0,
+            "is_partner": False,
+            "has_menu": False,
+            "error": "檢查店家狀態失敗，使用預設值"
+        }
+        
+        response = jsonify(response_data)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        return response, 200
 
 @api_bp.route('/menu/process-ocr', methods=['POST', 'OPTIONS'])
 def process_menu_ocr():
@@ -3977,28 +4061,20 @@ def resolve_store_for_frontend():
     
     try:
         place_id = request.args.get('place_id')
-        lang = (request.args.get('lang') or 'en').lower()
+        name = request.args.get('name', '')
+        lang = request.args.get('lang', 'en')
         
         if not place_id:
             response = jsonify({
                 "error": "需要提供 place_id 參數",
-                "usage": "/api/store/resolve?place_id=ChlJ0boght2rQjQRsH-_buCo3S4&lang=en"
+                "usage": "/api/store/resolve?place_id=ChlJ0boght2rQjQRsH-_buCo3S4&name=店家名稱&lang=en"
             })
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
         
-        # 語言碼正規化
-        def normalize_language_code(lang_code):
-            if not lang_code:
-                return 'en'
-            supported_langs = ['zh', 'en', 'ja', 'ko']
-            if lang_code in supported_langs:
-                return lang_code
-            if '-' in lang_code:
-                return lang_code.split('-')[0]
-            return lang_code
-        
-        normalized_lang = normalize_language_code(lang)
+        # 使用新的翻譯服務進行語言碼正規化
+        from .translation_service import normalize_lang, translate_text
+        normalized_lang = normalize_lang(lang)
         
         # 查詢店家
         store = Store.query.filter_by(place_id=place_id).first()
@@ -4006,17 +4082,7 @@ def resolve_store_for_frontend():
         if store:
             # 合作店家
             original_name = store.store_name
-            display_name = original_name
-            
-            # 如果不是中文，翻譯店名
-            if not normalized_lang.startswith('zh'):
-                try:
-                    from .helpers import translate_text_batch
-                    translated_names = translate_text_batch([original_name], normalized_lang, 'zh')
-                    display_name = translated_names[0] if translated_names else original_name
-                except Exception as e:
-                    current_app.logger.warning(f"店名翻譯失敗: {e}")
-                    display_name = original_name
+            display_name = translate_text(original_name, normalized_lang)
             
             response_data = {
                 "is_partner": True,
@@ -4027,18 +4093,8 @@ def resolve_store_for_frontend():
             }
         else:
             # 非合作店家
-            original_name = request.args.get('name') or f"店家_{place_id[:8]}"
-            display_name = original_name
-            
-            # 如果不是中文，翻譯店名
-            if not normalized_lang.startswith('zh'):
-                try:
-                    from .helpers import translate_text_batch
-                    translated_names = translate_text_batch([original_name], normalized_lang, 'zh')
-                    display_name = translated_names[0] if translated_names else original_name
-                except Exception as e:
-                    current_app.logger.warning(f"店名翻譯失敗: {e}")
-                    display_name = original_name
+            original_name = name or f"店家_{place_id[:8]}"
+            display_name = translate_text(original_name, normalized_lang)
             
             response_data = {
                 "is_partner": False,
@@ -4049,16 +4105,28 @@ def resolve_store_for_frontend():
         
         response = jsonify(response_data)
         response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Cache-Control', 'public, max-age=300')  # 5分鐘快取
         return response, 200
         
     except Exception as e:
         current_app.logger.error(f"店家解析失敗: {str(e)}")
-        response = jsonify({
-            "error": "店家解析失敗",
-            "details": str(e)
-        })
+        # 即使出錯也要回傳 200，避免前端卡在 Preparing...
+        fallback_name = request.args.get('name') or f"店家_{request.args.get('place_id', 'unknown')[:8]}"
+        from .translation_service import normalize_lang, translate_text
+        normalized_lang = normalize_lang(request.args.get('lang', 'en'))
+        display_name = translate_text(fallback_name, normalized_lang)
+        
+        response_data = {
+            "is_partner": False,
+            "original_name": fallback_name,
+            "display_name": display_name,
+            "place_id": request.args.get('place_id', ''),
+            "error": "店家解析失敗，使用預設值"
+        }
+        
+        response = jsonify(response_data)
         response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 500
+        return response, 200
 
 @api_bp.route('/partner/menu', methods=['GET', 'OPTIONS'])
 def get_partner_menu():
@@ -4069,7 +4137,7 @@ def get_partner_menu():
     
     try:
         store_id = request.args.get('store_id')
-        lang = (request.args.get('lang') or 'en').lower()
+        lang = request.args.get('lang', 'en')
         
         if not store_id:
             response = jsonify({
@@ -4079,18 +4147,10 @@ def get_partner_menu():
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 400
         
-        # 語言碼正規化
-        def normalize_language_code(lang_code):
-            if not lang_code:
-                return 'en'
-            supported_langs = ['zh', 'en', 'ja', 'ko']
-            if lang_code in supported_langs:
-                return lang_code
-            if '-' in lang_code:
-                return lang_code.split('-')[0]
-            return lang_code
+        # 使用新的翻譯服務進行語言碼正規化
+        from .translation_service import normalize_lang, translate_text
         
-        normalized_lang = normalize_language_code(lang)
+        normalized_lang = normalize_lang(lang)
         
         # 檢查店家是否存在
         store = Store.query.get(store_id)
@@ -4127,32 +4187,44 @@ def get_partner_menu():
             return response, 404
         
         # 翻譯菜單項目
-        from .helpers import translate_menu_items_with_db_fallback
-        translated_menu = translate_menu_items_with_db_fallback(menu_items, normalized_lang)
-        
-        # 統計翻譯來源
-        db_translations = sum(1 for item in translated_menu if item['translation_source'] == 'database')
-        ai_translations = sum(1 for item in translated_menu if item['translation_source'] == 'ai')
+        translated_items = []
+        for item in menu_items:
+            translated_item = {
+                "id": item.menu_item_id,
+                "name": translate_text(item.item_name, normalized_lang),
+                "original_name": item.item_name,
+                "price_small": item.price_small,
+                "price_large": item.price_large,
+                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
+                "original_category": item.category or ""
+            }
+            translated_items.append(translated_item)
         
         response_data = {
             "store_id": store_id,
             "store_name": store.store_name,
             "user_language": lang,
             "normalized_language": normalized_lang,
-            "items": translated_menu,
-            "translation_stats": {
-                "database_translations": db_translations,
-                "ai_translations": ai_translations,
-                "total_items": len(translated_menu)
-            }
+            "items": translated_items
+        }
+        
+        response = jsonify(response_data)
+        response.headers.add('Access-Control-Allow-Origin', '*')
+        response.headers.add('Cache-Control', 'public, max-age=300')  # 5分鐘快取
+        return response, 200
+        
+    except Exception as e:
+        current_app.logger.error(f"菜單載入錯誤: {str(e)}")
+        # 即使出錯也要回傳 200，避免前端卡在 Preparing...
+        response_data = {
+            "store_id": request.args.get('store_id', ''),
+            "store_name": "",
+            "user_language": lang,
+            "normalized_language": normalize_lang(lang),
+            "items": [],
+            "error": "菜單載入失敗，使用預設值"
         }
         
         response = jsonify(response_data)
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 200
-        
-    except Exception as e:
-        current_app.logger.error(f"菜單載入錯誤: {str(e)}")
-        response = jsonify({'error': '無法載入菜單'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 500
