@@ -30,7 +30,7 @@ def handle_cors_preflight():
     """處理 CORS 預檢請求"""
     response = jsonify({'message': 'OK'})
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,X-LIFF-User-Lang,X-LIFF-User-Id,X-Store-Id,X-LIFF-Lang,X-LIFF-Uid')
+    response.headers.add('Access-Control-Allow-Headers', '*')  # 允許所有 headers
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     response.headers.add('Access-Control-Max-Age', '3600')
     return response, 200

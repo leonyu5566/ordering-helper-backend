@@ -39,9 +39,7 @@ def create_app():
     CORS(app, 
          resources={r"/api/*": {"origins": "*"}},
          methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization", "X-Requested-With",
-                       "X-LIFF-User-Lang", "X-LIFF-User-Id", "X-Store-Id",
-                       "X-LIFF-Lang", "X-LIFF-Uid"],
+         allow_headers=["*"],  # 允許所有 headers
          supports_credentials=False,
          max_age=3600)
     
