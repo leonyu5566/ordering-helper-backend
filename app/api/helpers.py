@@ -19,6 +19,7 @@ import re
 import datetime
 # from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
 import tempfile
+from copy import deepcopy
 
 # =============================================================================
 # 新增：中文檢測和防呆轉換器函數
@@ -1366,34 +1367,33 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         order_items_dto.append(order_item_dto)
         print(f"✅ 建立 DTO 物件: original='{order_item_dto.name.original}', translated='{order_item_dto.name.translated}'")
     
-    # 建立訂單摘要 DTO（完全分離 native 和 display 資料流）
-    # native 資料：用於中文摘要和語音（深拷貝，避免共用物件）
-    order_summary_native = OrderSummaryDTO(
-        store_name=store_name_for_display,  # 中文店名
-        items=order_items_dto.copy() if hasattr(order_items_dto, 'copy') else order_items_dto,  # 深拷貝避免共用
-        total_amount=order.total_amount,
-        user_language='zh'  # 強制使用中文
-    )
+    # 使用 GPT 建議的 deepcopy 方案，建立兩份完全獨立的表示層
+    # 準備原始資料（中文店名/菜名）
+    order_base = {
+        'store_name': store_name_for_display,
+        'items': [
+            {
+                'name': item.name.original,  # 中文原文
+                'quantity': item.quantity,
+                'price': item.price
+            }
+            for item in order_items_dto
+        ],
+        'total_amount': order.total_amount
+    }
     
-    # display 資料：用於使用者語言摘要（深拷貝，避免共用物件）
-    order_summary_display = OrderSummaryDTO(
-        store_name=store_name_for_display,  # 會根據語言翻譯
-        items=order_items_dto.copy() if hasattr(order_items_dto, 'copy') else order_items_dto,  # 深拷貝避免共用
-        total_amount=order.total_amount,
-        user_language=user_language
-    )
+    # 建立兩份完全獨立的表示層
+    chinese_summary, user_language_summary, zh_model = build_presentations(order_base, user_language)
     
-    # 生成雙語摘要（明確分離資料流）
-    chinese_summary = order_summary_native.chinese_summary
-    user_language_summary = order_summary_display.user_language_summary
-    chinese_voice_text = order_summary_native.voice_text
+    # 生成語音文字（一律使用中文）
+    chinese_voice_text = render_tts_text(zh_model)
     
     # 記錄結構化日誌，驗證資料分離
     print(f"📊 資料分離驗證:")
     print(f"   native store_name: '{store_name_for_display}'")
-    print(f"   native first item: '{order_items_dto[0].name.original if order_items_dto else 'N/A'}'")
+    print(f"   native first item: '{order_base['items'][0]['name'] if order_base['items'] else 'N/A'}'")
     print(f"   display user_lang: '{user_language}'")
-    print(f"   display first item: '{order_items_dto[0].name.translated if order_items_dto else 'N/A'}'")
+    print(f"   display first item: '{order_base['items'][0]['name'] if order_base['items'] else 'N/A'}'")
     
     print(f"🎤 生成中文語音文字: '{chinese_voice_text}'")
     print(f"📝 生成中文摘要:")
@@ -1435,13 +1435,38 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     print(f"📝 生成使用者語言摘要:")
     print(f"   {user_language_summary.replace(chr(10), chr(10) + '   ')}")
     
+    # 交易式寫入資料庫（一次 commit，避免半套資料）
+    try:
+        from ..models import OrderSummary
+        from sqlalchemy.orm import Session
+        
+        with db.session.begin():  # 交易自動 begin/commit/rollback
+            order_summary = OrderSummary(
+                order_id=order_id,
+                ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
+                chinese_summary=chinese_summary,
+                user_language_summary=user_language_summary,
+                user_language=user_language,
+                total_amount=order.total_amount
+            )
+            db.session.add(order_summary)
+            db.session.flush()  # 獲取 ID
+            summary_id = order_summary.summary_id
+            
+        print(f"✅ 訂單摘要已成功寫入資料庫: summary_id={summary_id}")
+        
+    except Exception as e:
+        print(f"⚠️ 寫入訂單摘要失敗: {e}")
+        # 不影響主要流程，繼續執行
+    
     result = {
         "chinese_voice_text": chinese_voice_text,
         "chinese": chinese_summary,
         "translated": user_language_summary,
         "chinese_summary": chinese_summary,
         "translated_summary": user_language_summary,
-        "user_language": user_language
+        "user_language": user_language,
+        "summary_id": summary_id if 'summary_id' in locals() else None
     }
     
     print(f"🎉 訂單確認生成完成!")
@@ -1480,11 +1505,27 @@ def send_complete_order_notification(order_id, store_name=None):
         print(f"找不到使用者: {order.user_id}")
         return
     
-    # 建立完整訂單確認內容
-    confirmation = create_complete_order_confirmation(order_id, user.preferred_lang, store_name)
-    if not confirmation:
-        print(f"無法建立訂單確認內容: {order_id}")
-        return
+    # 從資料庫讀取訂單摘要（優先使用資料庫中的摘要）
+    from ..models import OrderSummary
+    
+    order_summary = OrderSummary.query.filter_by(order_id=order_id).first()
+    if order_summary:
+        print(f"✅ 從資料庫讀取訂單摘要: summary_id={order_summary.summary_id}")
+        confirmation = {
+            "chinese_voice_text": "老闆，我要點餐，謝謝。",  # 簡化語音文字
+            "chinese": order_summary.chinese_summary,
+            "translated": order_summary.user_language_summary,
+            "chinese_summary": order_summary.chinese_summary,
+            "translated_summary": order_summary.user_language_summary,
+            "user_language": order_summary.user_language
+        }
+    else:
+        print(f"⚠️ 資料庫中沒有找到訂單摘要，使用即時生成")
+        # 建立完整訂單確認內容
+        confirmation = create_complete_order_confirmation(order_id, user.preferred_lang, store_name)
+        if not confirmation:
+            print(f"無法建立訂單確認內容: {order_id}")
+            return
     
     try:
         print(f"開始發送訂單通知: {order_id} -> {user.line_user_id}")
@@ -3557,3 +3598,117 @@ def translate_ocr_menu_items_with_db_fallback(ocr_menu_items, target_language):
             'price_big': item.price_big,
             'translation_source': 'error'
         } for item in ocr_menu_items]
+
+def build_presentations(order_base, user_lang):
+    """
+    建立兩份完全獨立的表示層模型
+    
+    Args:
+        order_base: 原始資料（中文店名/菜名），只做讀取不改寫
+        user_lang: 使用者語言，例如 'en'
+    
+    Returns:
+        tuple: (zh_summary, user_summary, zh_model)
+    """
+    print(f"🔧 開始建立兩份獨立表示層...")
+    print(f"   使用者語言: {user_lang}")
+    
+    # 1. 建立兩份完全獨立的模型（深拷貝，避免共用物件）
+    zh_model = deepcopy(order_base)               # 中文版：保持中文店名、中文菜名
+    localized = deepcopy(order_base)              # 在地化版：全部翻成 user_lang
+    
+    print(f"   ✅ 深拷貝完成，兩份模型完全獨立")
+    
+    # 2. 翻譯店名（只翻譯 localized 版本）
+    if user_lang != 'zh':
+        print(f"   🔄 翻譯店名: '{localized['store_name']}' -> ", end="")
+        localized['store_name'] = translate_text_with_fallback(localized['store_name'], user_lang)
+        print(f"'{localized['store_name']}'")
+    
+    # 3. 翻譯每個菜名（只翻譯 localized 版本）
+    if user_lang != 'zh':
+        print(f"   🔄 翻譯菜名...")
+        for item in localized['items']:
+            original_name = item['name']
+            item['name'] = translate_text_with_fallback(original_name, user_lang)
+            print(f"      '{original_name}' -> '{item['name']}'")
+    
+    # 4. 組兩份摘要字串
+    zh_summary = render_summary(zh_model, lang='zh')
+    user_summary = render_summary(localized, lang=user_lang)
+    
+    print(f"   ✅ 兩份摘要生成完成")
+    print(f"   📝 中文摘要長度: {len(zh_summary)} 字元")
+    print(f"   📝 使用者語言摘要長度: {len(user_summary)} 字元")
+    
+    return zh_summary, user_summary, zh_model
+
+def render_summary(model, lang='zh'):
+    """
+    渲染摘要文字
+    
+    Args:
+        model: 資料模型（zh_model 或 localized）
+        lang: 語言代碼
+    
+    Returns:
+        str: 摘要文字
+    """
+    store_name = model['store_name']
+    items = model['items']
+    total_amount = model['total_amount']
+    
+    if lang == 'zh':
+        # 中文摘要格式
+        summary = f"店家：{store_name}\n"
+        summary += "訂購項目：\n"
+        for item in items:
+            summary += f"- {item['name']} x{item['quantity']}\n"
+        summary += f"總金額：${total_amount}"
+    else:
+        # 其他語言摘要格式
+        summary = f"Store: {store_name}\n"
+        summary += "Items:\n"
+        for item in items:
+            summary += f"- {item['name']} x{item['quantity']} (${item['price']})\n"
+        summary += f"Total: ${total_amount}"
+    
+    return summary
+
+def render_tts_text(zh_model):
+    """
+    渲染語音文字（一律使用中文）
+    
+    Args:
+        zh_model: 中文模型
+    
+    Returns:
+        str: 語音文字
+    """
+    items = zh_model['items']
+    
+    voice_items = []
+    for item in items:
+        name = item['name']
+        quantity = item['quantity']
+        
+        # 根據菜名類型選擇量詞
+        if any(keyword in name for keyword in ['茶', '咖啡', '飲料', '果汁', '奶茶', '汽水', '可樂', '啤酒', '酒']):
+            # 飲料類用「杯」
+            if quantity == 1:
+                voice_items.append(f"{name}一杯")
+            else:
+                voice_items.append(f"{name}{quantity}杯")
+        else:
+            # 餐點類用「份」
+            if quantity == 1:
+                voice_items.append(f"{name}一份")
+            else:
+                voice_items.append(f"{name}{quantity}份")
+    
+    # 生成自然的中文語音
+    if len(voice_items) == 1:
+        return f"老闆，我要{voice_items[0]}，謝謝。"
+    else:
+        voice_text = "、".join(voice_items[:-1]) + "和" + voice_items[-1]
+        return f"老闆，我要{voice_text}，謝謝。"
