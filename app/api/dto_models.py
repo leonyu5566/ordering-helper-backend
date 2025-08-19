@@ -109,7 +109,8 @@ class OrderSummaryDTO(BaseModel):
                 display_name = item.name.translated
             items_text.append(f"- {display_name} x{item.quantity} (${item.price})")
         
-        # 使用者語言摘要：使用 display 店名
+        # 使用者語言摘要：使用 display 店名（需要根據語言翻譯）
+        # 這裡的 store_name 應該已經被翻譯過了
         summary = f"Store: {self.store_name}\n"
         summary += "Items:\n"
         summary += "\n".join(items_text)

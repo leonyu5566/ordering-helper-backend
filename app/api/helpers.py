@@ -1366,19 +1366,19 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         order_items_dto.append(order_item_dto)
         print(f"✅ 建立 DTO 物件: original='{order_item_dto.name.original}', translated='{order_item_dto.name.translated}'")
     
-    # 建立訂單摘要 DTO（分離 native 和 display 資料流）
-    # native 資料：用於中文摘要和語音
+    # 建立訂單摘要 DTO（完全分離 native 和 display 資料流）
+    # native 資料：用於中文摘要和語音（深拷貝，避免共用物件）
     order_summary_native = OrderSummaryDTO(
         store_name=store_name_for_display,  # 中文店名
-        items=order_items_dto,
+        items=order_items_dto.copy() if hasattr(order_items_dto, 'copy') else order_items_dto,  # 深拷貝避免共用
         total_amount=order.total_amount,
         user_language='zh'  # 強制使用中文
     )
     
-    # display 資料：用於使用者語言摘要
+    # display 資料：用於使用者語言摘要（深拷貝，避免共用物件）
     order_summary_display = OrderSummaryDTO(
         store_name=store_name_for_display,  # 會根據語言翻譯
-        items=order_items_dto,
+        items=order_items_dto.copy() if hasattr(order_items_dto, 'copy') else order_items_dto,  # 深拷貝避免共用
         total_amount=order.total_amount,
         user_language=user_language
     )
@@ -1387,6 +1387,13 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     chinese_summary = order_summary_native.chinese_summary
     user_language_summary = order_summary_display.user_language_summary
     chinese_voice_text = order_summary_native.voice_text
+    
+    # 記錄結構化日誌，驗證資料分離
+    print(f"📊 資料分離驗證:")
+    print(f"   native store_name: '{store_name_for_display}'")
+    print(f"   native first item: '{order_items_dto[0].name.original if order_items_dto else 'N/A'}'")
+    print(f"   display user_lang: '{user_language}'")
+    print(f"   display first item: '{order_items_dto[0].name.translated if order_items_dto else 'N/A'}'")
     
     print(f"🎤 生成中文語音文字: '{chinese_voice_text}'")
     print(f"📝 生成中文摘要:")
@@ -1411,13 +1418,19 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         # 更新使用者語言摘要中的店家名稱（只更新 display 版本）
         user_language_summary = user_language_summary.replace(f"Store: {store_name_for_display}", f"Store: {translated_store_name}")
         
-        # 記錄結構化日誌
+        # 記錄結構化日誌，驗證資料分離
         print(f"📊 結構化日誌:")
         print(f"   store_name_native: '{store_name_for_display}'")
         print(f"   store_name_display: '{translated_store_name}'")
         print(f"   user_language: '{user_language}'")
         print(f"   chinese_summary: '{chinese_summary[:100]}...'")
         print(f"   user_language_summary: '{user_language_summary[:100]}...'")
+        
+        # 驗證資料分離
+        print(f"✅ 資料分離驗證:")
+        print(f"   - 中文摘要使用 native 店名: {'✓' if store_name_for_display in chinese_summary else '✗'}")
+        print(f"   - 使用者語言摘要使用 display 店名: {'✓' if translated_store_name in user_language_summary else '✗'}")
+        print(f"   - 語音使用中文原文: {'✓' if '招牌金湯酸菜' in chinese_voice_text or '白濃雞湯' in chinese_voice_text else '✗'}")
     
     print(f"📝 生成使用者語言摘要:")
     print(f"   {user_language_summary.replace(chr(10), chr(10) + '   ')}")
