@@ -860,51 +860,6 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
         print(f"語音生成失敗：{e}")
         return None
 
-def create_order_summary(order_id, user_language='zh'):
-    """
-    建立訂單摘要（雙語）
-    """
-    from ..models import Order, OrderItem, MenuItem, Store
-    
-    order = Order.query.get(order_id)
-    if not order:
-        return None
-    
-    store = Store.query.get(order.store_id)
-    
-    # 中文摘要
-    chinese_summary = f"訂單編號：{order.order_id}\n"
-    chinese_summary += f"店家：{store.store_name if store else '未知店家'}\n"
-    chinese_summary += "訂購項目：\n"
-    
-    for item in order.items:
-        menu_item = MenuItem.query.get(item.menu_item_id)
-        if menu_item:
-            chinese_summary += f"- {menu_item.item_name} x{item.quantity}\n"
-    
-    chinese_summary += f"總金額：${order.total_amount}"
-    
-    # 翻譯摘要（簡化版）
-    if user_language != 'zh':
-        # 這裡可以呼叫 Gemini API 進行翻譯
-        translated_summary = f"Order #{order.order_id}\n"
-        translated_summary += f"Store: {store.store_name if store else 'Unknown Store'}\n"
-        translated_summary += "Items:\n"
-        
-        for item in order.items:
-            menu_item = MenuItem.query.get(item.menu_item_id)
-            if menu_item:
-                translated_summary += f"- {menu_item.item_name} x{item.quantity}\n"
-        
-        translated_summary += f"Total: ${order.total_amount}"
-    else:
-        translated_summary = chinese_summary
-    
-    return {
-        "chinese": chinese_summary,
-        "translated": translated_summary
-    }
-
 def save_uploaded_file(file, folder='uploads'):
     """
     儲存上傳的檔案並進行圖片壓縮
@@ -3278,7 +3233,7 @@ def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_styl
 
 def create_order_summary(order_id, user_language='zh'):
     """
-    建立訂單摘要（雙語）
+    建立訂單摘要（雙語）- 使用 Gemini API 強制翻譯英文菜名
     """
     from ..models import Order, OrderItem, MenuItem, Store
     
@@ -3289,28 +3244,39 @@ def create_order_summary(order_id, user_language='zh'):
     store = Store.query.get(order.store_id)
     
     # 中文摘要
-    chinese_summary = f"訂單編號：{order.order_id}\n"
-    chinese_summary += f"店家：{store.store_name if store else '未知店家'}\n"
+    chinese_summary = f"店家：{store.store_name if store else '未知店家'}\n"
     chinese_summary += "訂購項目：\n"
     
     for item in order.items:
         menu_item = MenuItem.query.get(item.menu_item_id)
         if menu_item:
-            chinese_summary += f"- {menu_item.item_name} x{item.quantity}\n"
+            # 檢查菜名是否為英文，如果是則強制翻譯為中文
+            item_name = menu_item.item_name
+            if not contains_cjk(item_name):
+                try:
+                    # 使用 Gemini API 強制翻譯為中文
+                    translated_name = translate_text(item_name, 'zh')
+                    if translated_name and contains_cjk(translated_name):
+                        item_name = translated_name
+                        print(f"🔄 Gemini 翻譯菜名：'{menu_item.item_name}' → '{item_name}'")
+                    else:
+                        print(f"⚠️ Gemini 翻譯失敗或結果非中文：'{menu_item.item_name}'")
+                except Exception as e:
+                    print(f"❌ Gemini 翻譯錯誤：{e}")
+            
+            chinese_summary += f"- {item_name} x{item.quantity_small}\n"
     
     chinese_summary += f"總金額：${order.total_amount}"
     
-    # 翻譯摘要（簡化版）
+    # 翻譯摘要（使用者語言）
     if user_language != 'zh':
-        # 這裡可以呼叫 Gemini API 進行翻譯
-        translated_summary = f"Order #{order.order_id}\n"
-        translated_summary += f"Store: {store.store_name if store else 'Unknown Store'}\n"
+        translated_summary = f"Store: {store.store_name if store else 'Unknown Store'}\n"
         translated_summary += "Items:\n"
         
         for item in order.items:
             menu_item = MenuItem.query.get(item.menu_item_id)
             if menu_item:
-                translated_summary += f"- {menu_item.item_name} x{item.quantity}\n"
+                translated_summary += f"- {menu_item.item_name} x{item.quantity_small} (${item.subtotal})\n"
         
         translated_summary += f"Total: ${order.total_amount}"
     else:
