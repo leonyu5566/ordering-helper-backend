@@ -17,7 +17,7 @@ from pydantic import BaseModel
 import logging
 import re
 import datetime
-from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
+# from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
 import tempfile
 
 # =============================================================================
@@ -213,40 +213,20 @@ def get_gemini_client():
         print(f"Gemini API 初始化失敗: {e}")
         return None
 
-# Azure TTS 設定（延遲初始化）
+# gTTS 設定（替換 Azure Speech）
 def get_speech_config():
-    """取得 Azure Speech 配置"""
-    try:
-        # 延遲導入 Azure Speech SDK
-        from azure.cognitiveservices.speech import SpeechConfig
-        
-        speech_key = os.getenv('AZURE_SPEECH_KEY')
-        speech_region = os.getenv('AZURE_SPEECH_REGION')
-        
-        # 檢查環境變數
-        if not speech_key:
-            print("警告: AZURE_SPEECH_KEY 環境變數未設定")
-            return None
-        
-        if not speech_region:
-            print("警告: AZURE_SPEECH_REGION 環境變數未設定")
-            return None
-        
-        print(f"Azure Speech 配置: region={speech_region}")
-        
-        return SpeechConfig(
-            subscription=speech_key,
-            region=speech_region
-        )
-    except ImportError as e:
-        print(f"Azure Speech SDK 未安裝: {e}")
-        return None
-    except Exception as e:
-        print(f"Azure Speech Service 配置失敗: {e}")
-        return None
+    """取得語音配置（已改為使用 gTTS）"""
+    # 返回一個簡單的配置對象，但實際上我們使用 gTTS
+    class MockSpeechConfig:
+        def __init__(self):
+            self.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+            self.speech_synthesis_speaking_rate = 1.0
+    
+    print("使用 gTTS 語音生成服務")
+    return MockSpeechConfig()
 
 def cleanup_old_voice_files(max_age=3600):
-    """刪除 60 分鐘以前的 WAV（延長清理時間）"""
+    """刪除 60 分鐘以前的 MP3（延長清理時間）"""
     try:
         import time
         now = time.time()
@@ -256,7 +236,7 @@ def cleanup_old_voice_files(max_age=3600):
         os.makedirs(VOICE_DIR, exist_ok=True)
         
         for fn in os.listdir(VOICE_DIR):
-            if not fn.endswith('.wav'):
+            if not fn.endswith('.mp3'):
                 continue
                 
             full = os.path.join(VOICE_DIR, fn)
@@ -635,7 +615,7 @@ def test_text_normalization():
 
 def generate_voice_order(order_id, speech_rate=1.0):
     """
-    使用 Azure TTS 生成訂單語音
+    使用 gTTS 生成訂單語音
     """
     print(f"🔧 開始生成語音檔...")
     print(f"📋 輸入參數: order_id={order_id}, speech_rate={speech_rate}")
@@ -672,46 +652,32 @@ def generate_voice_order(order_id, speech_rate=1.0):
         order_text = normalize_order_text_for_tts(order_text)
         print(f"[TTS] 預處理後的訂單文本: {order_text}")
         
-        # 取得語音配置
-        speech_config = get_speech_config()
-        if not speech_config:
-            print("Azure Speech Service 配置失敗，使用備用方案")
-            return generate_voice_order_fallback(order_id, speech_rate)
-        
         try:
-            # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
-            
-            # 設定語音參數
-            speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
-            speech_config.speech_synthesis_speaking_rate = speech_rate
+            # 使用 gTTS 生成語音
+            from gtts import gTTS
             
             # 確保目錄存在
             os.makedirs(VOICE_DIR, exist_ok=True)
             
-            # 直接存到 VOICE_DIR
-            filename = f"{uuid.uuid4()}.wav"
+            # 生成檔案路徑
+            filename = f"{uuid.uuid4()}.mp3"
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS] Will save to {audio_path}")
-            audio_config = AudioConfig(filename=audio_path)
-            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
-            result = synthesizer.speak_text_async(order_text).get()
+            # 使用 gTTS 生成語音（中文）
+            tts = gTTS(text=order_text, lang='zh-tw', slow=False)
+            tts.save(audio_path)
             
-            if result.reason == ResultReason.SynthesizingAudioCompleted:
-                # 檢查檔案是否真的生成
-                if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                    print(f"[TTS] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
-                    return audio_path
-                else:
-                    print(f"[TTS] 檔案生成失敗或為空: {audio_path}")
-                    return generate_voice_order_fallback(order_id, speech_rate)
+            # 檢查檔案是否真的生成
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                print(f"[TTS] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
+                return audio_path
             else:
-                print(f"語音生成失敗：{result.reason}")
+                print(f"[TTS] 檔案生成失敗或為空: {audio_path}")
                 return generate_voice_order_fallback(order_id, speech_rate)
                 
         except Exception as e:
-            print(f"Azure TTS 處理失敗：{e}")
+            print(f"gTTS 處理失敗：{e}")
             return generate_voice_order_fallback(order_id, speech_rate)
             
     except Exception as e:
@@ -760,29 +726,30 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             return None
         
         try:
-            # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
+            # 使用 gTTS 生成語音
+            from gtts import gTTS
             
-            # 設定語音參數、輸出到 /tmp/voices
-            speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
-            speech_config.speech_synthesis_speaking_rate = speech_rate
-            filename = f"{uuid.uuid4()}.wav"
+            # 確保目錄存在
+            os.makedirs(VOICE_DIR, exist_ok=True)
+            
+            # 生成檔案路徑
+            filename = f"{uuid.uuid4()}.mp3"
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS] Will save to {audio_path}")
-            audio_config = AudioConfig(filename=audio_path)
-            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
-            result = synthesizer.speak_text_async(order_text).get()
+            # 使用 gTTS 生成語音（中文）
+            tts = gTTS(text=order_text, lang='zh-tw', slow=False)
+            tts.save(audio_path)
             
-            if result.reason == ResultReason.SynthesizingAudioCompleted:
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
-                print(f"語音生成失敗：{result.reason}")
+                print(f"語音生成失敗：檔案不存在或為空")
                 return None
                 
         except Exception as e:
-            print(f"Azure TTS 處理失敗：{e}")
+            print(f"gTTS 處理失敗：{e}")
             return None
             
     except Exception as e:
@@ -791,7 +758,7 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
 
 def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-TW-HsiaoChenNeural"):
     """
-    生成自定義語速的語音檔
+    使用 gTTS 生成自定義語速的語音檔
     """
     cleanup_old_voice_files()
     try:
@@ -799,36 +766,33 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
         order_text = normalize_order_text_for_tts(order_text)
         print(f"[TTS] 自定義語音預處理後的文本: {order_text}")
         
-        # 取得語音配置
-        speech_config = get_speech_config()
-        if not speech_config:
-            print("Azure Speech Service 配置失敗，跳過語音生成")
-            return None
-        
         try:
-            # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
+            # 使用 gTTS 生成語音
+            from gtts import gTTS
             
-            # 設定語音參數
-            speech_config.speech_synthesis_voice_name = voice_name
-            speech_config.speech_synthesis_speaking_rate = speech_rate
-            filename = f"{uuid.uuid4()}.wav"
+            # 確保目錄存在
+            os.makedirs(VOICE_DIR, exist_ok=True)
+            
+            # 生成檔案路徑
+            filename = f"{uuid.uuid4()}.mp3"
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS] Will save to {audio_path}")
-            audio_config = AudioConfig(filename=audio_path)
-            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
             
-            result = synthesizer.speak_text_async(order_text).get()
+            # 使用 gTTS 生成語音（中文）
+            # 注意：gTTS 不支援語速調整，但我們可以通過 slow 參數來控制
+            slow = speech_rate < 0.8  # 如果語速小於 0.8，使用慢速
+            tts = gTTS(text=order_text, lang='zh-tw', slow=slow)
+            tts.save(audio_path)
             
-            if result.reason == ResultReason.SynthesizingAudioCompleted:
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
-                print(f"語音生成失敗：{result.reason}")
+                print(f"語音生成失敗：檔案不存在或為空")
                 return None
                 
         except Exception as e:
-            print(f"Azure TTS 處理失敗：{e}")
+            print(f"gTTS 處理失敗：{e}")
             return None
             
     except Exception as e:
@@ -2045,24 +2009,14 @@ def generate_fallback_order_summary(items, user_language):
 
 def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
     """
-    使用 Azure Speech 生成中文語音檔
+    使用 gTTS 生成中文語音檔
     輸入：訂單摘要、訂單ID、語速
     輸出：語音檔絕對路徑
     """
     cleanup_old_voice_files()
     try:
-        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
+        from gtts import gTTS
         import os
-        
-        # 取得 Azure Speech 配置
-        speech_config = get_speech_config()
-        if not speech_config:
-            print("Azure Speech 配置不可用")
-            return None
-        
-        # 設定語音參數
-        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
-        speech_config.speech_synthesis_speaking_rate = speech_rate  # 支援語速調整
         
         # 準備語音文字（處理不同類型的輸入）
         if isinstance(order_summary, dict):
@@ -2074,31 +2028,29 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         
         # 應用文本預處理（確保沒有遺漏的 x1 格式）
         chinese_text = normalize_order_text_for_tts(chinese_text)
-        print(f"[TTS] Azure 語音預處理後的文本: {chinese_text}")
+        print(f"[TTS] gTTS 語音預處理後的文本: {chinese_text}")
+        
+        # 確保目錄存在
+        os.makedirs(VOICE_DIR, exist_ok=True)
         
         # 生成語音檔路徑（存到 /tmp/voices）
-        filename = f"{uuid.uuid4()}.wav"
+        filename = f"{uuid.uuid4()}.mp3"
         voice_path = os.path.join(VOICE_DIR, filename)
         print(f"[TTS] Will save to {voice_path}")
         
-        # 設定音訊輸出
-        audio_config = AudioConfig(filename=voice_path)
+        # 使用 gTTS 生成語音（中文）
+        tts = gTTS(text=chinese_text, lang='zh-tw', slow=False)
+        tts.save(voice_path)
         
-        # 建立語音合成器
-        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-        
-        # 生成語音
-        result = synthesizer.speak_text_async(chinese_text).get()
-        
-        if result.reason == ResultReason.SynthesizingAudioCompleted:
+        if os.path.exists(voice_path) and os.path.getsize(voice_path) > 0:
             print(f"[TTS] Success, file exists? {os.path.exists(voice_path)}")
             return voice_path
         else:
-            print(f"語音生成失敗: {result.reason}")
+            print(f"語音生成失敗: 檔案不存在或為空")
             return None
             
     except Exception as e:
-        print(f"Azure Speech 語音生成失敗: {e}")
+        print(f"gTTS 語音生成失敗: {e}")
         return None
 
 # =============================================================================
@@ -2444,46 +2396,35 @@ def build_chinese_voice_text(zh_items: List[Dict]) -> str:
 
 async def synthesize_azure_tts(text: str) -> tuple[str, int]:
     """
-    使用 Azure TTS 合成語音
+    使用 gTTS 合成語音
     回傳：(語音檔URL, 持續時間毫秒)
     """
     try:
-        from azure.cognitiveservices.speech import SpeechConfig, SpeechSynthesizer, AudioConfig, ResultReason
+        from gtts import gTTS
         import os
         
-        # 取得 Azure Speech 配置
-        speech_config = get_speech_config()
-        if not speech_config:
-            print("Azure Speech 配置不可用")
-            return None, 0
-        
-        # 設定語音參數
-        speech_config.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
-        speech_config.speech_synthesis_speaking_rate = 1.0
+        # 確保目錄存在
+        os.makedirs(VOICE_DIR, exist_ok=True)
         
         # 生成語音檔路徑
-        filename = f"{uuid.uuid4()}.wav"
+        filename = f"{uuid.uuid4()}.mp3"
         voice_path = os.path.join(VOICE_DIR, filename)
         
-        # 設定音訊輸出
-        audio_config = AudioConfig(filename=voice_path)
+        # 使用 gTTS 生成語音（中文）
+        tts = gTTS(text=text, lang='zh-tw', slow=False)
+        tts.save(voice_path)
         
-        # 建立語音合成器
-        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-        
-        # 生成語音
-        result = synthesizer.speak_text_async(text).get()
-        
-        if result.reason == ResultReason.SynthesizingAudioCompleted:
-            # 計算持續時間（毫秒）
-            duration_ms = int(result.audio_duration / 10000)  # Azure 回傳的是 100-nanosecond units
-            return voice_path, duration_ms
+        if os.path.exists(voice_path) and os.path.getsize(voice_path) > 0:
+            # 估算持續時間（gTTS 沒有提供持續時間，我們根據文字長度估算）
+            # 假設每個中文字符約 0.5 秒
+            estimated_duration_ms = len(text) * 500
+            return voice_path, estimated_duration_ms
         else:
-            print(f"語音生成失敗: {result.reason}")
+            print(f"語音生成失敗: 檔案不存在或為空")
             return None, 0
             
     except Exception as e:
-        print(f"Azure TTS 語音生成失敗: {e}")
+        print(f"gTTS 語音生成失敗: {e}")
         return None, 0
 
 # =============================================================================
@@ -3096,13 +3037,13 @@ def process_order_with_enhanced_tts(order_request: OrderRequest):
 
 def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="cheerful", use_hd_voice=True):
     """
-    使用 Azure TTS 生成增強版訂單語音（支援 SSML 和 HD 聲音）
+    使用 gTTS 生成增強版訂單語音
     
     Args:
         order_id: 訂單 ID
         speech_rate: 語速倍率 (0.5-2.0)
         emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")
-        use_hd_voice: 是否使用 HD 聲音
+        use_hd_voice: 是否使用 HD 聲音（gTTS 不支援，保留參數相容性）
     """
     # 先 cleanup（延長清理時間）
     cleanup_old_voice_files(3600)  # 60分鐘
@@ -3151,74 +3092,34 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
         order_text = normalize_order_text_for_tts(order_text)
         print(f"[TTS Enhanced] 預處理後的訂單文本: {order_text}")
         
-        # 取得語音配置
-        speech_config = get_speech_config()
-        if not speech_config:
-            print("Azure Speech Service 配置失敗，使用備用方案")
-            return generate_voice_order_fallback(order_id, speech_rate)
-        
         try:
-            # 延遲導入 Azure Speech SDK
-            from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
-            
-            # 選擇語音（支援 HD 聲音）
-            if use_hd_voice:
-                # 使用 HD 聲音（自動情感偵測）
-                voice_name = "zh-TW-HsiaoChenNeural"  # 目前台灣中文 HD 聲音
-                print(f"[TTS Enhanced] 使用 HD 聲音: {voice_name}")
-            else:
-                # 使用標準聲音
-                voice_name = "zh-TW-HsiaoChenNeural"
-                print(f"[TTS Enhanced] 使用標準聲音: {voice_name}")
-            
-            # 設定語音參數
-            speech_config.speech_synthesis_voice_name = voice_name
-            speech_config.speech_synthesis_speaking_rate = speech_rate
+            # 使用 gTTS 生成語音
+            from gtts import gTTS
             
             # 確保目錄存在
             os.makedirs(VOICE_DIR, exist_ok=True)
             
-            # 直接存到 VOICE_DIR
-            filename = f"{uuid.uuid4()}.wav"
+            # 生成檔案路徑
+            filename = f"{uuid.uuid4()}.mp3"
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS Enhanced] Will save to {audio_path}")
             
-            # 使用 SSML 增強語音效果
-            ssml_text = f"""
-<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
-       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-TW">
-  <voice name="{voice_name}">
-    <mstts:express-as style="{emotion_style}" styledegree="1.5">
-      <prosody rate="{speech_rate}" pitch="+0%" volume="+0%">
-        {order_text}
-      </prosody>
-    </mstts:express-as>
-  </voice>
-</speak>
-            """.strip()
+            # 使用 gTTS 生成語音（中文）
+            # 注意：gTTS 不支援語速調整和情感風格，但我們可以通過 slow 參數來控制
+            slow = speech_rate < 0.8  # 如果語速小於 0.8，使用慢速
+            tts = gTTS(text=order_text, lang='zh-tw', slow=slow)
+            tts.save(audio_path)
             
-            print(f"[TTS Enhanced] 使用 SSML: {ssml_text}")
-            
-            audio_config = AudioConfig(filename=audio_path)
-            synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-            
-            # 使用 SSML 合成語音
-            result = synthesizer.speak_ssml_async(ssml_text).get()
-            
-            if result.reason == ResultReason.SynthesizingAudioCompleted:
-                # 檢查檔案是否真的生成
-                if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                    print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
-                    return audio_path
-                else:
-                    print(f"[TTS Enhanced] 檔案生成失敗或為空: {audio_path}")
-                    return generate_voice_order_fallback(order_id, speech_rate)
+            # 檢查檔案是否真的生成
+            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+                print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
+                return audio_path
             else:
-                print(f"語音生成失敗：{result.reason}")
+                print(f"[TTS Enhanced] 檔案生成失敗或為空: {audio_path}")
                 return generate_voice_order_fallback(order_id, speech_rate)
                 
         except Exception as e:
-            print(f"Azure TTS Enhanced 處理失敗：{e}")
+            print(f"gTTS Enhanced 處理失敗：{e}")
             return generate_voice_order_fallback(order_id, speech_rate)
             
     except Exception as e:
@@ -3227,82 +3128,39 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
 
 def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_style="cheerful", use_hd_voice=True):
     """
-    使用 Azure TTS 生成增強版自訂語音檔（支援 SSML 和情感風格）
+    使用 gTTS 生成增強版自訂語音檔
     
     Args:
         text: 要轉換的文字
         speech_rate: 語速倍率 (0.5-2.0)
-        emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")
-        use_hd_voice: 是否使用 HD 聲音
+        emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")（gTTS 不支援，保留參數相容性）
+        use_hd_voice: 是否使用 HD 聲音（gTTS 不支援，保留參數相容性）
     """
     try:
-        # 取得語音配置
-        speech_config = get_speech_config()
-        if not speech_config:
-            print("Azure Speech Service 配置失敗")
-            return None
-        
-        # 選擇語音（支援 HD 聲音）
-        if use_hd_voice:
-            # 使用 HD 聲音（自動情感偵測）
-            voice_name = "zh-TW-HsiaoChenNeural"  # 目前台灣中文 HD 聲音
-            print(f"[TTS Enhanced] 使用 HD 聲音: {voice_name}")
-        else:
-            # 使用標準聲音
-            voice_name = "zh-TW-HsiaoChenNeural"
-            print(f"[TTS Enhanced] 使用標準聲音: {voice_name}")
-        
-        # 設定語音參數
-        speech_config.speech_synthesis_voice_name = voice_name
-        speech_config.speech_synthesis_speaking_rate = speech_rate
-        
         # 確保目錄存在
         os.makedirs(VOICE_DIR, exist_ok=True)
         
         # 生成檔案名
-        filename = f"{uuid.uuid4()}.wav"
+        filename = f"{uuid.uuid4()}.mp3"
         audio_path = os.path.join(VOICE_DIR, filename)
         print(f"[TTS Enhanced] Will save to {audio_path}")
         
-        # 使用 SSML 增強語音效果
-        ssml_text = f"""
-<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" 
-       xmlns:mstts="https://www.w3.org/2001/mstts" xml:lang="zh-TW">
-  <voice name="{voice_name}">
-    <mstts:express-as style="{emotion_style}" styledegree="1.5">
-      <prosody rate="{speech_rate}" pitch="+0%" volume="+0%">
-        {text}
-      </prosody>
-    </mstts:express-as>
-  </voice>
-</speak>
-        """.strip()
+        # 使用 gTTS 生成語音（中文）
+        # 注意：gTTS 不支援語速調整和情感風格，但我們可以通過 slow 參數來控制
+        slow = speech_rate < 0.8  # 如果語速小於 0.8，使用慢速
+        tts = gTTS(text=text, lang='zh-tw', slow=slow)
+        tts.save(audio_path)
         
-        print(f"[TTS Enhanced] 使用 SSML: {ssml_text}")
-        
-        # 延遲導入 Azure Speech SDK
-        from azure.cognitiveservices.speech import SpeechSynthesizer, AudioConfig, ResultReason
-        
-        audio_config = AudioConfig(filename=audio_path)
-        synthesizer = SpeechSynthesizer(speech_config=speech_config, audio_config=audio_config)
-        
-        # 使用 SSML 合成語音
-        result = synthesizer.speak_ssml_async(ssml_text).get()
-        
-        if result.reason == ResultReason.SynthesizingAudioCompleted:
-            # 檢查檔案是否真的生成
-            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
-                print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
-                return audio_path
-            else:
-                print(f"[TTS Enhanced] 檔案生成失敗或為空: {audio_path}")
-                return None
+        # 檢查檔案是否真的生成
+        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
+            return audio_path
         else:
-            print(f"語音生成失敗：{result.reason}")
+            print(f"[TTS Enhanced] 檔案生成失敗或為空: {audio_path}")
             return None
             
     except Exception as e:
-        print(f"Azure TTS Enhanced 處理失敗：{e}")
+        print(f"gTTS Enhanced 處理失敗：{e}")
         return None
 
 def create_order_summary(order_id, user_language='zh'):
