@@ -2127,10 +2127,20 @@ def send_order_to_line_bot(user_id, order_data):
             audio_url = URLConfig.get_voice_url(fname)
             print(f"[Webhook] Reply with voice URL: {audio_url}")
             
+            # 計算音訊檔案的實際長度（毫秒）
+            duration_ms = 30000  # 預設30秒
+            try:
+                from pydub import AudioSegment
+                audio = AudioSegment.from_file(voice_url)
+                duration_ms = len(audio)  # pydub 回傳的是毫秒
+                print(f"[Webhook] 計算的音訊長度: {duration_ms} ms")
+            except Exception as e:
+                print(f"[Webhook] 無法計算音訊長度，使用預設值: {e}")
+            
             messages.append({
                 "type": "audio",
                 "originalContentUrl": audio_url,
-                "duration": 30000  # 預設30秒
+                "duration": duration_ms
             })
         
         # 3. 語速控制卡片已移除（節省成本）

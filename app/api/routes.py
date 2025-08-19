@@ -3214,21 +3214,25 @@ def test_line_bot():
 
 @api_bp.route('/voices/<path:filename>')
 def serve_voice(filename):
-    """供外部（Line Bot）GET WAV 檔用"""
+    """供外部（Line Bot）GET 語音檔用"""
     try:
         from .helpers import VOICE_DIR
         import os
+        from flask import send_file, make_response
+        from werkzeug.utils import secure_filename
+        import mimetypes
         
-        # 安全性檢查：只允許 .wav 檔案
-        if not filename.endswith('.wav'):
+        # 安全性檢查：只允許 .mp3 和 .wav 檔案
+        if not (filename.endswith('.mp3') or filename.endswith('.wav')):
             return jsonify({"error": "不支援的檔案格式"}), 400
         
         # 防止路徑遍歷攻擊
-        if '..' in filename or '/' in filename:
+        safe_filename = secure_filename(filename)
+        if '..' in safe_filename or '/' in safe_filename:
             return jsonify({"error": "無效的檔案名稱"}), 400
         
         # 構建完整檔案路徑
-        file_path = os.path.join(VOICE_DIR, filename)
+        file_path = os.path.join(VOICE_DIR, safe_filename)
         
         # 檢查檔案是否存在
         if not os.path.exists(file_path):
@@ -3239,12 +3243,26 @@ def serve_voice(filename):
         if file_size == 0:
             return jsonify({"error": "語音檔案為空"}), 404
         
-        # 設定適當的 headers
-        response = send_from_directory(VOICE_DIR, filename, mimetype='audio/wav')
-        response.headers['Cache-Control'] = 'public, max-age=1800'  # 30分鐘快取
-        response.headers['Content-Length'] = str(file_size)
+        # 根據檔案類型設定正確的 MIME type
+        if filename.endswith('.mp3'):
+            mimetype = 'audio/mpeg'
+        else:  # .wav
+            mimetype = 'audio/wav'
         
-        print(f"提供語音檔案: {filename}, 大小: {file_size} bytes")
+        # 使用 send_file 讓 Flask/werkzeug 處理 Range/ETag/Last-Modified
+        response = send_file(
+            file_path,
+            mimetype=mimetype,
+            as_attachment=False,
+            conditional=True  # 啟用 Range 與快取條件
+        )
+        
+        # 設定必要的標頭
+        response.headers["Accept-Ranges"] = "bytes"
+        response.headers["Cache-Control"] = "public, max-age=86400"  # 24小時快取
+        response.headers["Content-Length"] = str(file_size)
+        
+        print(f"提供語音檔案: {safe_filename}, 大小: {file_size} bytes, MIME: {mimetype}")
         return response
         
     except Exception as e:

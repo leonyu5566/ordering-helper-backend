@@ -95,14 +95,24 @@ def process_voice_order_background(order_id, user_id):
             line_bot_api = get_line_bot_api()
             if line_bot_api:
                 try:
+                    # 計算音訊檔案的實際長度（毫秒）
+                    duration_ms = 30000  # 預設30秒
+                    try:
+                        from pydub import AudioSegment
+                        audio = AudioSegment.from_file(voice_file_path)
+                        duration_ms = len(audio)  # pydub 回傳的是毫秒
+                        logger.info(f"✅ 計算的音訊長度: {duration_ms} ms")
+                    except Exception as e:
+                        logger.warning(f"⚠️ 無法計算音訊長度，使用預設值: {e}")
+                    
                     line_bot_api.push_message(
                         user_id,
                         AudioSendMessage(
                             original_content_url=audio_url,
-                            duration=30000  # 30秒
+                            duration=duration_ms
                         )
                     )
-                    logger.info(f"✅ 語音訊息推送成功: user={user_id}, audio_url={audio_url}")
+                    logger.info(f"✅ 語音訊息推送成功: user={user_id}, audio_url={audio_url}, duration={duration_ms}ms")
                 except LineBotApiError as e:
                     logger.exception(f"❌ LINE 語音推送失敗: status={getattr(e, 'status_code', None)}, error={getattr(e, 'error', None)}")
                 except Exception as e:
