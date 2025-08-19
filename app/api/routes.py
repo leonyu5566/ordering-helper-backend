@@ -4379,13 +4379,23 @@ def process_menu_ocr_optimized():
             item_name_translated = item.get('translated_name', '')
             item_price = item.get('price', 0)
             
-            # 確保有中文原始名稱
+            # 確保有原始名稱
             if not item_name_original:
                 continue
+            
+            # 確保 original_name 為中文，如果不是則與 translated_name 交換
+            if not contains_cjk(item_name_original) and contains_cjk(item_name_translated):
+                # 如果 original_name 不是中文但 translated_name 是中文，則交換
+                item_name_original, item_name_translated = item_name_translated, item_name_original
+                print(f"🔄 交換菜名：original='{item_name_original}', translated='{item_name_translated}'")
             
             # 如果沒有翻譯名稱，使用原始名稱
             if not item_name_translated:
                 item_name_translated = item_name_original
+            
+            # 確保 original_name 包含中日韓字元
+            if not contains_cjk(item_name_original):
+                print(f"⚠️ 警告：original_name 不包含中日韓字元：'{item_name_original}'")
             
             translated_items.append({
                 'id': f"temp_item_{len(translated_items) + 1}",
@@ -4497,8 +4507,8 @@ def create_ocr_order_optimized():
             total_amount += subtotal
             
             order_items_data.append({
-                'original_name': ocr_item['name']['original'],
-                'translated_name': ocr_item['name']['translated'],
+                'original_name': ocr_item['original_name'],  # 中文原始名稱
+                'translated_name': ocr_item['translated_name'],  # 翻譯後名稱
                 'quantity': quantity,
                 'price': price,
                 'subtotal': subtotal
@@ -4508,8 +4518,8 @@ def create_ocr_order_optimized():
         print(f"📋 項目數量: {len(order_items_data)}")
         
         # 生成雙語摘要
-        chinese_summary = f"店家: {ocr_data['store_name']['original']}\n"
-        user_language_summary = f"Store: {ocr_data['store_name']['translated']}\n"
+        chinese_summary = f"店家: {ocr_data['store_name_original']}\n"
+        user_language_summary = f"Store: {ocr_data['store_name_translated']}\n"
         
         for item in order_items_data:
             chinese_summary += f"{item['original_name']} x{item['quantity']} ${item['subtotal']}\n"
@@ -4540,7 +4550,10 @@ def create_ocr_order_optimized():
         # 準備儲存資料（但不立即儲存）
         save_data = {
             'user_id': ocr_data['user_id'],
-            'store_name': ocr_data['store_name'],
+            'store_name': {
+                'original': ocr_data['store_name_original'],
+                'translated': ocr_data['store_name_translated']
+            },
             'items': order_items_data,
             'total_amount': total_amount,
             'chinese_summary': chinese_summary,
