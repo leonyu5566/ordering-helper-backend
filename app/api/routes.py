@@ -376,13 +376,13 @@ def get_menu_by_place_id(place_id):
             }), 404
         
         if not menu_items:
-            return jsonify({
-                "error": "此店家目前沒有菜單項目",
-                "store_id": store.store_id,
-                "place_id": place_id,
-                "store_name": store.store_name,
-                "message": "請使用菜單圖片上傳功能來建立菜單"
-            }), 404
+                    return jsonify({
+            "error": "此店家目前沒有菜單項目",
+            "store_id": store.store_id,
+            "place_id": place_id,
+            "store_name": store.store_name,
+            "message": "請使用菜單圖片上傳功能來建立菜單"
+        }), 404
         
         # 使用新的翻譯服務翻譯菜單項目
         translated_items = []
@@ -392,9 +392,9 @@ def get_menu_by_place_id(place_id):
                 "name": translate_text(item.item_name, normalized_lang),
                 "original_name": item.item_name,
                 "price_small": item.price_small,
-                "price_large": item.price_large,
-                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
-                "original_category": item.category or ""
+                "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
+                "category": "",  # 修正：資料庫中沒有 category 欄位
+                "original_category": ""
             }
             translated_items.append(translated_item)
         
@@ -4224,9 +4224,9 @@ def get_partner_menu():
                 "name": translate_text(item.item_name, normalized_lang),
                 "original_name": item.item_name,
                 "price_small": item.price_small,
-                "price_large": item.price_large,
-                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
-                "original_category": item.category or ""
+                "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
+                "category": "",  # 修正：資料庫中沒有 category 欄位
+                "original_category": ""
             }
             translated_items.append(translated_item)
         

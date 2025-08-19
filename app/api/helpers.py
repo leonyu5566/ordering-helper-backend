@@ -962,7 +962,7 @@ def translate_menu_items(menu_items, target_language='en'):
             'original_name': item.item_name,
             'translated_name': translate_text(item.item_name, target_language),
             'price_small': item.price_small,
-            'price_large': item.price_large,
+            'price_large': item.price_big,  # 修正：使用 price_big 而不是 price_large
             'description': item.description,
             'translated_description': translate_text(item.description, target_language) if item.description else None
         }
