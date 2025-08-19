@@ -1,0 +1,2517 @@
+[
+  {
+    "textPayload": "- Spicy Duck Blood Pot x1 ($180)",
+    "insertId": "68a4cdb20000b70bc9ab7516",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046859Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "Total: $180...'",
+    "insertId": "68a4cdb20000b769679b0ce9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046953Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 資料分離驗證:",
+    "insertId": "68a4cdb20000b76f2b22212d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046959Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   - 中文摘要使用 native 店名: ✓",
+    "insertId": "68a4cdb20000b77478e8eca1",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046964Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   - 使用者語言摘要使用 display 店名: ✗",
+    "insertId": "68a4cdb20000b77a099614f4",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046970Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   - 語音使用中文原文: ✗",
+    "insertId": "68a4cdb20000b77e80dd049c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046974Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📝 生成使用者語言摘要:",
+    "insertId": "68a4cdb20000b7839b7da0cb",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046979Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   Store: San Ma Chou Chou Guo Shuxin Store",
+    "insertId": "68a4cdb20000b7882d7dd4e9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046984Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   Items:",
+    "insertId": "68a4cdb20000b78da6397e1f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046989Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   - Spicy Duck Blood Pot x1 ($180)",
+    "insertId": "68a4cdb20000b7934226c21c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.046995Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   Total: $180",
+    "insertId": "68a4cdb20000b79a67ea132b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047002Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "⚠️ 寫入訂單摘要失敗: cannot access local variable 'db' where it is not associated with a value",
+    "insertId": "68a4cdb20000b7a1a3445e6b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047009Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🎉 訂單確認生成完成!",
+    "insertId": "68a4cdb20000b7a869789425",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047016Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📋 返回結果:",
+    "insertId": "68a4cdb20000b7ae5aa04d26",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047022Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   chinese_voice_text: '老闆，我要Spicy Duck Blood Pot一份，謝謝。'",
+    "insertId": "68a4cdb20000b7b4376ac5d9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047028Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   chinese: '店家：三媽臭臭鍋 樹新店",
+    "insertId": "68a4cdb20000b7b90a67cc3c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047033Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "訂購項目：",
+    "insertId": "68a4cdb20000b7be2fd8d25d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047038Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "- Spicy Duck Blood Pot x1",
+    "insertId": "68a4cdb20000b7c364616955",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047043Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "總金額：$180...'",
+    "insertId": "68a4cdb20000b7c908dc1c3c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047049Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   translated: 'Store: San Ma Chou Chou Guo Shuxin Store",
+    "insertId": "68a4cdb20000b7ced6e5ae9d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047054Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "Items:",
+    "insertId": "68a4cdb20000b7d3c2bda8e6",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047059Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "- Spicy Duck Blood Pot x1 ($180)",
+    "insertId": "68a4cdb20000b7d85ef14dab",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047064Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "Total: $180...'",
+    "insertId": "68a4cdb20000b7deafd6770d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047070Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   user_language: 'en'",
+    "insertId": "68a4cdb20000b7e28b95ad6a",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047074Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "開始發送訂單通知: 289 -> U3b09664fbeee478bf0df836a37baf3df",
+    "insertId": "68a4cdb20000b7e848845b3a",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047080Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔧 開始生成語音檔...",
+    "insertId": "68a4cdb20000b7efb8797efc",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047087Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📋 輸入參數: order_id=289, speech_rate=1.0",
+    "insertId": "68a4cdb20000b84c37a816e0",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047180Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 找到訂單: order_id=289",
+    "insertId": "68a4cdb20000b852c84d5932",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047186Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔧 調用 create_complete_order_confirmation 生成語音文字...",
+    "insertId": "68a4cdb20000b8584b927f87",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047192Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔧 開始生成訂單確認...",
+    "insertId": "68a4cdb20000b85eacb8b8e0",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047198Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📋 輸入參數: order_id=289, user_language=zh, store_name=None",
+    "insertId": "68a4cdb20000b86309289732",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047203Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 找到訂單: order_id=289, user_id=252001, store_id=77",
+    "insertId": "68a4cdb20000b869b623d806",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047209Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 找到店家: store_id=77, store_name='三媽臭臭鍋 樹新店'",
+    "insertId": "68a4cdb20000b86ed4ab1cc7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047214Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 使用資料庫名稱: '三媽臭臭鍋 樹新店'",
+    "insertId": "68a4cdb20000b874cfafe529",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047220Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📋 中文店名: '三媽臭臭鍋 樹新店'",
+    "insertId": "68a4cdb20000b87a50f8db96",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047226Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📋 顯示店名: '三媽臭臭鍋 樹新店'",
+    "insertId": "68a4cdb20000b87f9282eeb9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047231Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 找到使用者: user_id=252001, preferred_lang=en",
+    "insertId": "68a4cdb20000b8858a56b68b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047237Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔍 訂單項目數量: 1",
+    "insertId": "68a4cdb20000b88dcb04905e",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047245Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔍 訂單項目列表: [256]",
+    "insertId": "68a4cdb20000b8933251f149",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047251Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔍 訂單項目類型: <class 'sqlalchemy.orm.collections.InstrumentedList'>",
+    "insertId": "68a4cdb20000b898282c688f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047256Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔍 訂單項目是否為空: False",
+    "insertId": "68a4cdb20000b89ec22150d7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047262Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔍 處理訂單項目: menu_item_id=256, quantity=1",
+    "insertId": "68a4cdb20000b8a5f12e9e07",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047269Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 找到菜單項目: item_name='Spicy Duck Blood Pot'",
+    "insertId": "68a4cdb20000b8aaca8f8a6c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047274Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "❌ 查詢翻譯資料時發生錯誤: cannot access local variable 'db' where it is not associated with a value",
+    "insertId": "68a4cdb20000b8b02af6e4c0",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047280Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "✅ 建立 DTO 物件: original='Spicy Duck Blood Pot', translated='Spicy Duck Blood Pot'",
+    "insertId": "68a4cdb20000b8b5ba1936b7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047285Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🔧 開始建立兩份獨立表示層...",
+    "insertId": "68a4cdb20000b8bb84e8e7ca",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047291Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   使用者語言: zh",
+    "insertId": "68a4cdb20000b8c140a85116",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047297Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   ✅ 深拷貝完成，兩份模型完全獨立",
+    "insertId": "68a4cdb20000b8c7fd08c1d9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047303Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   ✅ 兩份摘要生成完成",
+    "insertId": "68a4cdb20000b8ce47accd60",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047310Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   📝 中文摘要長度: 53 字元",
+    "insertId": "68a4cdb20000b8d58668c6b3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047317Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   📝 使用者語言摘要長度: 53 字元",
+    "insertId": "68a4cdb20000b8da2694a1d3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047322Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📊 資料分離驗證:",
+    "insertId": "68a4cdb20000b8e002216d82",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047328Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   native store_name: '三媽臭臭鍋 樹新店'",
+    "insertId": "68a4cdb20000b92434930dcc",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047396Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   native first item: 'Spicy Duck Blood Pot'",
+    "insertId": "68a4cdb20000b929a2c156b3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047401Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   display user_lang: 'zh'",
+    "insertId": "68a4cdb20000b92f5e910a15",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047407Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   display first item: 'Spicy Duck Blood Pot'",
+    "insertId": "68a4cdb20000b934e4cbef07",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047412Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "🎤 生成中文語音文字: '老闆，我要Spicy Duck Blood Pot一份，謝謝。'",
+    "insertId": "68a4cdb20000b9394c281d44",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047417Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📝 生成中文摘要:",
+    "insertId": "68a4cdb20000b93ff47a424b",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047423Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   店家：三媽臭臭鍋 樹新店",
+    "insertId": "68a4cdb20000b9455ba0a183",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047429Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   訂購項目：",
+    "insertId": "68a4cdb20000b94a1186de6d",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047434Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   - Spicy Duck Blood Pot x1",
+    "insertId": "68a4cdb20000b94fc03bf385",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047439Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   總金額：$180",
+    "insertId": "68a4cdb20000b9550e49409f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047445Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "📝 生成使用者語言摘要:",
+    "insertId": "68a4cdb20000b95ad40589e9",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047450Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   店家：三媽臭臭鍋 樹新店",
+    "insertId": "68a4cdb20000b960e4f73b75",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047456Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   訂購項目：",
+    "insertId": "68a4cdb20000b965178aa043",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047461Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   - Spicy Duck Blood Pot x1",
+    "insertId": "68a4cdb20000b96bf5b13d10",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.047467Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.118974193Z"
+  },
+  {
+    "textPayload": "   總金額：$180",
+    "insertId": "68a4cdb2000a1724e7b8372a",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661284Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "📝 生成使用者語言摘要:",
+    "insertId": "68a4cdb2000a173c310f32a2",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661308Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   店家：三媽臭臭鍋 樹新店",
+    "insertId": "68a4cdb2000a17446c6b3276",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661316Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   訂購項目：",
+    "insertId": "68a4cdb2000a174ae99b96ff",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661322Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   - Spicy Duck Blood Pot x1",
+    "insertId": "68a4cdb2000a17501fe0efb7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661328Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   總金額：$180",
+    "insertId": "68a4cdb2000a17561f42e913",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661334Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "⚠️ 寫入訂單摘要失敗: cannot access local variable 'db' where it is not associated with a value",
+    "insertId": "68a4cdb2000a175c8a85222c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661340Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "🎉 訂單確認生成完成!",
+    "insertId": "68a4cdb2000a176352801140",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661347Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "📋 返回結果:",
+    "insertId": "68a4cdb2000a1768de8682d7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661352Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   chinese_voice_text: '老闆，我要Spicy Duck Blood Pot一份，謝謝。'",
+    "insertId": "68a4cdb2000a176e1c8aa73e",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661358Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   chinese: '店家：三媽臭臭鍋 樹新店",
+    "insertId": "68a4cdb2000a17747e162676",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661364Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "訂購項目：",
+    "insertId": "68a4cdb2000a177aa0a9daeb",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661370Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "- Spicy Duck Blood Pot x1",
+    "insertId": "68a4cdb2000a1780f27585dc",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661376Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "總金額：$180...'",
+    "insertId": "68a4cdb2000a178500738228",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661381Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   translated: '店家：三媽臭臭鍋 樹新店",
+    "insertId": "68a4cdb2000a178b0502b4b6",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661387Z",
+    "labels": {
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "訂購項目：",
+    "insertId": "68a4cdb2000a1790bf12a0f3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661392Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "- Spicy Duck Blood Pot x1",
+    "insertId": "68a4cdb2000a1795dd8c366c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661397Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "總金額：$180...'",
+    "insertId": "68a4cdb2000a179b9eeeb49a",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661403Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "   user_language: 'zh'",
+    "insertId": "68a4cdb2000a17a242f406de",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661410Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "🎤 使用中文語音文字: '老闆，我要Spicy Duck Blood Pot一份，謝謝。'",
+    "insertId": "68a4cdb2000a17a80b9f9f44",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661416Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "[TTS] 預處理後的訂單文本: 老闆，我要Spicy Duck Blood Pot一份，謝謝。",
+    "insertId": "68a4cdb2000a17addf207a96",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661421Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "[TTS] Will save to /tmp/voices/61ea7968-c65e-4359-abbc-0e22bac855ec.mp3",
+    "insertId": "68a4cdb2000a17b359fd368f",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661427Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "[TTS] Success, file exists and size: 46464 bytes",
+    "insertId": "68a4cdb2000a17b8a40e168e",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661432Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "語音檔生成成功: /tmp/voices/61ea7968-c65e-4359-abbc-0e22bac855ec.mp3, 大小: 46464 bytes",
+    "insertId": "68a4cdb2000a17bdf6db7b86",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661437Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "語音檔已發送到 LINE: https://ordering-helper-backend-1095766716155.asia-east1.run.app/api/voices/61ea7968-c65e-4359-abbc-0e22bac855ec.mp3",
+    "insertId": "68a4cdb2000a17c59bca78c7",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661445Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "中文訂單摘要已發送到 LINE",
+    "insertId": "68a4cdb2000a17cc83695d00",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661452Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "en 語訂單摘要已發送到 LINE",
+    "insertId": "68a4cdb2000a17d441086ec4",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661460Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "語速控制卡片已移除",
+    "insertId": "68a4cdb2000a17dadcc2d4eb",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661466Z",
+    "labels": {
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-region": "global"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "ℹ️ 此訂單不是 OCR 菜單訂單，跳過資料庫儲存",
+    "insertId": "68a4cdb2000a17e16e4688f3",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661473Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "訂單通知發送完成: 289",
+    "insertId": "68a4cdb2000a17e8f48896b4",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "location": "asia-east1",
+        "service_name": "ordering-helper-backend",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661480Z",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "textPayload": "169.254.169.126 - - [19/Aug/2025:19:17:06 +0000] \"POST /api/orders HTTP/1.1\" 201 979 \"-\" \"Mozilla/5.0 (iPhone; CPU iPhone OS 18_6 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Safari Line/15.13.0 LIFF\"",
+    "insertId": "68a4cdb2000a17ed88930ad2",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend",
+        "service_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:06.661485Z",
+    "labels": {
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:06.780202445Z"
+  },
+  {
+    "insertId": "68a4cdb5000b043a3e0fa72f",
+    "httpRequest": {
+      "requestMethod": "GET",
+      "requestUrl": "https://ordering-helper-backend-1095766716155.asia-east1.run.app/api/voices/61ea7968-c65e-4359-abbc-0e22bac855ec.mp3",
+      "requestSize": "427",
+      "status": 200,
+      "responseSize": "46816",
+      "userAgent": "Line/15.13.0 iPhone14,7 18.6",
+      "remoteIp": "36.228.11.17",
+      "serverIp": "34.143.75.2",
+      "latency": "0.004934460s",
+      "protocol": "HTTP/1.1"
+    },
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:09.715341Z",
+    "severity": "INFO",
+    "labels": {
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Frequests",
+    "trace": "projects/solid-heaven-466011-d1/traces/e0a56b3a06fd49653b9c356e1dee76e5",
+    "receiveTimestamp": "2025-08-19T19:17:09.995817519Z",
+    "spanId": "f42697800508f2de",
+    "traceSampled": true
+  },
+  {
+    "textPayload": "提供語音檔案: 61ea7968-c65e-4359-abbc-0e22bac855ec.mp3, 大小: 46464 bytes, MIME: audio/mpeg",
+    "insertId": "68a4cdb5000b01c3fcd7f906",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "project_id": "solid-heaven-466011-d1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:09.721347Z",
+    "labels": {
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "gcb-trigger-region": "global",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:09.778559723Z"
+  },
+  {
+    "textPayload": "169.254.169.126 - - [19/Aug/2025:19:17:09 +0000] \"GET /api/voices/61ea7968-c65e-4359-abbc-0e22bac855ec.mp3 HTTP/1.1\" 200 0 \"-\" \"Line/15.13.0 iPhone14,7 18.6\"",
+    "insertId": "68a4cdb5000b01dc1124ae5c",
+    "resource": {
+      "type": "cloud_run_revision",
+      "labels": {
+        "project_id": "solid-heaven-466011-d1",
+        "revision_name": "ordering-helper-backend-00652-p4z",
+        "service_name": "ordering-helper-backend",
+        "location": "asia-east1",
+        "configuration_name": "ordering-helper-backend"
+      }
+    },
+    "timestamp": "2025-08-19T19:17:09.721372Z",
+    "labels": {
+      "managed-by": "gcp-cloud-build-deploy-cloud-run",
+      "instanceId": "0069c7a988cd217a70486225d53cba56d2b65b3b7200b9aab39affab9c8c2d5ff689e1c7f811d33396e2959f504f83a6fbfc33763828e73379cdb4948ad862be7216195153fdbd88297d1336d9",
+      "gcb-trigger-id": "4e341d3f-a37c-4ba6-8c63-b6aabf9d2839",
+      "gcb-trigger-region": "global",
+      "commit-sha": "01fef24e8a38594b66ebd1d98083f77c40bbdd56",
+      "gcb-build-id": "d8424daf-088a-4ea4-be7e-347eca9ce8b2"
+    },
+    "logName": "projects/solid-heaven-466011-d1/logs/run.googleapis.com%2Fstdout",
+    "receiveTimestamp": "2025-08-19T19:17:09.778559723Z"
+  }
+]

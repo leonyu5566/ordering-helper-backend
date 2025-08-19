@@ -1312,7 +1312,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                     print(f"✅ 找到翻譯: '{translated_name}' -> '{chinese_name}'")
                 else:
                     # 如果沒有翻譯資料，需要判斷原始名稱是否為中文
-                    from .translation_service import contains_cjk
+                    # contains_cjk 函數已在同檔案中定義
                     print(f"🔍 檢查菜名語言: '{menu_item.item_name}'")
                     is_cjk = contains_cjk(menu_item.item_name)
                     print(f"🔍 是否包含中日韓字元: {is_cjk}")
