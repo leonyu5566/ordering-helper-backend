@@ -307,6 +307,7 @@ def get_menu(store_id):
             translated_item = {
                 "id": item.menu_item_id,
                 "name": translated_name,
+                "translated_name": translated_name,  # 為了前端兼容性
                 "original_name": original_name,
                 "price_small": item.price_small,
                 "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
@@ -406,6 +407,7 @@ def get_menu_by_place_id(place_id):
             translated_item = {
                 "id": item.menu_item_id,
                 "name": translated_name,
+                "translated_name": translated_name,  # 為了前端兼容性
                 "original_name": original_name,
                 "price_small": item.price_small,
                 "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
@@ -489,6 +491,7 @@ def check_partner_status():
                             translated_item = {
                                 "id": item.menu_item_id,
                                 "name": translate_text(item.item_name, normalized_lang),
+                                "translated_name": translate_text(item.item_name, normalized_lang),  # 為了前端兼容性
                                 "original_name": item.item_name,
                                 "price_small": item.price_small,
                                 "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
@@ -4238,6 +4241,7 @@ def get_partner_menu():
             translated_item = {
                 "id": item.menu_item_id,
                 "name": translate_text(item.item_name, normalized_lang),
+                "translated_name": translate_text(item.item_name, normalized_lang),  # 為了前端兼容性
                 "original_name": item.item_name,
                 "price_small": item.price_small,
                 "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
