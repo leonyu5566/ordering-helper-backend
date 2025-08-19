@@ -3,10 +3,17 @@
     {
       "route": "/api/*",
       "rewrite": "https://ordering-helper-backend-1095766716155.asia-east1.run.app/api/{*}"
+    },
+    {
+      "route": "/*",
+      "headers": {
+        "cache-control": "no-cache, no-store, must-revalidate"
+      }
     }
   ],
   "globalHeaders": {
-    "Access-Control-Allow-Origin": "https://green-beach-0f9762500.1.azurestaticapps.net"
+    "Access-Control-Allow-Origin": "https://green-beach-0f9762500.1.azurestaticapps.net",
+    "cache-control": "no-cache, no-store, must-revalidate"
   },
   "navigationFallback": {
     "rewrite": "/index.html",
