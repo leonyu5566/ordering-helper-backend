@@ -234,6 +234,10 @@ def get_menu(store_id):
         # 取得使用者語言偏好（支援任意 BCP47 語言碼）
         user_language = request.args.get('lang', 'zh')
         
+        # 加入最小日誌
+        current_app.logger.info("get-menu store_id=%s, user_lang=%s -> found=%s, items=%d",
+                                store_id, user_language, True, 0)  # 先設為 0，後面會更新
+        
         # 支援 Accept-Language header 作為 fallback
         if not user_language or user_language == 'zh':
             accept_language = request.headers.get('Accept-Language', '')
@@ -280,6 +284,8 @@ def get_menu(store_id):
             }), 404
         
         if not menu_items:
+            current_app.logger.info("get-menu store_id=%s, user_lang=%s -> found=%s, items=%d",
+                                    store_id, user_language, False, 0)
             return jsonify({
                 "error": "此店家目前沒有菜單項目",
                 "store_id": store_id,
@@ -300,6 +306,9 @@ def get_menu(store_id):
                 "original_category": item.category or ""
             }
             translated_items.append(translated_item)
+        
+        current_app.logger.info("get-menu store_id=%s, user_lang=%s -> found=%s, items=%d",
+                                store_id, user_language, True, len(translated_items))
         
         return jsonify({
             "store_id": store_id,
@@ -407,6 +416,11 @@ def check_partner_status():
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
     
+    # 加入最小日誌
+    store_id = request.args.get('store_id', type=int)
+    user_lang = request.headers.get('X-LIFF-User-Lang', 'en')
+    current_app.logger.info("check-partner-status store_id=%s, user_lang=%s", store_id, user_lang)
+    
     store_id = request.args.get('store_id', type=int)
     place_id = request.args.get('place_id')
     name = request.args.get('name', '')
@@ -432,20 +446,38 @@ def check_partner_status():
             translated_name = translate_text(original_name, normalized_lang)
             
             # 檢查是否有菜單
+            has_menu = False
+            translated_menu = []
             try:
                 menus = Menu.query.filter(Menu.store_id == store.store_id).all()
-                has_menu = False
                 
                 if menus:
                     menu_ids = [menu.menu_id for menu in menus]
                     menu_items = MenuItem.query.filter(
                         MenuItem.menu_id.in_(menu_ids),
                         MenuItem.price_small > 0
-                    ).count()
-                    has_menu = menu_items > 0
+                    ).all()
+                    has_menu = len(menu_items) > 0
+                    
+                    # 如果有菜單項目，提供翻譯後的菜單
+                    if menu_items:
+                        for item in menu_items:
+                            translated_item = {
+                                "id": item.menu_item_id,
+                                "name": translate_text(item.item_name, normalized_lang),
+                                "original_name": item.item_name,
+                                "price_small": item.price_small,
+                                "price_large": item.price_large,
+                                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
+                                "original_category": item.category or ""
+                            }
+                            translated_menu.append(translated_item)
             except Exception as e:
                 current_app.logger.warning(f"檢查菜單時發生錯誤: {e}")
                 has_menu = False
+            
+            # 合作店家判斷：只要 partner_level > 0 就是合作店家
+            is_partner = store.partner_level > 0
             
             response_data = {
                 "store_id": store.store_id,
@@ -455,8 +487,9 @@ def check_partner_status():
                 "original_name": original_name,
                 "place_id": store.place_id,
                 "partner_level": store.partner_level,
-                "is_partner": store.partner_level > 0,
-                "has_menu": has_menu
+                "is_partner": is_partner,  # 合作店家判斷
+                "has_menu": has_menu,
+                "translated_menu": translated_menu  # 提供翻譯後的菜單
             }
         else:
             # 找不到店家，回傳非合作狀態
@@ -2181,6 +2214,8 @@ def get_all_stores():
 @api_bp.route('/upload-menu-image', methods=['GET', 'POST', 'OPTIONS'])
 def upload_menu_image():
     """上傳菜單圖片並進行 OCR 處理"""
+    t0 = time.time()
+    
     # 處理 OPTIONS 預檢請求
     if request.method == 'OPTIONS':
         return handle_cors_preflight()
@@ -2369,81 +2404,48 @@ def upload_menu_image():
                     'processing_id': processing_id
                 })
             
+            # 僅回傳必要字段，避免過大與難序列化物件
             response_data = {
-                "message": "菜單處理成功",
+                "ok": True,
                 "processing_id": processing_id,
-                "store_info": result.get('store_info', {}),
                 "menu_items": dynamic_menu,
-                "total_items": len(dynamic_menu),
-                "target_language": target_lang,
-                "processing_notes": result.get('processing_notes', ''),
-                "store_id": store_db_id,  # 加入解析後的整數 store_id
-                "original_store_id": raw_store_id  # 保留原始輸入的 store_id
+                "count": len(dynamic_menu),
+                "elapsed_sec": round(time.time() - t0, 1),
+                "store_id": store_db_id,
+                "target_language": target_lang
             }
-            
-            # 如果儲存到資料庫，加入相關資訊
-            if ocr_menu_id:
-                response_data.update({
-                    "ocr_menu_id": ocr_menu_id,
-                    "saved_to_database": True
-                })
             
             response = jsonify(response_data)
             response.headers.add('Access-Control-Allow-Origin', '*')
             
-            # 加入 API 回應的除錯 log
-            print(f"🎉 API 成功回應 201 Created")
-            print(f"📊 回應統計:")
-            print(f"  - 處理ID: {processing_id}")
-            print(f"  - 菜單項目數: {len(dynamic_menu)}")
-            print(f"  - 目標語言: {target_lang}")
-            print(f"  - 店家資訊: {result.get('store_info', {})}")
-            print(f"  - 處理備註: {result.get('processing_notes', '')}")
+            print(f"🎉 API 成功回應 200 OK")
+            print(f"📊 回應統計: 處理ID={processing_id}, 項目數={len(dynamic_menu)}, 耗時={round(time.time() - t0, 1)}s")
             
-            return response, 201
+            return response, 200
         else:
-            
-            # 檢查是否是 JSON 解析錯誤或其他可恢復的錯誤
+            # 處理失敗情況
             error_message = result.get('error', '菜單處理失敗，請重新拍攝清晰的菜單照片')
-            processing_notes = result.get('processing_notes', '')
             
-            # 如果是 JSON 解析錯誤或其他可恢復的錯誤，返回 422
-            if 'JSON 解析失敗' in error_message or 'extra_forbidden' in error_message:
-                print(f"❌ API 返回 422 錯誤")
-                print(f"🔍 錯誤詳情:")
-                print(f"  - 錯誤訊息: {error_message}")
-                print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing_id}")
-                
-                response = jsonify({
-                    "error": error_message,
-                    "processing_notes": processing_notes
-                })
-                response.headers.add('Access-Control-Allow-Origin', '*')
-                return response, 422
-            else:
-                # 其他錯誤返回 500
-                print(f"❌ API 返回 500 錯誤")
-                print(f"🔍 錯誤詳情:")
-                print(f"  - 錯誤訊息: {error_message}")
-                print(f"  - 處理備註: {processing_notes}")
-                print(f"  - 處理ID: {processing_id}")
-                
-                response = jsonify({
-                    "error": error_message,
-                    "processing_notes": processing_notes
-                })
-                response.headers.add('Access-Control-Allow-Origin', '*')
-                return response, 500
+            print(f"❌ API 返回 500 錯誤: {error_message}")
+            
+            response = jsonify({
+                "ok": False,
+                "error": error_message,
+                "elapsed_sec": round(time.time() - t0, 1)
+            })
+            response.headers.add('Access-Control-Allow-Origin', '*')
+            return response, 500
             
     except Exception as e:
         print(f"OCR處理失敗：{e}")
         response = jsonify({
+            'ok': False,
             'error': '檔案處理失敗',
-            'details': str(e) if current_app.debug else '請稍後再試'
+            'details': str(e) if current_app.debug else '請稍後再試',
+            'elapsed_sec': round(time.time() - t0, 1)
         })
         response.headers.add('Access-Control-Allow-Origin', '*')
-        return response, 422
+        return response, 500
 
 @api_bp.route('/debug/order-data', methods=['POST', 'OPTIONS'])
 def debug_order_data():

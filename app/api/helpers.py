@@ -358,7 +358,7 @@ def process_menu_with_gemini(image_path, target_language='en'):
                     'processing_notes': '請檢查 GEMINI_API_KEY 環境變數'
                 }
             
-                    # 使用 Gemini 2.5 Flash Lite 模型 + JSON Mode
+                    # 使用 Gemini 2.5 Flash 模型（非 lite，更穩定）
             response = gemini_client.models.generate_content(
                 model="gemini-2.5-flash-lite",
                 contents=[
