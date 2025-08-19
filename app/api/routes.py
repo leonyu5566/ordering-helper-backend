@@ -295,11 +295,19 @@ def get_menu(store_id):
         
         # 使用新的翻譯服務翻譯菜單項目
         translated_items = []
+        current_app.logger.info(f"開始翻譯菜單項目，目標語言: {normalized_lang}")
+        
         for item in menu_items:
+            original_name = item.item_name
+            translated_name = translate_text(original_name, normalized_lang)
+            
+            # 記錄翻譯結果
+            current_app.logger.info(f"翻譯: '{original_name}' -> '{translated_name}' (語言: {normalized_lang})")
+            
             translated_item = {
                 "id": item.menu_item_id,
-                "name": translate_text(item.item_name, normalized_lang),
-                "original_name": item.item_name,
+                "name": translated_name,
+                "original_name": original_name,
                 "price_small": item.price_small,
                 "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
                 "category": "",  # 修正：資料庫中沒有 category 欄位

@@ -91,7 +91,35 @@ def translate_text_batch_fallback(texts: List[str], target_language: str, source
     目前簡單回傳原文，未來可整合其他翻譯服務
     """
     logging.warning(f"使用 fallback 翻譯，目標語言: {target_language}")
-    # 簡單的語言對應（可擴展）
+    
+    # 如果是英文，提供簡單的中文到英文翻譯
+    if target_language == 'en':
+        # 簡單的中文菜名翻譯對應
+        chinese_to_english = {
+            '招牌金湯酸菜': 'Signature Golden Soup Pickled Cabbage',
+            '白濃雞湯': 'White Thick Chicken Soup',
+            '14嚴選 霜降牛': '14 Selected Marbled Beef',
+            '雞肉捲': 'Chicken Roll',
+            '14嚴選 嫩肩羊': '14 Selected Lamb Shoulder',
+            '鱸魚': 'Sea Bass',
+            '魚餃': 'Fish Dumplings',
+            '養生番茄': 'Healthy Tomato',
+            '白蝦': 'White Shrimp',
+            '中草蝦': 'Medium Grass Shrimp'
+        }
+        
+        translated_texts = []
+        for text in texts:
+            # 檢查是否有對應的翻譯
+            if text in chinese_to_english:
+                translated_texts.append(chinese_to_english[text])
+            else:
+                # 如果沒有對應翻譯，回傳原文加上標記
+                translated_texts.append(f"{text} (English)")
+        
+        return translated_texts
+    
+    # 其他語言的簡單對應（可擴展）
     language_names = {
         'fr': 'French', 'de': 'German', 'es': 'Spanish', 'it': 'Italian',
         'pt': 'Portuguese', 'ru': 'Russian', 'ar': 'Arabic', 'hi': 'Hindi',
