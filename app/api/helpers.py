@@ -1279,6 +1279,12 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     
     print(f"🔍 訂單項目數量: {len(order.items)}")
     print(f"🔍 訂單項目列表: {[item.menu_item_id for item in order.items]}")
+    print(f"🔍 訂單項目類型: {type(order.items)}")
+    print(f"🔍 訂單項目是否為空: {not order.items}")
+    
+    if not order.items:
+        print(f"⚠️ 警告：訂單沒有項目！")
+        return None
     
     for item in order.items:
         print(f"🔍 處理訂單項目: menu_item_id={item.menu_item_id}, quantity={item.quantity_small}")
