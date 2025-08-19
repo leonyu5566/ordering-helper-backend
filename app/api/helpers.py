@@ -1175,7 +1175,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     import logging
     logging.basicConfig(level=logging.INFO)
     
-    from ..models import Order, OrderItem, MenuItem, Store, User
+    from ..models import Order, OrderItem, MenuItem, Store, User, db
     from .dto_models import build_order_item_dto, OrderSummaryDTO
     
     print(f"🔧 開始生成訂單確認...")
@@ -1217,7 +1217,6 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             # 嘗試從 OCR 菜單中獲取正確的店名
             print(f"🔍 嘗試從 OCR 菜單中獲取正確的店名...")
             from sqlalchemy import text
-            from app.models import db
             try:
                 # 查詢該店家的 OCR 菜單，優先選擇看起來像真實店名的名稱
                 result = db.session.execute(text("""
