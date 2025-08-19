@@ -391,6 +391,7 @@ def check_partner_status():
     """檢查店家合作狀態（支援 store_id 或 place_id）"""
     store_id = request.args.get('store_id', type=int)
     place_id = request.args.get('place_id')
+    target_language = request.args.get('lang', 'zh')  # 新增語言參數
     
     if not store_id and not place_id:
         return jsonify({"error": "需要提供 store_id 或 place_id"}), 400
@@ -426,9 +427,13 @@ def check_partner_status():
             print(f"檢查菜單時發生錯誤: {e}")
             has_menu = False
         
+        # 使用翻譯功能取得翻譯後的店名
+        translated_store = translate_store_info_with_db_fallback(store, target_language)
+        
         return jsonify({
             "store_id": store.store_id,
             "store_name": store.store_name,
+            "translated_name": translated_store['translated_name'],  # 新增翻譯後的店名
             "place_id": store.place_id,
             "partner_level": store.partner_level,
             "is_partner": store.partner_level > 0,
