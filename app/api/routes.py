@@ -4359,8 +4359,7 @@ def process_menu_ocr_optimized():
             return jsonify({"error": error_msg}), 500
         
         # 2. 處理 OCR 結果
-        from .helpers import translate_text_batch
-        from .translation_service import contains_cjk
+        from .helpers import translate_text_batch, contains_cjk
         
         # 處理店家名稱
         store_info = ocr_result.get('store_info', {})
@@ -4383,19 +4382,30 @@ def process_menu_ocr_optimized():
             if not item_name_original:
                 continue
             
-            # 確保 original_name 為中文，如果不是則與 translated_name 交換
-            if not contains_cjk(item_name_original) and contains_cjk(item_name_translated):
-                # 如果 original_name 不是中文但 translated_name 是中文，則交換
-                item_name_original, item_name_translated = item_name_translated, item_name_original
-                print(f"🔄 交換菜名：original='{item_name_original}', translated='{item_name_translated}'")
+            # 強制確保 original_name 為中文
+            if not contains_cjk(item_name_original):
+                if contains_cjk(item_name_translated):
+                    # 如果 translated_name 是中文，則交換
+                    item_name_original, item_name_translated = item_name_translated, item_name_original
+                    print(f"🔄 交換菜名：original='{item_name_original}', translated='{item_name_translated}'")
+                else:
+                    # 如果兩個都是英文，強制翻譯 original_name 為中文
+                    try:
+                        item_name_original = translate_text_batch([item_name_original], 'zh', user_language)[0]
+                        print(f"🔄 強制翻譯為中文：'{item_name_original}'")
+                    except Exception as e:
+                        print(f"❌ 翻譯失敗：{e}")
+                        # 如果翻譯失敗，跳過這個項目
+                        continue
             
             # 如果沒有翻譯名稱，使用原始名稱
             if not item_name_translated:
                 item_name_translated = item_name_original
             
-            # 確保 original_name 包含中日韓字元
+            # 最終驗證：確保 original_name 包含中日韓字元
             if not contains_cjk(item_name_original):
-                print(f"⚠️ 警告：original_name 不包含中日韓字元：'{item_name_original}'")
+                print(f"⚠️ 警告：original_name 仍不包含中日韓字元：'{item_name_original}'，跳過此項目")
+                continue
             
             translated_items.append({
                 'id': f"temp_item_{len(translated_items) + 1}",
