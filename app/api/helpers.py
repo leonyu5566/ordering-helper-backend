@@ -358,9 +358,9 @@ def process_menu_with_gemini(image_path, target_language='en'):
                     'processing_notes': '請檢查 GEMINI_API_KEY 環境變數'
                 }
             
-                    # 使用 Gemini 2.5 Flash 模型（非 lite，更穩定）
+                    # 使用正確的 Gemini 模型名稱
             response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash-lite",
+                model="models/gemini-2.5-flash-lite",
                 contents=[
                     {
                         "parts": [
@@ -906,7 +906,7 @@ def translate_text(text, target_language='en'):
         """
         
         response = get_gemini_client().models.generate_content(
-            model="gemini-2.5-flash-lite",
+                            model="models/gemini-2.5-flash-lite",
             contents=[prompt],
             config={
                 "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)

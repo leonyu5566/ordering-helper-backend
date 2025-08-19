@@ -30,7 +30,7 @@ def handle_cors_preflight():
     """處理 CORS 預檢請求"""
     response = jsonify({'message': 'OK'})
     response.headers.add('Access-Control-Allow-Origin', '*')
-    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Requested-With,X-LIFF-User-Lang,X-LIFF-User-Id,X-Store-Id,X-LIFF-Lang,X-LIFF-Uid')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
     response.headers.add('Access-Control-Max-Age', '3600')
     return response, 200
@@ -489,7 +489,9 @@ def check_partner_status():
                 "partner_level": store.partner_level,
                 "is_partner": is_partner,  # 合作店家判斷
                 "has_menu": has_menu,
-                "translated_menu": translated_menu  # 提供翻譯後的菜單
+                "translated_menu": translated_menu,  # 提供翻譯後的菜單
+                "supported_languages": ["zh", "en", "ja", "ko"],  # 支援的語言清單
+                "auto_translate": True  # 若無語言時會自動翻譯
             }
         else:
             # 找不到店家，回傳非合作狀態
