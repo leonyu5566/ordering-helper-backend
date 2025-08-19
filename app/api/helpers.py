@@ -906,32 +906,41 @@ def translate_text(text, target_language='en'):
     """
     使用 Gemini 2.5 Flash API 翻譯文字
     """
+    print(f"🎯 translate_text 開始: text='{text}', target_language='{target_language}'")
+    
     try:
         from google import genai
         
         # 設定 Gemini API
+        print(f"🎯 設定 Gemini API...")
         genai.Client(api_key=os.getenv('GEMINI_API_KEY'))
         
         # 建立翻譯提示詞
         prompt = f"""
-        請將以下中文文字翻譯為 {target_language} 語言：
+        請將以下文字翻譯為 {target_language} 語言：
         
         原文：{text}
         
         請只回傳翻譯結果，不要包含任何其他文字。
         """
+        print(f"🎯 翻譯提示詞: {prompt}")
         
+        print(f"🎯 調用 Gemini API...")
         response = get_gemini_client().models.generate_content(
-                            model="models/gemini-2.5-flash-lite",
+            model="models/gemini-2.5-flash-lite",
             contents=[prompt],
             config={
                 "thinking_config": genai.types.ThinkingConfig(thinking_budget=512)
             }
         )
-        return response.text.strip()
+        
+        result = response.text.strip()
+        print(f"🎯 Gemini API 返回結果: '{result}'")
+        return result
         
     except Exception as e:
-        print(f"翻譯失敗：{e}")
+        print(f"❌ 翻譯失敗：{e}")
+        print(f"🎯 回傳原文: '{text}'")
         return text  # 如果翻譯失敗，回傳原文
 
 def translate_menu_items(menu_items, target_language='en'):
@@ -1006,11 +1015,17 @@ def translate_text_with_fallback(text, target_language='en'):
     """
     翻譯文字（優先使用資料庫翻譯，如果沒有才使用AI翻譯）
     """
+    print(f"🔧 translate_text_with_fallback 開始: text='{text}', target_language='{target_language}'")
+    
     # 嘗試使用AI翻譯
     try:
-        return translate_text(text, target_language)
+        print(f"🔧 調用 translate_text 函數...")
+        result = translate_text(text, target_language)
+        print(f"🔧 translate_text 返回結果: '{result}'")
+        return result
     except Exception as e:
-        print(f"AI翻譯失敗：{e}")
+        print(f"❌ AI翻譯失敗：{e}")
+        print(f"🔧 回傳原文: '{text}'")
         return text  # 如果翻譯失敗，回傳原文
 
 def translate_menu_items_with_db_fallback(menu_items, target_language):
@@ -1289,16 +1304,32 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                 else:
                     # 如果沒有翻譯資料，需要判斷原始名稱是否為中文
                     from .translation_service import contains_cjk
-                    if contains_cjk(menu_item.item_name):
+                    print(f"🔍 檢查菜名語言: '{menu_item.item_name}'")
+                    is_cjk = contains_cjk(menu_item.item_name)
+                    print(f"🔍 是否包含中日韓字元: {is_cjk}")
+                    
+                    if is_cjk:
                         # 原始名稱是中文
                         chinese_name = menu_item.item_name
                         translated_name = menu_item.item_name
                         print(f"✅ 原始名稱是中文: '{chinese_name}'")
                     else:
                         # 原始名稱是英文，需要翻譯成中文
-                        chinese_name = translate_text_with_fallback(menu_item.item_name, 'zh')
-                        translated_name = menu_item.item_name
-                        print(f"🔄 翻譯英文名稱: '{translated_name}' -> '{chinese_name}'")
+                        print(f"🔄 開始翻譯英文名稱: '{menu_item.item_name}' -> 中文")
+                        try:
+                            chinese_name = translate_text_with_fallback(menu_item.item_name, 'zh')
+                            translated_name = menu_item.item_name
+                            print(f"🔄 翻譯完成: '{translated_name}' -> '{chinese_name}'")
+                            
+                            # 驗證翻譯結果
+                            if contains_cjk(chinese_name):
+                                print(f"✅ 翻譯結果包含中日韓字元: '{chinese_name}'")
+                            else:
+                                print(f"⚠️ 翻譯結果不包含中日韓字元: '{chinese_name}'")
+                        except Exception as e:
+                            print(f"❌ 翻譯失敗: {e}")
+                            chinese_name = menu_item.item_name
+                            translated_name = menu_item.item_name
                 
                 # 使用 DTO 模型處理傳統菜單項目
                 item_data = {
