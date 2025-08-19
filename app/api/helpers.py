@@ -1323,8 +1323,8 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             try:
                 result = db.session.execute(text("""
                     SELECT description 
-                    FROM menu_item_translations 
-                    WHERE menu_item_id = :menu_item_id AND language_code = :language_code
+                    FROM menu_translations 
+                    WHERE menu_item_id = :menu_item_id AND lang_code = :language_code
                 """), {
                     "menu_item_id": menu_item.menu_item_id,
                     "language_code": user_language
@@ -1332,13 +1332,22 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                 
                 translation = result.fetchone()
                 if translation and translation[0]:
-                    chinese_name = menu_item.item_name
-                    translated_name = translation[0]
-                    print(f"✅ 找到翻譯: '{chinese_name}' -> '{translated_name}'")
+                    chinese_name = translation[0]  # 使用翻譯的中文名稱
+                    translated_name = menu_item.item_name  # 使用原始英文名稱
+                    print(f"✅ 找到翻譯: '{translated_name}' -> '{chinese_name}'")
                 else:
-                    chinese_name = menu_item.item_name
-                    translated_name = menu_item.item_name
-                    print(f"⚠️ 沒有找到翻譯，使用原始名稱: '{chinese_name}'")
+                    # 如果沒有翻譯資料，需要判斷原始名稱是否為中文
+                    from .translation_service import contains_cjk
+                    if contains_cjk(menu_item.item_name):
+                        # 原始名稱是中文
+                        chinese_name = menu_item.item_name
+                        translated_name = menu_item.item_name
+                        print(f"✅ 原始名稱是中文: '{chinese_name}'")
+                    else:
+                        # 原始名稱是英文，需要翻譯成中文
+                        chinese_name = translate_text_with_fallback(menu_item.item_name, 'zh')
+                        translated_name = menu_item.item_name
+                        print(f"🔄 翻譯英文名稱: '{translated_name}' -> '{chinese_name}'")
                 
                 # 使用 DTO 模型處理傳統菜單項目
                 item_data = {
