@@ -1366,18 +1366,27 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         order_items_dto.append(order_item_dto)
         print(f"✅ 建立 DTO 物件: original='{order_item_dto.name.original}', translated='{order_item_dto.name.translated}'")
     
-    # 建立訂單摘要 DTO
-    order_summary_dto = OrderSummaryDTO(
-        store_name=store_name_for_display,
+    # 建立訂單摘要 DTO（分離 native 和 display 資料流）
+    # native 資料：用於中文摘要和語音
+    order_summary_native = OrderSummaryDTO(
+        store_name=store_name_for_display,  # 中文店名
+        items=order_items_dto,
+        total_amount=order.total_amount,
+        user_language='zh'  # 強制使用中文
+    )
+    
+    # display 資料：用於使用者語言摘要
+    order_summary_display = OrderSummaryDTO(
+        store_name=store_name_for_display,  # 會根據語言翻譯
         items=order_items_dto,
         total_amount=order.total_amount,
         user_language=user_language
     )
     
-    # 生成雙語摘要
-    chinese_summary = order_summary_dto.chinese_summary
-    user_language_summary = order_summary_dto.user_language_summary
-    chinese_voice_text = order_summary_dto.voice_text
+    # 生成雙語摘要（明確分離資料流）
+    chinese_summary = order_summary_native.chinese_summary
+    user_language_summary = order_summary_display.user_language_summary
+    chinese_voice_text = order_summary_native.voice_text
     
     print(f"🎤 生成中文語音文字: '{chinese_voice_text}'")
     print(f"📝 生成中文摘要:")
@@ -1399,8 +1408,16 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             translated_store_name = store_translation['translated_name']
             print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
         
-        # 更新使用者語言摘要中的店家名稱
+        # 更新使用者語言摘要中的店家名稱（只更新 display 版本）
         user_language_summary = user_language_summary.replace(f"Store: {store_name_for_display}", f"Store: {translated_store_name}")
+        
+        # 記錄結構化日誌
+        print(f"📊 結構化日誌:")
+        print(f"   store_name_native: '{store_name_for_display}'")
+        print(f"   store_name_display: '{translated_store_name}'")
+        print(f"   user_language: '{user_language}'")
+        print(f"   chinese_summary: '{chinese_summary[:100]}...'")
+        print(f"   user_language_summary: '{user_language_summary[:100]}...'")
     
     print(f"📝 生成使用者語言摘要:")
     print(f"   {user_language_summary.replace(chr(10), chr(10) + '   ')}")

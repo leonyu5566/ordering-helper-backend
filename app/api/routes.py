@@ -312,12 +312,16 @@ def get_menu(store_id):
                 # 記錄翻譯結果
                 current_app.logger.info(f"翻譯: '{menu_item_dto.name_source}' -> '{translated_name}' (語言: {normalized_lang})")
             
-            # 轉換為字典格式，保持 API 兼容性
+            # 轉換為字典格式，明確分離 native 和 display 欄位
             translated_item = {
                 "id": menu_item_dto.id,
+                # Native 欄位（資料庫原文，用於中文摘要和語音）
+                "name_native": menu_item_dto.name_source,  # 原始中文名稱
+                "original_name": menu_item_dto.name_source,  # 向後兼容
+                # Display 欄位（使用者語言，用於 UI 顯示）
                 "name": menu_item_dto.name_ui,  # 使用者語言顯示名稱
-                "translated_name": menu_item_dto.name_ui,  # 為了前端兼容性
-                "original_name": menu_item_dto.name_source,  # 保留原始中文名稱
+                "translated_name": menu_item_dto.name_ui,  # 向後兼容
+                # 其他欄位
                 "price_small": menu_item_dto.price_small,
                 "price_large": menu_item_dto.price_big,
                 "category": "",

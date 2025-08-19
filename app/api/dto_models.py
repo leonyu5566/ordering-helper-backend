@@ -97,15 +97,19 @@ class OrderSummaryDTO(BaseModel):
     @computed_field
     @property
     def user_language_summary(self) -> str:
-        """生成使用者語言摘要"""
+        """生成使用者語言摘要（使用 display 欄位）"""
         items_text = []
         for item in self.items:
+            # 使用者語言摘要：根據語言選擇 display 名稱
             if self.user_language.startswith('zh'):
-                name = item.name.original
+                # 中文使用者：使用原始中文名稱
+                display_name = item.name.original
             else:
-                name = item.name.translated
-            items_text.append(f"- {name} x{item.quantity} (${item.price})")
+                # 其他語言使用者：使用翻譯名稱
+                display_name = item.name.translated
+            items_text.append(f"- {display_name} x{item.quantity} (${item.price})")
         
+        # 使用者語言摘要：使用 display 店名
         summary = f"Store: {self.store_name}\n"
         summary += "Items:\n"
         summary += "\n".join(items_text)
