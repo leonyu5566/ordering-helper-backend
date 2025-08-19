@@ -480,44 +480,52 @@ def check_partner_status():
                 current_app.logger.warning(f"找不到店家 place_id={place_id}")
         
         if store:
-            # 找到合作店家
+            # 找到店家
             original_name = store.store_name
             translated_name = translate_text(original_name, normalized_lang)
             
-            # 檢查是否有菜單
-            has_menu = False
-            translated_menu = []
-            try:
-                menus = Menu.query.filter(Menu.store_id == store.store_id).all()
-                
-                if menus:
-                    menu_ids = [menu.menu_id for menu in menus]
-                    menu_items = MenuItem.query.filter(
-                        MenuItem.menu_id.in_(menu_ids),
-                        MenuItem.price_small > 0
-                    ).all()
-                    has_menu = len(menu_items) > 0
-                    
-                    # 如果有菜單項目，提供翻譯後的菜單
-                    if menu_items:
-                        for item in menu_items:
-                            translated_item = {
-                                "id": item.menu_item_id,
-                                "name": translate_text(item.item_name, normalized_lang),
-                                "translated_name": translate_text(item.item_name, normalized_lang),  # 為了前端兼容性
-                                "original_name": item.item_name,
-                                "price_small": item.price_small,
-                                "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
-                                "category": "",  # 修正：資料庫中沒有 category 欄位
-                                "original_category": ""
-                            }
-                            translated_menu.append(translated_item)
-            except Exception as e:
-                current_app.logger.warning(f"檢查菜單時發生錯誤: {e}")
-                has_menu = False
-            
             # 合作店家判斷：只要 partner_level > 0 就是合作店家
             is_partner = store.partner_level > 0
+            
+            # 只有合作店家才檢查菜單
+            has_menu = False
+            translated_menu = []
+            
+            if is_partner:
+                # 合作店家：檢查是否有菜單
+                try:
+                    menus = Menu.query.filter(Menu.store_id == store.store_id).all()
+                    
+                    if menus:
+                        menu_ids = [menu.menu_id for menu in menus]
+                        menu_items = MenuItem.query.filter(
+                            MenuItem.menu_id.in_(menu_ids),
+                            MenuItem.price_small > 0
+                        ).all()
+                        has_menu = len(menu_items) > 0
+                        
+                        # 如果有菜單項目，提供翻譯後的菜單
+                        if menu_items:
+                            for item in menu_items:
+                                translated_item = {
+                                    "id": item.menu_item_id,
+                                    "name": translate_text(item.item_name, normalized_lang),
+                                    "translated_name": translate_text(item.item_name, normalized_lang),  # 為了前端兼容性
+                                    "original_name": item.item_name,
+                                    "price_small": item.price_small,
+                                    "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
+                                    "category": "",  # 修正：資料庫中沒有 category 欄位
+                                    "original_category": ""
+                                }
+                                translated_menu.append(translated_item)
+                except Exception as e:
+                    current_app.logger.warning(f"檢查菜單時發生錯誤: {e}")
+                    has_menu = False
+            else:
+                # 非合作店家：強制沒有菜單，必須使用拍照模式
+                current_app.logger.info(f"非合作店家 {store.store_name} (partner_level={store.partner_level})，強制進入拍照模式")
+                has_menu = False
+                translated_menu = []
             
             response_data = {
                 "store_id": store.store_id,
