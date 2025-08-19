@@ -475,9 +475,9 @@ def check_partner_status():
                                 "name": translate_text(item.item_name, normalized_lang),
                                 "original_name": item.item_name,
                                 "price_small": item.price_small,
-                                "price_large": item.price_large,
-                                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
-                                "original_category": item.category or ""
+                                "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
+                                "category": "",  # 修正：資料庫中沒有 category 欄位
+                                "original_category": ""
                             }
                             translated_menu.append(translated_item)
             except Exception as e:
