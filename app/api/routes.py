@@ -4338,43 +4338,59 @@ def process_menu_ocr_optimized():
         print(f"📋 使用者: {user.line_user_id}, 語言: {user_language}")
         
         # 1. OCR 辨識
-        from .helpers import process_image_with_gemini
-        ocr_result = process_image_with_gemini(file)
+        from .helpers import process_menu_with_gemini
+        import tempfile
+        import os
         
-        if not ocr_result or 'items' not in ocr_result:
-            return jsonify({"error": "OCR 辨識失敗"}), 500
+        # 將上傳的文件保存到臨時文件
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.jpg') as temp_file:
+            file.save(temp_file.name)
+            temp_file_path = temp_file.name
         
-        # 2. 即時翻譯
+        try:
+            ocr_result = process_menu_with_gemini(temp_file_path, user_language)
+        finally:
+            # 清理臨時文件
+            if os.path.exists(temp_file_path):
+                os.unlink(temp_file_path)
+        
+        if not ocr_result or not ocr_result.get('success') or 'menu_items' not in ocr_result:
+            error_msg = ocr_result.get('error', 'OCR 辨識失敗') if ocr_result else 'OCR 辨識失敗'
+            return jsonify({"error": error_msg}), 500
+        
+        # 2. 處理 OCR 結果
         from .helpers import translate_text_batch
         from .translation_service import contains_cjk
         
-        # 翻譯店家名稱
-        store_name_original = ocr_result.get('store_name', '非合作店家')
-        if contains_cjk(store_name_original):
+        # 處理店家名稱
+        store_info = ocr_result.get('store_info', {})
+        store_name_original = store_info.get('name', '非合作店家')
+        if store_name_original and contains_cjk(store_name_original):
             store_name_translated = translate_text_batch([store_name_original], user_language, 'zh')[0]
         else:
-            store_name_translated = store_name_original
+            store_name_translated = store_name_original or 'Non-partner Store'
         
-        # 翻譯菜品名稱
-        items = ocr_result['items']
+        # 處理菜品項目
+        menu_items = ocr_result.get('menu_items', [])
         translated_items = []
         
-        for item in items:
-            item_name_original = item.get('name', '')
+        for item in menu_items:
+            item_name_original = item.get('original_name', '')
+            item_name_translated = item.get('translated_name', '')
             item_price = item.get('price', 0)
             
-            # 檢查是否需要翻譯
-            if contains_cjk(item_name_original):
-                item_name_translated = translate_text_batch([item_name_original], user_language, 'zh')[0]
-            else:
+            # 確保有中文原始名稱
+            if not item_name_original:
+                continue
+            
+            # 如果沒有翻譯名稱，使用原始名稱
+            if not item_name_translated:
                 item_name_translated = item_name_original
             
             translated_items.append({
                 'id': f"temp_item_{len(translated_items) + 1}",
-                'name': {
-                    'original': item_name_original,
-                    'translated': item_name_translated
-                },
+                'original_name': item_name_original,  # 中文原始名稱
+                'translated_name': item_name_translated,  # 翻譯後名稱
                 'price': item_price
             })
         
@@ -4385,10 +4401,8 @@ def process_menu_ocr_optimized():
         _ocr_temp_storage[temp_ocr_id] = {
             'user_id': user.user_id,
             'user_language': user_language,
-            'store_name': {
-                'original': store_name_original,
-                'translated': store_name_translated
-            },
+            'store_name_original': store_name_original,  # 中文店名
+            'store_name_translated': store_name_translated,  # 翻譯店名
             'items': translated_items,
             'created_at': datetime.datetime.now(),
             'expires_at': datetime.datetime.now() + datetime.timedelta(hours=1)  # 1小時後過期
