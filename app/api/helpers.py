@@ -511,21 +511,53 @@ def parse_gemini_json_response(response_text):
                     json_text = re.sub(r'([^\\])"([^"]*?)([^\\])"', r'\1"\2\3"', json_text)
                     # 移除可能的控制字符
                     json_text = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', json_text)
+                    # 修復多餘的逗號
+                    json_text = re.sub(r',\s*}', '}', json_text)
+                    json_text = re.sub(r',\s*]', ']', json_text)
                     
                     return json.loads(json_text)
                 except json.JSONDecodeError as e2:
                     print(f"修復後解析失敗: {e2}")
                     
-                    # 策略3: 使用 ast.literal_eval
+                    # 策略3: 嘗試提取 menu_items 部分
+                    try:
+                        # 尋找 menu_items 陣列
+                        menu_items_match = re.search(r'"menu_items"\s*:\s*\[(.*?)\]', json_text, re.DOTALL)
+                        if menu_items_match:
+                            menu_items_content = menu_items_match.group(1)
+                            # 嘗試解析每個菜單項目
+                            items = []
+                            # 簡單的正則表達式來提取項目
+                            item_matches = re.findall(r'\{[^}]*\}', menu_items_content)
+                            for item_match in item_matches:
+                                try:
+                                    # 清理項目文本
+                                    clean_item = re.sub(r',\s*}', '}', item_match)
+                                    clean_item = re.sub(r',\s*]', ']', clean_item)
+                                    item_data = json.loads(clean_item)
+                                    items.append(item_data)
+                                except:
+                                    continue
+                            
+                            if items:
+                                return {
+                                    'success': True,
+                                    'menu_items': items,
+                                    'store_info': {'name': 'Unknown Store'},
+                                    'processing_notes': 'JSON 解析修復成功'
+                                }
+                    except Exception as e3:
+                        print(f"提取 menu_items 失敗: {e3}")
+                    
+                    # 策略4: 使用 ast.literal_eval
                     try:
                         return ast.literal_eval(json_text)
                     except:
                         print("ast.literal_eval 也失敗")
                         
-                        # 策略4: 嘗試提取部分有效的 JSON
+                        # 策略5: 嘗試提取部分有效的 JSON
                         try:
                             # 尋找最長的連續 JSON 結構
-                            import re
                             json_pattern = r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
                             matches = re.findall(json_pattern, json_text)
                             if matches:

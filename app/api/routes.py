@@ -420,8 +420,6 @@ def check_partner_status():
     store_id = request.args.get('store_id', type=int)
     user_lang = request.headers.get('X-LIFF-User-Lang', 'en')
     current_app.logger.info("check-partner-status store_id=%s, user_lang=%s", store_id, user_lang)
-    
-    store_id = request.args.get('store_id', type=int)
     place_id = request.args.get('place_id')
     name = request.args.get('name', '')
     lang = request.args.get('lang', 'en')
@@ -435,10 +433,20 @@ def check_partner_status():
         
         if store_id:
             # 使用 store_id 查詢
+            current_app.logger.info(f"查詢店家 store_id={store_id}")
             store = Store.query.get(store_id)
+            if store:
+                current_app.logger.info(f"找到店家: {store.store_name}, partner_level={store.partner_level}")
+            else:
+                current_app.logger.warning(f"找不到店家 store_id={store_id}")
         elif place_id:
             # 使用 place_id 查詢
+            current_app.logger.info(f"查詢店家 place_id={place_id}")
             store = Store.query.filter_by(place_id=place_id).first()
+            if store:
+                current_app.logger.info(f"找到店家: {store.store_name}, partner_level={store.partner_level}")
+            else:
+                current_app.logger.warning(f"找不到店家 place_id={place_id}")
         
         if store:
             # 找到合作店家
