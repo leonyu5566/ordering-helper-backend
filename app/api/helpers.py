@@ -1229,10 +1229,14 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     
     print(f"✅ 找到店家: store_id={store.store_id}, store_name='{store.store_name}'")
     
-    # 優先使用前端傳遞的店家名稱
+    # 分離中文店名和顯示店名
+    # 中文摘要：使用原始中文店名
+    chinese_store_name = store.store_name
+    
+    # 顯示店名：優先使用前端傳遞的店名，否則使用資料庫店名
     if store_name:
         print(f"✅ 使用前端傳遞的店家名稱: '{store_name}'")
-        store_name_for_display = store_name
+        display_store_name = store_name
     else:
         # 檢查店名是否為自動生成格式（店家_ChIJ-xxxxx 或其他預設格式）
         is_auto_generated = (
@@ -1267,7 +1271,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                 ocr_store_name = result.fetchone()
                 if ocr_store_name and ocr_store_name[0]:
                     print(f"✅ 從 OCR 菜單中找到真實店名: '{ocr_store_name[0]}'")
-                    store_name_for_display = ocr_store_name[0]
+                    display_store_name = ocr_store_name[0]
                 else:
                     # 如果沒有找到真實店名，再查詢所有店名
                     print(f"⚠️ 沒有找到真實店名，查詢所有店名...")
@@ -1283,84 +1287,85 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                     ocr_store_name = result.fetchone()
                     if ocr_store_name and ocr_store_name[0]:
                         print(f"✅ 從 OCR 菜單中找到店名: '{ocr_store_name[0]}'")
-                        store_name_for_display = ocr_store_name[0]
+                        display_store_name = ocr_store_name[0]
                     else:
                         print(f"⚠️ 沒有找到 OCR 菜單中的店名，使用資料庫名稱: '{store.store_name}'")
-                        store_name_for_display = store.store_name
+                        display_store_name = store.store_name
             except Exception as e:
                 print(f"❌ 查詢 OCR 菜單店名時發生錯誤: {e}")
-                store_name_for_display = store.store_name
+                display_store_name = store.store_name
         else:
             print(f"✅ 使用資料庫名稱: '{store.store_name}'")
-            store_name_for_display = store.store_name
+            display_store_name = store.store_name
     
-    print(f"📋 最終使用的店家名稱: '{store_name_for_display}'")
+    print(f"📋 中文店名: '{chinese_store_name}'")
+    print(f"📋 顯示店名: '{display_store_name}'")
     
     user = User.query.get(order.user_id)
     if not user:
         print(f"❌ 找不到使用者: user_id={order.user_id}")
         return None
     
-    print(f"✅ 找到使用者: user_id={user.user_id}, preferred_lang='{user.preferred_lang}'")
+    print(f"✅ 找到使用者: user_id={user.user_id}, preferred_lang={user.preferred_lang}")
     
-    # 使用新的 DTO 模型處理訂單項目
+    # 建立訂單項目 DTO 列表
     order_items_dto = []
-    print(f"🔧 開始處理訂單項目...")
-    print(f"📋 訂單項目數量: {len(order.items)}")
     
-    for i, item in enumerate(order.items):
-        print(f"📋 處理第 {i+1} 個項目: menu_item_id={item.menu_item_id}, quantity_small={item.quantity_small}")
+    for item in order.items:
+        print(f"🔍 處理訂單項目: menu_item_id={item.menu_item_id}, quantity={item.quantity_small}")
         
-        # 檢查是否為OCR菜單項目（有original_name）
-        if hasattr(item, 'original_name') and item.original_name:
-            print(f"✅ 檢測到OCR菜單項目: original_name='{item.original_name}', translated_name='{getattr(item, 'translated_name', '')}'")
+        menu_item = MenuItem.query.get(item.menu_item_id)
+        if menu_item:
+            print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}'")
             
-            # 使用 DTO 模型處理 OCR 菜單項目
-            item_data = {
-                'menu_item_id': item.menu_item_id,
-                'original_name': item.original_name,
-                'translated_name': getattr(item, 'translated_name', item.original_name),
-                'quantity': item.quantity_small,
-                'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
-                'subtotal': item.subtotal
-            }
-            
-        else:
-            # 使用傳統的MenuItem查詢
-            menu_item = MenuItem.query.get(item.menu_item_id)
-            if menu_item:
-                print(f"✅ 找到菜單項目: item_name='{menu_item.item_name}', price_small={menu_item.price_small}")
+            # 檢查是否有翻譯資料
+            from sqlalchemy import text
+            try:
+                result = db.session.execute(text("""
+                    SELECT description 
+                    FROM menu_item_translations 
+                    WHERE menu_item_id = :menu_item_id AND language_code = :language_code
+                """), {
+                    "menu_item_id": menu_item.menu_item_id,
+                    "language_code": user_language
+                })
                 
-                # 嘗試獲取中文翻譯
-                print(f"🔍 嘗試獲取菜品中文翻譯: menu_item_id={item.menu_item_id}")
-                db_translation = get_menu_translation_from_db(item.menu_item_id, 'zh')
-                
-                if db_translation and db_translation.description:
-                    chinese_name = db_translation.description
-                    print(f"✅ 找到中文翻譯: '{chinese_name}'")
+                translation = result.fetchone()
+                if translation and translation[0]:
+                    chinese_name = menu_item.item_name
+                    translated_name = translation[0]
+                    print(f"✅ 找到翻譯: '{chinese_name}' -> '{translated_name}'")
                 else:
-                    # 如果沒有資料庫翻譯，嘗試AI翻譯
-                    print(f"🔧 嘗試AI翻譯菜品名稱: '{menu_item.item_name}'")
-                    try:
-                        chinese_name = translate_text_with_fallback(menu_item.item_name, 'zh')
-                        print(f"✅ AI翻譯結果: '{chinese_name}'")
-                    except Exception as e:
-                        print(f"❌ AI翻譯失敗: {e}")
-                        chinese_name = menu_item.item_name
-                        print(f"⚠️ 使用原始名稱: '{chinese_name}'")
+                    chinese_name = menu_item.item_name
+                    translated_name = menu_item.item_name
+                    print(f"⚠️ 沒有找到翻譯，使用原始名稱: '{chinese_name}'")
                 
                 # 使用 DTO 模型處理傳統菜單項目
                 item_data = {
                     'menu_item_id': item.menu_item_id,
                     'original_name': chinese_name,  # 使用中文名稱
-                    'translated_name': menu_item.item_name,  # 使用原始名稱作為翻譯
+                    'translated_name': translated_name,  # 使用翻譯名稱
                     'quantity': item.quantity_small,
                     'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
                     'subtotal': item.subtotal
                 }
-            else:
-                print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
-                continue
+            except Exception as e:
+                print(f"❌ 查詢翻譯資料時發生錯誤: {e}")
+                chinese_name = menu_item.item_name
+                translated_name = menu_item.item_name
+                
+                # 使用 DTO 模型處理傳統菜單項目
+                item_data = {
+                    'menu_item_id': item.menu_item_id,
+                    'original_name': chinese_name,  # 使用中文名稱
+                    'translated_name': translated_name,  # 使用翻譯名稱
+                    'quantity': item.quantity_small,
+                    'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
+                    'subtotal': item.subtotal
+                }
+        else:
+            print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
+            continue
         
         # 建立 DTO 物件
         order_item_dto = build_order_item_dto(item_data, user_language)
@@ -1370,7 +1375,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     # 使用 GPT 建議的 deepcopy 方案，建立兩份完全獨立的表示層
     # 準備原始資料（中文店名/菜名）
     order_base = {
-        'store_name': store_name_for_display,
+        'store_name': chinese_store_name,  # 中文摘要使用原始中文店名
         'items': [
             {
                 'name': item.name.original,  # 中文原文
@@ -1390,7 +1395,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     
     # 記錄結構化日誌，驗證資料分離
     print(f"📊 資料分離驗證:")
-    print(f"   native store_name: '{store_name_for_display}'")
+    print(f"   native store_name: '{chinese_store_name}'")
     print(f"   native first item: '{order_base['items'][0]['name'] if order_base['items'] else 'N/A'}'")
     print(f"   display user_lang: '{user_language}'")
     print(f"   display first item: '{order_base['items'][0]['name'] if order_base['items'] else 'N/A'}'")
@@ -1404,11 +1409,11 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     # 如果使用者語言不是中文，需要翻譯店家名稱
     if user_language != 'zh':
         print(f"🔧 開始翻譯店家名稱...")
-        if store_name_for_display and store_name_for_display != store.store_name:
-            # 使用前端傳遞的店名進行翻譯
-            print(f"📝 使用前端傳遞的店名進行翻譯: '{store_name_for_display}'")
-            translated_store_name = translate_text_with_fallback(store_name_for_display, user_language)
-            print(f"📝 店家翻譯結果: '{store_name_for_display}' → '{translated_store_name}'")
+        # 使用顯示店名進行翻譯（如果已經是英文就不需要再翻譯）
+        if display_store_name and display_store_name != chinese_store_name:
+            # 使用前端傳遞的店名或 OCR 菜單中的店名
+            print(f"📝 使用顯示店名: '{display_store_name}'")
+            translated_store_name = display_store_name
         else:
             # 使用資料庫中的店名進行翻譯
             store_translation = translate_store_info_with_db_fallback(store, user_language)
@@ -1416,11 +1421,11 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
         
         # 更新使用者語言摘要中的店家名稱（只更新 display 版本）
-        user_language_summary = user_language_summary.replace(f"Store: {store_name_for_display}", f"Store: {translated_store_name}")
+        user_language_summary = user_language_summary.replace(f"Store: {chinese_store_name}", f"Store: {translated_store_name}")
         
         # 記錄結構化日誌，驗證資料分離
         print(f"📊 結構化日誌:")
-        print(f"   store_name_native: '{store_name_for_display}'")
+        print(f"   store_name_native: '{chinese_store_name}'")
         print(f"   store_name_display: '{translated_store_name}'")
         print(f"   user_language: '{user_language}'")
         print(f"   chinese_summary: '{chinese_summary[:100]}...'")
@@ -1428,7 +1433,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         
         # 驗證資料分離
         print(f"✅ 資料分離驗證:")
-        print(f"   - 中文摘要使用 native 店名: {'✓' if store_name_for_display in chinese_summary else '✗'}")
+        print(f"   - 中文摘要使用 native 店名: {'✓' if chinese_store_name in chinese_summary else '✗'}")
         print(f"   - 使用者語言摘要使用 display 店名: {'✓' if translated_store_name in user_language_summary else '✗'}")
         print(f"   - 語音使用中文原文: {'✓' if '招牌金湯酸菜' in chinese_voice_text or '白濃雞湯' in chinese_voice_text else '✗'}")
     
