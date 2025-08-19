@@ -13,7 +13,7 @@
 # =============================================================================
 
 from flask import Blueprint, jsonify, request, send_file, current_app, send_from_directory
-from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, OCRMenu, OCRMenuItem, VoiceFile, Language
+from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, OCRMenu, OCRMenuItem, OCRMenuTranslation, VoiceFile, Language
 from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file, VOICE_DIR
 import json
 import os
@@ -4291,3 +4291,371 @@ def get_partner_menu():
         response = jsonify(response_data)
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 200
+
+# 新增：暫存 OCR 資料的記憶體儲存
+_ocr_temp_storage = {}
+
+@api_bp.route('/menu/process-ocr-optimized', methods=['POST', 'OPTIONS'])
+def process_menu_ocr_optimized():
+    """
+    優化的 OCR 處理流程
+    - 直接 OCR 辨識
+    - 即時翻譯
+    - 暫存結果
+    - 不立即儲存資料庫
+    """
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    try:
+        # 檢查是否有檔案上傳
+        if 'image' not in request.files:
+            return jsonify({"error": "沒有上傳圖片"}), 400
+        
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({"error": "沒有選擇檔案"}), 400
+        
+        # 獲取使用者語言偏好
+        line_user_id = request.form.get('line_user_id')
+        user_language = request.form.get('language', 'en')
+        
+        # 查找使用者
+        user = User.query.filter_by(line_user_id=line_user_id).first()
+        if not user:
+            return jsonify({"error": "找不到使用者"}), 404
+        
+        print(f"🔍 開始優化 OCR 處理...")
+        print(f"📋 使用者: {user.line_user_id}, 語言: {user_language}")
+        
+        # 1. OCR 辨識
+        from .helpers import process_image_with_gemini
+        ocr_result = process_image_with_gemini(file)
+        
+        if not ocr_result or 'items' not in ocr_result:
+            return jsonify({"error": "OCR 辨識失敗"}), 500
+        
+        # 2. 即時翻譯
+        from .helpers import translate_text_batch
+        from .translation_service import contains_cjk
+        
+        # 翻譯店家名稱
+        store_name_original = ocr_result.get('store_name', '非合作店家')
+        if contains_cjk(store_name_original):
+            store_name_translated = translate_text_batch([store_name_original], user_language, 'zh')[0]
+        else:
+            store_name_translated = store_name_original
+        
+        # 翻譯菜品名稱
+        items = ocr_result['items']
+        translated_items = []
+        
+        for item in items:
+            item_name_original = item.get('name', '')
+            item_price = item.get('price', 0)
+            
+            # 檢查是否需要翻譯
+            if contains_cjk(item_name_original):
+                item_name_translated = translate_text_batch([item_name_original], user_language, 'zh')[0]
+            else:
+                item_name_translated = item_name_original
+            
+            translated_items.append({
+                'id': f"temp_item_{len(translated_items) + 1}",
+                'name': {
+                    'original': item_name_original,
+                    'translated': item_name_translated
+                },
+                'price': item_price
+            })
+        
+        # 3. 生成暫存 ID
+        temp_ocr_id = f"temp_ocr_{uuid.uuid4().hex[:8]}"
+        
+        # 4. 暫存結果
+        _ocr_temp_storage[temp_ocr_id] = {
+            'user_id': user.user_id,
+            'user_language': user_language,
+            'store_name': {
+                'original': store_name_original,
+                'translated': store_name_translated
+            },
+            'items': translated_items,
+            'created_at': datetime.datetime.now(),
+            'expires_at': datetime.datetime.now() + datetime.timedelta(hours=1)  # 1小時後過期
+        }
+        
+        print(f"✅ OCR 處理完成，暫存 ID: {temp_ocr_id}")
+        print(f"📋 店家: {store_name_original} → {store_name_translated}")
+        print(f"📋 菜品數量: {len(translated_items)}")
+        
+        # 5. 返回結果
+        return jsonify({
+            "success": True,
+            "ocr_menu_id": temp_ocr_id,
+            "store_name": {
+                "original": store_name_original,
+                "translated": store_name_translated
+            },
+            "items": translated_items,
+            "message": "OCR 處理完成，請選擇菜品"
+        })
+        
+    except Exception as e:
+        print(f"❌ OCR 處理錯誤: {e}")
+        return jsonify({"error": f"OCR 處理失敗: {str(e)}"}), 500
+
+@api_bp.route('/orders/ocr-optimized', methods=['POST', 'OPTIONS'])
+def create_ocr_order_optimized():
+    """
+    優化的 OCR 訂單建立
+    - 使用暫存的 OCR 資料
+    - 生成摘要和語音
+    - 發送到 LINE Bot
+    - 不立即儲存資料庫
+    """
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "請求資料為空"}), 400
+    
+    # 檢查必要欄位
+    required_fields = ['items', 'ocr_menu_id']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({
+            "error": "訂單資料不完整",
+            "missing_fields": missing_fields,
+            "received_data": list(data.keys())
+        }), 400
+    
+    try:
+        # 獲取暫存的 OCR 資料
+        temp_ocr_id = data.get('ocr_menu_id')
+        if temp_ocr_id not in _ocr_temp_storage:
+            return jsonify({"error": "OCR 資料已過期或不存在"}), 404
+        
+        ocr_data = _ocr_temp_storage[temp_ocr_id]
+        
+        # 檢查是否過期
+        if datetime.datetime.now() > ocr_data['expires_at']:
+            del _ocr_temp_storage[temp_ocr_id]
+            return jsonify({"error": "OCR 資料已過期"}), 410
+        
+        print(f"🔍 開始處理優化 OCR 訂單...")
+        print(f"📋 暫存 ID: {temp_ocr_id}")
+        print(f"📋 使用者 ID: {ocr_data['user_id']}")
+        print(f"📋 語言: {ocr_data['user_language']}")
+        
+        # 計算總金額
+        total_amount = 0
+        order_items_data = []
+        
+        for item_data in data['items']:
+            item_id = item_data.get('id')
+            quantity = item_data.get('quantity', 1)
+            
+            # 找到對應的 OCR 項目
+            ocr_item = None
+            for item in ocr_data['items']:
+                if item['id'] == item_id:
+                    ocr_item = item
+                    break
+            
+            if not ocr_item:
+                continue
+            
+            price = ocr_item['price']
+            subtotal = price * quantity
+            total_amount += subtotal
+            
+            order_items_data.append({
+                'original_name': ocr_item['name']['original'],
+                'translated_name': ocr_item['name']['translated'],
+                'quantity': quantity,
+                'price': price,
+                'subtotal': subtotal
+            })
+        
+        print(f"📋 總金額: {total_amount}")
+        print(f"📋 項目數量: {len(order_items_data)}")
+        
+        # 生成雙語摘要
+        chinese_summary = f"店家: {ocr_data['store_name']['original']}\n"
+        user_language_summary = f"Store: {ocr_data['store_name']['translated']}\n"
+        
+        for item in order_items_data:
+            chinese_summary += f"{item['original_name']} x{item['quantity']} ${item['subtotal']}\n"
+            user_language_summary += f"{item['translated_name']} x{item['quantity']} ${item['subtotal']}\n"
+        
+        chinese_summary += f"總計: ${total_amount}"
+        user_language_summary += f"Total: ${total_amount}"
+        
+        print(f"📝 中文摘要:\n{chinese_summary}")
+        print(f"📝 外文摘要:\n{user_language_summary}")
+        
+        # 生成語音檔案
+        from .helpers import generate_voice_order
+        voice_file_path = generate_voice_order(chinese_summary)
+        
+        # 發送到 LINE Bot
+        from .helpers import send_complete_order_notification
+        user = User.query.get(ocr_data['user_id'])
+        if user:
+            send_complete_order_notification(
+                user.line_user_id,
+                chinese_summary,
+                user_language_summary,
+                voice_file_path,
+                ocr_data['user_language']
+            )
+        
+        # 準備儲存資料（但不立即儲存）
+        save_data = {
+            'user_id': ocr_data['user_id'],
+            'store_name': ocr_data['store_name'],
+            'items': order_items_data,
+            'total_amount': total_amount,
+            'chinese_summary': chinese_summary,
+            'user_language_summary': user_language_summary,
+            'user_language': ocr_data['user_language'],
+            'voice_file_path': voice_file_path
+        }
+        
+        # 暫存儲存資料
+        _ocr_temp_storage[f"{temp_ocr_id}_save_data"] = save_data
+        
+        print(f"✅ 優化 OCR 訂單處理完成")
+        
+        return jsonify({
+            "success": True,
+            "message": "訂單已發送到 LINE Bot",
+            "save_data_id": f"{temp_ocr_id}_save_data",
+            "chinese_summary": chinese_summary,
+            "user_language_summary": user_language_summary
+        })
+        
+    except Exception as e:
+        print(f"❌ 優化 OCR 訂單處理錯誤: {e}")
+        return jsonify({"error": f"訂單處理失敗: {str(e)}"}), 500
+
+@api_bp.route('/orders/save-ocr-data', methods=['POST', 'OPTIONS'])
+def save_ocr_data():
+    """
+    統一儲存 OCR 資料到資料庫
+    - 儲存中文菜單到 ocr_menu_items
+    - 儲存外文菜單到 ocr_menu_translations
+    - 儲存訂單到 orders 和 order_items
+    """
+    # 處理 OPTIONS 預檢請求
+    if request.method == 'OPTIONS':
+        return handle_cors_preflight()
+    
+    data = request.get_json()
+    
+    if not data:
+        return jsonify({"error": "請求資料為空"}), 400
+    
+    # 檢查必要欄位
+    required_fields = ['save_data_id']
+    missing_fields = [field for field in required_fields if field not in data]
+    if missing_fields:
+        return jsonify({
+            "error": "資料不完整",
+            "missing_fields": missing_fields
+        }), 400
+    
+    try:
+        save_data_id = data.get('save_data_id')
+        if save_data_id not in _ocr_temp_storage:
+            return jsonify({"error": "儲存資料不存在或已過期"}), 404
+        
+        save_data = _ocr_temp_storage[save_data_id]
+        
+        print(f"🔍 開始儲存 OCR 資料到資料庫...")
+        print(f"📋 儲存資料 ID: {save_data_id}")
+        
+        # 使用交易確保資料一致性
+        with db.session.begin():
+            # 1. 建立 OCR 菜單記錄
+            ocr_menu = OCRMenu(
+                user_id=save_data['user_id'],
+                store_id=1,  # 非合作店家使用預設 store_id
+                store_name=save_data['store_name']['original']
+            )
+            db.session.add(ocr_menu)
+            db.session.flush()  # 獲取 ocr_menu_id
+            
+            print(f"✅ 建立 OCR 菜單記錄: {ocr_menu.ocr_menu_id}")
+            
+            # 2. 儲存 OCR 菜單項目
+            for item in save_data['items']:
+                ocr_menu_item = OCRMenuItem(
+                    ocr_menu_id=ocr_menu.ocr_menu_id,
+                    item_name=item['original_name'],  # 中文菜名
+                    price_small=item['price'],
+                    translated_desc=item['translated_name']  # 外文菜名
+                )
+                db.session.add(ocr_menu_item)
+                db.session.flush()  # 獲取 ocr_menu_item_id
+                
+                # 3. 儲存翻譯資料
+                ocr_menu_translation = OCRMenuTranslation(
+                    menu_item_id=ocr_menu_item.ocr_menu_item_id,
+                    lang_code=save_data['user_language'],
+                    description=item['translated_name']
+                )
+                db.session.add(ocr_menu_translation)
+            
+            # 4. 建立訂單記錄
+            order = Order(
+                user_id=save_data['user_id'],
+                store_id=1,  # 非合作店家使用預設 store_id
+                total_amount=save_data['total_amount'],
+                status='pending'
+            )
+            db.session.add(order)
+            db.session.flush()  # 獲取 order_id
+            
+            print(f"✅ 建立訂單記錄: {order.order_id}")
+            
+            # 5. 儲存訂單項目（包含雙語摘要）
+            for item in save_data['items']:
+                order_item = OrderItem(
+                    order_id=order.order_id,
+                    temp_item_id=f"ocr_{ocr_menu.ocr_menu_id}_{len(save_data['items'])}",
+                    temp_item_name=item['original_name'],  # 中文菜名
+                    temp_item_price=item['price'],
+                    quantity_small=item['quantity'],
+                    subtotal=item['subtotal'],
+                    original_name=item['original_name'],  # 中文菜名
+                    translated_name=item['translated_name'],  # 外文菜名
+                    is_temp_item=1
+                )
+                db.session.add(order_item)
+        
+        # 清理暫存資料
+        del _ocr_temp_storage[save_data_id]
+        
+        print(f"✅ OCR 資料儲存完成")
+        print(f"📋 OCR 菜單 ID: {ocr_menu.ocr_menu_id}")
+        print(f"📋 訂單 ID: {order.order_id}")
+        
+        return jsonify({
+            "success": True,
+            "message": "資料已成功儲存到資料庫",
+            "ocr_menu_id": ocr_menu.ocr_menu_id,
+            "order_id": order.order_id,
+            "chinese_summary": save_data['chinese_summary'],
+            "user_language_summary": save_data['user_language_summary']
+        })
+        
+    except Exception as e:
+        print(f"❌ 儲存 OCR 資料錯誤: {e}")
+        db.session.rollback()
+        return jsonify({"error": f"儲存失敗: {str(e)}"}), 500
