@@ -2316,6 +2316,14 @@ def upload_menu_image():
         print("開始使用 Gemini API 處理圖片...")
         result = process_menu_with_gemini(filepath, target_lang)
         
+        # 加入詳細日誌，幫助診斷 OCR 問題
+        print(f"🔍 OCR 原始結果: {result}")
+        if result and 'menu_items' in result:
+            print(f"📋 菜單項目數量: {len(result['menu_items'])}")
+            if result['menu_items']:
+                print(f"📋 第一個項目結構: {result['menu_items'][0]}")
+                print(f"📋 第一個項目 keys: {list(result['menu_items'][0].keys())}")
+        
         # 檢查處理結果
         if result and result.get('success', False):
             
@@ -2387,12 +2395,28 @@ def upload_menu_image():
                 if price <= 0:
                     continue
                 
+                # 正規化菜單項目格式，確保前端能正確解析
+                original_name = str(item.get('original_name', '') or item.get('name', {}).get('original', '') or '')
+                translated_name = str(item.get('translated_name', '') or item.get('name', {}).get('translated', '') or '')
+                
+                # 如果沒有原始名稱，嘗試其他可能的欄位
+                if not original_name:
+                    original_name = str(item.get('name', '') or item.get('title', '') or item.get('item_name', '') or '')
+                
+                # 如果沒有翻譯名稱，使用原始名稱
+                if not translated_name:
+                    translated_name = original_name
+                
                 dynamic_menu.append({
                     'temp_id': f"temp_{processing_id}_{i}",
                     'id': f"temp_{processing_id}_{i}",  # 前端可能需要 id 欄位
-                    'original_name': str(item.get('original_name', '') or ''),
-                    'translated_name': str(item.get('translated_name', '') or ''),
-                    'en_name': str(item.get('translated_name', '') or ''),  # 英語名稱
+                    'original_name': original_name,
+                    'translated_name': translated_name,
+                    'en_name': translated_name,  # 英語名稱
+                    'name': {  # 新增前端支援的新格式
+                        'original': original_name,
+                        'translated': translated_name
+                    },
                     'price': price,
                     'price_small': price,  # 小份價格
                     'price_large': price,  # 大份價格
