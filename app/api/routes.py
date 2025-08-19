@@ -243,24 +243,9 @@ def get_menu(store_id):
                 if first_lang and first_lang != 'zh':
                     user_language = first_lang
         
-        # 語言碼正規化：支援 BCP47 格式
-        def normalize_language_code(lang_code):
-            """將語言碼正規化為 Google Cloud Translation API 支援的格式"""
-            if not lang_code:
-                return 'zh'
-            
-            # 支援的語言直接返回
-            supported_langs = ['zh', 'en', 'ja', 'ko']
-            if lang_code in supported_langs:
-                return lang_code
-            
-            # 處理 BCP47 格式 (如 'fr-FR', 'de-DE')
-            if '-' in lang_code:
-                return lang_code.split('-')[0]
-            
-            return lang_code
-        
-        normalized_lang = normalize_language_code(user_language)
+        # 使用新的翻譯服務進行語言碼正規化
+        from .translation_service import normalize_lang, translate_text
+        normalized_lang = normalize_lang(user_language)
         
         # 先檢查店家是否存在
         store = Store.query.get(store_id)
@@ -302,24 +287,25 @@ def get_menu(store_id):
                 "message": "請使用菜單圖片上傳功能來建立菜單"
             }), 404
         
-        # 使用新的翻譯功能（優先使用資料庫翻譯）
-        from .helpers import translate_menu_items_with_db_fallback
-        translated_menu = translate_menu_items_with_db_fallback(menu_items, user_language)
-        
-        # 統計翻譯來源
-        db_translations = sum(1 for item in translated_menu if item['translation_source'] == 'database')
-        ai_translations = sum(1 for item in translated_menu if item['translation_source'] == 'ai')
+        # 使用新的翻譯服務翻譯菜單項目
+        translated_items = []
+        for item in menu_items:
+            translated_item = {
+                "id": item.menu_item_id,
+                "name": translate_text(item.item_name, normalized_lang),
+                "original_name": item.item_name,
+                "price_small": item.price_small,
+                "price_large": item.price_large,
+                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
+                "original_category": item.category or ""
+            }
+            translated_items.append(translated_item)
         
         return jsonify({
             "store_id": store_id,
             "user_language": user_language,
             "normalized_language": normalized_lang,
-            "menu_items": translated_menu,
-            "translation_stats": {
-                "database_translations": db_translations,
-                "ai_translations": ai_translations,
-                "total_items": len(translated_menu)
-            }
+            "menu_items": translated_items
         })
         
     except Exception as e:
@@ -342,24 +328,9 @@ def get_menu_by_place_id(place_id):
                 if first_lang and first_lang != 'zh':
                     user_language = first_lang
         
-        # 語言碼正規化：支援 BCP47 格式
-        def normalize_language_code(lang_code):
-            """將語言碼正規化為 Google Cloud Translation API 支援的格式"""
-            if not lang_code:
-                return 'zh'
-            
-            # 支援的語言直接返回
-            supported_langs = ['zh', 'en', 'ja', 'ko']
-            if lang_code in supported_langs:
-                return lang_code
-            
-            # 處理 BCP47 格式 (如 'fr-FR', 'de-DE')
-            if '-' in lang_code:
-                return lang_code.split('-')[0]
-            
-            return lang_code
-        
-        normalized_lang = normalize_language_code(user_language)
+        # 使用新的翻譯服務進行語言碼正規化
+        from .translation_service import normalize_lang, translate_text
+        normalized_lang = normalize_lang(user_language)
         
         # 先根據 place_id 找到店家
         store = Store.query.filter_by(place_id=place_id).first()
@@ -404,24 +375,26 @@ def get_menu_by_place_id(place_id):
                 "message": "請使用菜單圖片上傳功能來建立菜單"
             }), 404
         
-        # 使用新的翻譯功能（優先使用資料庫翻譯）
-        from .helpers import translate_menu_items_with_db_fallback
-        translated_menu = translate_menu_items_with_db_fallback(menu_items, user_language)
-        
-        # 統計翻譯來源
-        db_translations = sum(1 for item in translated_menu if item['translation_source'] == 'database')
-        ai_translations = sum(1 for item in translated_menu if item['translation_source'] == 'ai')
+        # 使用新的翻譯服務翻譯菜單項目
+        translated_items = []
+        for item in menu_items:
+            translated_item = {
+                "id": item.menu_item_id,
+                "name": translate_text(item.item_name, normalized_lang),
+                "original_name": item.item_name,
+                "price_small": item.price_small,
+                "price_large": item.price_large,
+                "category": translate_text(item.category or "", normalized_lang) if item.category else "",
+                "original_category": item.category or ""
+            }
+            translated_items.append(translated_item)
         
         return jsonify({
             "store_id": store.store_id,
             "place_id": place_id,
             "user_language": user_language,
-            "menu_items": translated_menu,
-            "translation_stats": {
-                "database_translations": db_translations,
-                "ai_translations": ai_translations,
-                "total_items": len(translated_menu)
-            }
+            "normalized_language": normalized_lang,
+            "menu_items": translated_items
         })
         
     except Exception as e:
@@ -456,7 +429,7 @@ def check_partner_status():
         if store:
             # 找到合作店家
             original_name = store.store_name
-            display_name = translate_text(original_name, normalized_lang)
+            translated_name = translate_text(original_name, normalized_lang)
             
             # 檢查是否有菜單
             try:
@@ -477,7 +450,8 @@ def check_partner_status():
             response_data = {
                 "store_id": store.store_id,
                 "store_name": store.store_name,
-                "display_name": display_name,
+                "display_name": translated_name,  # 前端優先使用的欄位
+                "translated_name": translated_name,  # 前端也會檢查的欄位
                 "original_name": original_name,
                 "place_id": store.place_id,
                 "partner_level": store.partner_level,
@@ -487,12 +461,13 @@ def check_partner_status():
         else:
             # 找不到店家，回傳非合作狀態
             original_name = name or f"店家_{place_id[:8] if place_id else 'unknown'}"
-            display_name = translate_text(original_name, normalized_lang)
+            translated_name = translate_text(original_name, normalized_lang)
             
             response_data = {
                 "store_id": None,
                 "store_name": "",
-                "display_name": display_name,
+                "display_name": translated_name,  # 前端優先使用的欄位
+                "translated_name": translated_name,  # 前端也會檢查的欄位
                 "original_name": original_name,
                 "place_id": place_id,
                 "partner_level": 0,
@@ -509,12 +484,13 @@ def check_partner_status():
         current_app.logger.error(f"檢查店家狀態失敗: {str(e)}")
         # 明確 fallback，避免 5xx 讓前端停在 loading
         original_name = name or f"店家_{place_id[:8] if place_id else 'unknown'}"
-        display_name = translate_text(original_name, normalized_lang)
+        translated_name = translate_text(original_name, normalized_lang)
         
         response_data = {
             "store_id": None,
             "store_name": "",
-            "display_name": display_name,
+            "display_name": translated_name,  # 前端優先使用的欄位
+            "translated_name": translated_name,  # 前端也會檢查的欄位
             "original_name": original_name,
             "place_id": place_id,
             "partner_level": 0,
