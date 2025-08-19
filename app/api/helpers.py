@@ -1198,7 +1198,7 @@ def translate_store_info_with_db_fallback(store, target_language):
 
 def create_complete_order_confirmation(order_id, user_language='zh', store_name=None):
     """
-    建立完整的訂單確認內容（包含語音、中文紀錄、使用者語言紀錄）
+    建立完整的訂單確認內容（使用新的 DTO 模型，支援雙語摘要）
     
     Args:
         order_id: 訂單ID
@@ -1209,6 +1209,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     logging.basicConfig(level=logging.INFO)
     
     from ..models import Order, OrderItem, MenuItem, Store, User
+    from .dto_models import build_order_item_dto, OrderSummaryDTO
     
     print(f"🔧 開始生成訂單確認...")
     print(f"📋 輸入參數: order_id={order_id}, user_language={user_language}, store_name={store_name}")
@@ -1301,10 +1302,8 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     
     print(f"✅ 找到使用者: user_id={user.user_id}, preferred_lang='{user.preferred_lang}'")
     
-    # 1. 中文語音內容（改善格式，更自然）
-    items_for_voice = []
-    items_for_summary = []
-    
+    # 使用新的 DTO 模型處理訂單項目
+    order_items_dto = []
     print(f"🔧 開始處理訂單項目...")
     print(f"📋 訂單項目數量: {len(order.items)}")
     
@@ -1315,23 +1314,15 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         if hasattr(item, 'original_name') and item.original_name:
             print(f"✅ 檢測到OCR菜單項目: original_name='{item.original_name}', translated_name='{getattr(item, 'translated_name', '')}'")
             
-            # 使用原始中文名稱進行語音和摘要
-            item_name_for_voice = item.original_name
-            item_name_for_summary = item.original_name
-            
-            # 為語音準備：自然的中文表達
-            if item.quantity_small == 1:
-                voice_text = f"{item_name_for_voice}一份"
-            else:
-                voice_text = f"{item_name_for_voice}{item.quantity_small}份"
-            
-            items_for_voice.append(voice_text)
-            print(f"📝 語音文字: '{voice_text}'")
-            
-            # 為摘要準備：清晰的格式
-            summary_text = f"{item_name_for_summary} x{item.quantity_small}"
-            items_for_summary.append(summary_text)
-            print(f"📝 摘要文字: '{summary_text}'")
+            # 使用 DTO 模型處理 OCR 菜單項目
+            item_data = {
+                'menu_item_id': item.menu_item_id,
+                'original_name': item.original_name,
+                'translated_name': getattr(item, 'translated_name', item.original_name),
+                'quantity': item.quantity_small,
+                'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
+                'subtotal': item.subtotal
+            }
             
         else:
             # 使用傳統的MenuItem查詢
@@ -1357,49 +1348,45 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                         chinese_name = menu_item.item_name
                         print(f"⚠️ 使用原始名稱: '{chinese_name}'")
                 
-                # 為語音準備：使用中文名稱
-                if item.quantity_small == 1:
-                    voice_text = f"{chinese_name}一份"
-                else:
-                    voice_text = f"{chinese_name}{item.quantity_small}份"
-                
-                items_for_voice.append(voice_text)
-                print(f"📝 語音文字: '{voice_text}'")
-                
-                # 為摘要準備：使用中文名稱
-                summary_text = f"{chinese_name} x{item.quantity_small}"
-                items_for_summary.append(summary_text)
-                print(f"📝 摘要文字: '{summary_text}'")
+                # 使用 DTO 模型處理傳統菜單項目
+                item_data = {
+                    'menu_item_id': item.menu_item_id,
+                    'original_name': chinese_name,  # 使用中文名稱
+                    'translated_name': menu_item.item_name,  # 使用原始名稱作為翻譯
+                    'quantity': item.quantity_small,
+                    'price': item.subtotal // item.quantity_small if item.quantity_small > 0 else 0,
+                    'subtotal': item.subtotal
+                }
             else:
                 print(f"❌ 找不到菜單項目: menu_item_id={item.menu_item_id}")
+                continue
+        
+        # 建立 DTO 物件
+        order_item_dto = build_order_item_dto(item_data, user_language)
+        order_items_dto.append(order_item_dto)
+        print(f"✅ 建立 DTO 物件: original='{order_item_dto.name.original}', translated='{order_item_dto.name.translated}'")
     
-    # 生成自然的中文語音
-    if len(items_for_voice) == 1:
-        chinese_voice_text = f"老闆，我要{items_for_voice[0]}，謝謝。"
-    else:
-        voice_items = "、".join(items_for_voice[:-1]) + "和" + items_for_voice[-1]
-        chinese_voice_text = f"老闆，我要{voice_items}，謝謝。"
+    # 建立訂單摘要 DTO
+    order_summary_dto = OrderSummaryDTO(
+        store_name=store_name_for_display,
+        items=order_items_dto,
+        total_amount=order.total_amount,
+        user_language=user_language
+    )
+    
+    # 生成雙語摘要
+    chinese_summary = order_summary_dto.chinese_summary
+    user_language_summary = order_summary_dto.user_language_summary
+    chinese_voice_text = order_summary_dto.voice_text
     
     print(f"🎤 生成中文語音文字: '{chinese_voice_text}'")
-    
-    # 2. 中文點餐紀錄（改善格式）
-    chinese_summary = f"店家：{store_name_for_display}\n"
-    chinese_summary += "訂購項目：\n"
-    
-    for item_summary in items_for_summary:
-        chinese_summary += f"- {item_summary}\n"
-    
-    chinese_summary += f"總金額：${order.total_amount}"
-    
     print(f"📝 生成中文摘要:")
     print(f"   {chinese_summary.replace(chr(10), chr(10) + '   ')}")
+    print(f"📝 生成使用者語言摘要:")
+    print(f"   {user_language_summary.replace(chr(10), chr(10) + '   ')}")
     
-    # 3. 使用者語言的點餐紀錄（根據用戶偏好語言）
-    print(f"🔧 開始生成使用者語言摘要...")
-    print(f"📋 使用者語言: {user_language}")
-    
+    # 如果使用者語言不是中文，需要翻譯店家名稱
     if user_language != 'zh':
-        # 翻譯店家名稱 - 使用前端傳遞的店名
         print(f"🔧 開始翻譯店家名稱...")
         if store_name_for_display and store_name_for_display != store.store_name:
             # 使用前端傳遞的店名進行翻譯
@@ -1412,47 +1399,18 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             translated_store_name = store_translation['translated_name']
             print(f"📝 店家翻譯結果: '{store.store_name}' → '{translated_store_name}'")
         
-        translated_summary = f"Store: {translated_store_name}\n"
-        translated_summary += "Items:\n"
-        
-        for item in order.items:
-            # 檢查是否為OCR菜單項目（有translated_name）
-            if hasattr(item, 'translated_name') and item.translated_name:
-                print(f"✅ 檢測到OCR菜單項目，使用已翻譯名稱: '{item.translated_name}'")
-                translated_name = item.translated_name
-                translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
-            else:
-                # 使用傳統的MenuItem查詢和翻譯
-                menu_item = MenuItem.query.get(item.menu_item_id)
-                if menu_item:
-                    print(f"🔧 翻譯菜品: '{menu_item.item_name}'")
-                    
-                    # 優先使用資料庫翻譯
-                    db_translation = get_menu_translation_from_db(menu_item.menu_item_id, user_language)
-                    if db_translation and db_translation.description:
-                        translated_name = db_translation.description
-                        print(f"✅ 使用資料庫翻譯: '{translated_name}'")
-                    else:
-                        translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
-                        print(f"✅ 使用AI翻譯: '{translated_name}'")
-                    
-                    translated_summary += f"- {translated_name} x{item.quantity_small} (${item.subtotal})\n"
-        
-        translated_summary += f"Total: ${order.total_amount}"
-    else:
-        # 如果用戶語言是中文，使用者語言摘要就是中文摘要
-        print(f"📝 使用者語言是中文，使用中文摘要")
-        translated_summary = chinese_summary
+        # 更新使用者語言摘要中的店家名稱
+        user_language_summary = user_language_summary.replace(f"Store: {store_name_for_display}", f"Store: {translated_store_name}")
     
     print(f"📝 生成使用者語言摘要:")
-    print(f"   {translated_summary.replace(chr(10), chr(10) + '   ')}")
+    print(f"   {user_language_summary.replace(chr(10), chr(10) + '   ')}")
     
     result = {
         "chinese_voice_text": chinese_voice_text,
         "chinese": chinese_summary,
-        "translated": translated_summary,
+        "translated": user_language_summary,
         "chinese_summary": chinese_summary,
-        "translated_summary": translated_summary,
+        "translated_summary": user_language_summary,
         "user_language": user_language
     }
     
@@ -2436,7 +2394,7 @@ def build_chinese_voice_text(zh_items: List[Dict]) -> str:
     try:
         voice_items = []
         for item in zh_items:
-            name = item['name']
+            name = item['name']  # 這裡已經是中文原文
             quantity = item['quantity']
             
             # 根據菜名類型選擇量詞

@@ -293,25 +293,34 @@ def get_menu(store_id):
                 "message": "請使用菜單圖片上傳功能來建立菜單"
             }), 404
         
-        # 使用新的翻譯服務翻譯菜單項目
+        # 使用新的 DTO 模型處理雙語菜單項目
+        from .dto_models import build_menu_item_dto
         translated_items = []
-        current_app.logger.info(f"開始翻譯菜單項目，目標語言: {normalized_lang}")
+        current_app.logger.info(f"開始處理雙語菜單項目，目標語言: {normalized_lang}")
         
         for item in menu_items:
-            original_name = item.item_name
-            translated_name = translate_text(original_name, normalized_lang)
+            # 使用 alias 查詢，將 item_name 作為 name_source
+            # 這樣可以保留原文，同時提供翻譯版本
+            menu_item_dto = build_menu_item_dto(item, normalized_lang)
             
-            # 記錄翻譯結果
-            current_app.logger.info(f"翻譯: '{original_name}' -> '{translated_name}' (語言: {normalized_lang})")
+            # 如果需要翻譯，使用翻譯服務
+            if not normalized_lang.startswith('zh'):
+                from .translation_service import translate_text
+                translated_name = translate_text(menu_item_dto.name_source, normalized_lang)
+                menu_item_dto.name_ui = translated_name
+                
+                # 記錄翻譯結果
+                current_app.logger.info(f"翻譯: '{menu_item_dto.name_source}' -> '{translated_name}' (語言: {normalized_lang})")
             
+            # 轉換為字典格式，保持 API 兼容性
             translated_item = {
-                "id": item.menu_item_id,
-                "name": translated_name,
-                "translated_name": translated_name,  # 為了前端兼容性
-                "original_name": original_name,
-                "price_small": item.price_small,
-                "price_large": item.price_big,  # 修正：使用 price_big 而不是 price_large
-                "category": "",  # 修正：資料庫中沒有 category 欄位
+                "id": menu_item_dto.id,
+                "name": menu_item_dto.name_ui,  # 使用者語言顯示名稱
+                "translated_name": menu_item_dto.name_ui,  # 為了前端兼容性
+                "original_name": menu_item_dto.name_source,  # 保留原始中文名稱
+                "price_small": menu_item_dto.price_small,
+                "price_large": menu_item_dto.price_big,
+                "category": "",
                 "original_category": ""
             }
             translated_items.append(translated_item)
