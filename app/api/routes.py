@@ -1320,84 +1320,100 @@ def create_order():
                 }
             }), 500
         
-        # 🔧 交易提交後的操作：完整訂單確認、語音生成和 LINE 通知
-        print(f"✅ 資料庫交易已提交，開始後續處理...")
+        # 🔧 使用 Cloud Tasks 處理背景任務
+        print(f"✅ 資料庫交易已提交，開始創建 Cloud Task...")
         
-        # 1. 生成完整的訂單確認內容
+        # 創建 Cloud Task 來處理背景任務
+        cloud_task_created = False
         try:
-            from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
+            print(f"🔄 開始創建 Cloud Task: order_id={new_order.order_id}")
             
-            print(f"🔧 準備生成完整訂單確認...")
-            order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang, frontend_store_name)
-            print(f"✅ 完整訂單確認生成成功")
-            print(f"📋 確認內容: {order_confirmation}")
-        except Exception as e:
-            print(f"❌ 完整訂單確認生成失敗: {e}")
-            print(f"錯誤類型: {type(e).__name__}")
-            import traceback
-            traceback.print_exc()
-            # 使用基本確認內容，繼續執行
-        
-        # 2. 如果是OCR菜單訂單，建立訂單摘要並儲存到資料庫
-        if ocr_menu_id:
+            # 導入必要的模組
             try:
-                from .helpers import save_ocr_menu_and_summary_to_database
-                
-                # 準備OCR項目資料
-                ocr_items = []
-                for item in order_details:
-                    if item.get('is_ocr'):
-                        ocr_items.append({
-                            'name': {
-                                'original': item.get('item_name', ''),
-                                'translated': item.get('translated_name', item.get('item_name', ''))
-                            },
-                            'price': item.get('price', 0),
-                            'item_name': item.get('item_name', ''),
-                            'translated_name': item.get('translated_name', item.get('item_name', ''))
-                        })
-                
-                if ocr_items:
-                    # 儲存到資料庫
-                    save_result = save_ocr_menu_and_summary_to_database(
-                        order_id=new_order.order_id,
-                        ocr_items=ocr_items,
-                        chinese_summary=order_confirmation.get('chinese', 'OCR訂單摘要'),
-                        user_language_summary=order_confirmation.get('translated', 'OCR訂單摘要'),
-                        user_language=data.get('language', 'zh'),
-                        total_amount=total_amount,
-                        user_id=user.user_id if user else None,
-                        store_id=store_db_id,  # 新增 store_id
-                        store_name=data.get('store_name', 'OCR店家'),
-                        existing_ocr_menu_id=ocr_menu_id
-                    )
-                    
-                    if save_result['success']:
-                        print(f"✅ OCR訂單摘要已成功儲存到資料庫")
-                        print(f"   OCR菜單ID: {save_result['ocr_menu_id']}")
-                        print(f"   訂單摘要ID: {save_result['summary_id']}")
-                    else:
-                        print(f"⚠️ OCR訂單摘要儲存失敗: {save_result['message']}")
-            except Exception as e:
-                print(f"⚠️ 儲存OCR訂單摘要時發生錯誤: {e}")
-                # 不影響主要流程，繼續執行
-        
-        # 3. 生成中文語音檔
-        voice_path = None
-        try:
-            print(f"🔧 準備生成語音檔...")
-            voice_path = generate_voice_order(new_order.order_id)
-            print(f"✅ 語音檔生成成功: {voice_path}")
+                from google.cloud import tasks_v2
+                import json
+                from ..config.cloud_tasks_config import (
+                    GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME,
+                    get_order_processing_url, TASKS_INVOKER_SERVICE_ACCOUNT,
+                    validate_config
+                )
+                print("✅ 模組導入成功")
+            except ImportError as import_error:
+                print(f"❌ 模組導入失敗: {import_error}")
+                raise
+            
+            # 驗證配置
+            try:
+                validate_config()
+                print("✅ 配置驗證成功")
+            except Exception as config_error:
+                print(f"❌ 配置驗證失敗: {config_error}")
+                raise
+            
+            # 創建 Cloud Tasks 客戶端
+            try:
+                client = tasks_v2.CloudTasksClient()
+                print("✅ Cloud Tasks 客戶端創建成功")
+            except Exception as client_error:
+                print(f"❌ Cloud Tasks 客戶端創建失敗: {client_error}")
+                raise
+            
+            # 構建佇列路徑
+            try:
+                parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME)
+                print(f"✅ 佇列路徑構建成功: {parent}")
+            except Exception as path_error:
+                print(f"❌ 佇列路徑構建失敗: {path_error}")
+                raise
+            
+            # 構建任務
+            try:
+                task = {
+                    "http_request": {
+                        "http_method": tasks_v2.HttpMethod.POST,
+                        "url": get_order_processing_url(),
+                        "headers": {
+                            "Content-type": "application/json",
+                        },
+                        "body": json.dumps({
+                            "order_id": new_order.order_id
+                        }).encode(),
+                        "oidc_token": {
+                            "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT,
+                            "audience": get_order_processing_url()  # 修復 3：加入 audience
+                        }
+                    }
+                }
+                print(f"✅ 任務構建成功")
+                print(f"   - URL: {get_order_processing_url()}")
+                print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+            except Exception as task_error:
+                print(f"❌ 任務構建失敗: {task_error}")
+                raise
+            
+            # 創建任務
+            try:
+                response = client.create_task(request={"parent": parent, "task": task})
+                print(f"✅ Cloud Task 已創建: {response.name}")
+                print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
+                print(f"   - 目標 URL: {get_order_processing_url()}")
+                print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+                cloud_task_created = True
+            except Exception as create_error:
+                print(f"❌ 任務創建失敗: {create_error}")
+                raise
+            
         except Exception as e:
-            print(f"❌ 語音檔生成失敗: {e}")
-            print(f"錯誤類型: {type(e).__name__}")
+            print(f"❌ 創建 Cloud Task 失敗: {e}")
             import traceback
             traceback.print_exc()
-            # 不拋出異常，繼續執行
-            voice_path = None
+            # 修復 2：回報錯誤，但不影響主要流程
+            cloud_task_created = False
         
-        # 4. 只在非訪客模式下發送 LINE 通知
-        if not guest_mode:
+        # 如果 Cloud Task 創建失敗，回報錯誤但繼續流程
+        if not cloud_task_created:
+            print(f"⚠️ Cloud Task 創建失敗，訂單 {new_order.order_id} 可能無法完成背景處理")
+            # 可以在這裡加入其他錯誤處理邏輯，比如發送通知給管理員
             try:
                 print(f"📱 準備發送 LINE 通知...")
                 send_complete_order_notification(new_order.order_id, frontend_store_name)
@@ -4923,7 +4939,8 @@ def create_quick_order():
                             "order_id": new_order.order_id
                         }).encode(),
                         "oidc_token": {
-                            "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT
+                            "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT,
+                            "audience": get_order_processing_url()  # 修復 3：加入 audience
                         }
                     }
                 }
