@@ -54,7 +54,7 @@ COPY . .
 RUN mkdir -p /tmp/voices && chmod 755 /tmp/voices
 
 # 設定啟動腳本權限
-RUN chmod +x startup.sh startup_simple.sh
+RUN chmod +x startup.sh startup_simple.sh startup_minimal.sh
 
 # 設定環境變數 - 移除可能衝突的變數
 ENV PYTHONPATH=/app
@@ -64,9 +64,9 @@ ENV PORT=8080
 # 暴露端口 - 確保 Cloud Run 能正確識別
 EXPOSE 8080
 
-# 健康檢查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
+# 健康檢查 - 移除可能導致啟動失敗的健康檢查
+# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+#     CMD curl -f http://localhost:${PORT:-8080}/health || exit 1
 
-# 使用簡化啟動腳本
-CMD ["./startup_simple.sh"] 
+# 使用最簡化啟動腳本
+CMD ["./startup_minimal.sh"] 
