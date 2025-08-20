@@ -1380,7 +1380,7 @@ def create_order():
                         }).encode(),
                         "oidc_token": {
                             "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT,
-                            "audience": get_order_processing_url()  # 修復 3：加入 audience
+                            "audience": CLOUD_RUN_SERVICE_URL.rstrip("/")  # 修復：使用服務主要 URL 作為 audience
                         }
                     }
                 }
@@ -4960,7 +4960,7 @@ def create_quick_order():
                         }).encode(),
                         "oidc_token": {
                             "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT,
-                            "audience": get_order_processing_url()  # 修復 3：加入 audience
+                            "audience": CLOUD_RUN_SERVICE_URL.rstrip("/")  # 修復：使用服務主要 URL 作為 audience
                         }
                     }
                 }

@@ -20,7 +20,7 @@ CLOUD_TASKS_QUEUE_NAME = os.environ.get('CLOUD_TASKS_QUEUE_NAME', 'order-process
 CLOUD_RUN_SERVICE_NAME = os.environ.get('CLOUD_RUN_SERVICE_NAME', 'ordering-helper-backend')
 CLOUD_RUN_SERVICE_URL = os.environ.get(
     'CLOUD_RUN_SERVICE_URL', 
-    'https://ordering-helper-backend-00690-mh5-asia-east1.run.app'
+    'https://ordering-helper-backend-1095766716155.asia-east1.run.app'
 )
 
 # 服務帳戶設定
@@ -72,6 +72,14 @@ def get_order_processing_url():
     endpoint = ORDER_PROCESSING_ENDPOINT.lstrip('/')
     return f"{base_url}/{endpoint}"
 
+def get_service_base_url():
+    """獲取 Cloud Run 服務的主要 URL（用於 audience）"""
+    return CLOUD_RUN_SERVICE_URL.rstrip('/')
+
+def get_audience_url():
+    """獲取用於 OIDC token audience 的 URL"""
+    return CLOUD_RUN_SERVICE_URL.rstrip('/')
+
 def get_queue_path():
     """獲取佇列路徑"""
     return f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/queues/{CLOUD_TASKS_QUEUE_NAME}"
@@ -108,7 +116,10 @@ def validate_config():
     
     # 測試 URL 構建
     test_url = get_order_processing_url()
-    print(f"🔧 測試 URL 構建: {test_url}")
+    base_url = get_service_base_url()
+    print(f"🔧 測試 URL 構建:")
+    print(f"   - 服務主要 URL: {base_url}")
+    print(f"   - 處理端點 URL: {test_url}")
     
     print("✅ Cloud Tasks 配置驗證通過")
     print(f"   - 專案 ID: {GCP_PROJECT_ID}")
@@ -117,6 +128,7 @@ def validate_config():
     print(f"   - 服務 URL: {CLOUD_RUN_SERVICE_URL}")
     print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
     print(f"   - 處理端點 URL: {test_url}")
+    print(f"   - Audience URL: {base_url}")
 
 # =============================================================================
 # 配置說明
