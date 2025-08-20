@@ -4827,24 +4827,32 @@ def create_quick_order():
             order_items_to_create.append(order_item)
         
         # 快速建立訂單（只建立記錄，不處理語音）
-        with db.session.begin():
-            # 建立訂單記錄
-            new_order = Order(
-                user_id=user.user_id if user else 1,  # 訪客模式使用預設使用者
-                store_id=store_db_id or 1,  # 非合作店家使用預設店家
-                total_amount=total_amount,
-                status='pending'  # 明確設定為處理中狀態
-            )
-            
-            db.session.add(new_order)
-            db.session.flush()  # 獲取 order_id
-            
-            # 建立訂單項目
-            for item in order_items_to_create:
-                item.order_id = new_order.order_id
-                db.session.add(item)
-            
-            # 交易自動提交
+        # 使用簡單直接的交易管理方式
+        try:
+            # 先嘗試提交任何未完成的交易
+            db.session.commit()
+        except:
+            # 如果沒有交易在進行，會拋出異常，忽略它
+            pass
+        
+        # 建立訂單記錄
+        new_order = Order(
+            user_id=user.user_id if user else 1,  # 訪客模式使用預設使用者
+            store_id=store_db_id or 1,  # 非合作店家使用預設店家
+            total_amount=total_amount,
+            status='pending'  # 明確設定為處理中狀態
+        )
+        
+        db.session.add(new_order)
+        db.session.flush()  # 獲取 order_id
+        
+        # 建立訂單項目
+        for item in order_items_to_create:
+            item.order_id = new_order.order_id
+            db.session.add(item)
+        
+        # 提交交易
+        db.session.commit()
         
         print(f"✅ 快速訂單建立成功: order_id={new_order.order_id}")
         
