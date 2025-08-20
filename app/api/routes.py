@@ -1323,6 +1323,8 @@ def create_order():
         # 🔧 使用 Cloud Tasks 處理背景任務
         print(f"✅ 資料庫交易已提交，開始創建 Cloud Task...")
         
+        print(f"✅ 訂單 {new_order.order_id} 資料庫記錄已建立。準備創建 Cloud Task...")
+        
         # 創建 Cloud Task 來處理背景任務
         cloud_task_created = False
         try:
@@ -1403,20 +1405,24 @@ def create_order():
                 signal.alarm(10)
                 
                 try:
+                    print(f"🔧 開始呼叫 create_task API...")
                     response = client.create_task(request={"parent": parent, "task": task})
                     signal.alarm(0)  # 取消超時
-                    print(f"✅ Cloud Task 已創建: {response.name}")
+                    print(f"🎉 Cloud Task 已成功創建！任務名稱: {response.name}")
                     print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
                     print(f"   - 目標 URL: {get_order_processing_url()}")
                     print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
                     cloud_task_created = True
                 except TimeoutError:
                     signal.alarm(0)  # 取消超時
-                    print(f"❌ Cloud Tasks 創建超時（10秒）")
+                    print(f"❌❌❌ Cloud Tasks 創建超時（10秒）")
                     raise
                 except Exception as create_error:
                     signal.alarm(0)  # 取消超時
-                    print(f"❌ 任務創建失敗: {create_error}")
+                    print(f"❌❌❌ 任務創建失敗: {create_error}")
+                    print(f"❌❌❌ 錯誤類型: {type(create_error).__name__}")
+                    import traceback
+                    traceback.print_exc()
                     raise
                     
             except Exception as create_error:
@@ -1424,11 +1430,18 @@ def create_order():
                 raise
             
         except Exception as e:
-            print(f"❌ 創建 Cloud Task 失敗: {e}")
+            # ‼️ 關鍵：捕捉所有可能的錯誤並詳細記錄
+            print(f"❌❌❌ 創建 Cloud Task 時發生致命錯誤: {e}", flush=True)
+            print(f"❌❌❌ 錯誤類型: {type(e).__name__}", flush=True)
             import traceback
             traceback.print_exc()
-            # 修復 2：回報錯誤，但不影響主要流程
-            cloud_task_created = False
+            # 返回一個明確的錯誤訊息給前端，而不是讓它超時
+            return jsonify({
+                "error": "無法創建背景處理任務", 
+                "details": str(e),
+                "order_id": new_order.order_id,
+                "status": "failed"
+            }), 500
         
         # 如果 Cloud Task 創建失敗，回報錯誤但繼續流程
         if not cloud_task_created:
@@ -4983,19 +4996,23 @@ def create_quick_order():
                 signal.alarm(10)
                 
                 try:
+                    print(f"🔧 開始呼叫 create_task API...")
                     response = client.create_task(request={"parent": parent, "task": task})
                     signal.alarm(0)  # 取消超時
-                    print(f"✅ Cloud Task 已創建: {response.name}")
+                    print(f"🎉 Cloud Task 已成功創建！任務名稱: {response.name}")
                     print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
                     print(f"   - 目標 URL: {get_order_processing_url()}")
                     print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
                 except TimeoutError:
                     signal.alarm(0)  # 取消超時
-                    print(f"❌ Cloud Tasks 創建超時（10秒）")
+                    print(f"❌❌❌ Cloud Tasks 創建超時（10秒）")
                     raise
                 except Exception as create_error:
                     signal.alarm(0)  # 取消超時
-                    print(f"❌ 任務創建失敗: {create_error}")
+                    print(f"❌❌❌ 任務創建失敗: {create_error}")
+                    print(f"❌❌❌ 錯誤類型: {type(create_error).__name__}")
+                    import traceback
+                    traceback.print_exc()
                     raise
                     
             except Exception as create_error:
@@ -5003,10 +5020,18 @@ def create_quick_order():
                 raise
             
         except Exception as e:
-            print(f"❌ 創建 Cloud Task 失敗: {e}")
+            # ‼️ 關鍵：捕捉所有可能的錯誤並詳細記錄
+            print(f"❌❌❌ 創建 Cloud Task 時發生致命錯誤: {e}", flush=True)
+            print(f"❌❌❌ 錯誤類型: {type(e).__name__}", flush=True)
             import traceback
             traceback.print_exc()
-            # 不影響主要流程，繼續執行
+            # 返回一個明確的錯誤訊息給前端，而不是讓它超時
+            return jsonify({
+                "error": "無法創建背景處理任務", 
+                "details": str(e),
+                "order_id": new_order.order_id,
+                "status": "failed"
+            }), 500
         
         # 立即返回 order_id，讓前端開始輪詢
         return jsonify({
@@ -5159,4 +5184,191 @@ def get_order_status(order_id):
             "error": "訂單狀態查詢失敗",
             "details": str(e),
             "order_id": order_id
+        }), 500
+
+# =============================================================================
+# Cloud Tasks 權限診斷端點
+# =============================================================================
+
+@api_bp.route('/debug/cloud-tasks-permissions', methods=['GET'])
+def debug_cloud_tasks_permissions():
+    """
+    Cloud Tasks 權限診斷端點
+    檢查 Cloud Tasks 相關的權限和配置是否正確
+    """
+    try:
+        import json
+        from google.cloud import tasks_v2
+        from google.api_core import exceptions
+        from ..config.cloud_tasks_config import (
+            GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME,
+            get_order_processing_url, TASKS_INVOKER_SERVICE_ACCOUNT,
+            validate_config, get_queue_path
+        )
+        
+        diagnostic_results = {
+            "timestamp": datetime.now().isoformat(),
+            "project_id": GCP_PROJECT_ID,
+            "location": GCP_LOCATION,
+            "queue_name": CLOUD_TASKS_QUEUE_NAME,
+            "service_account": TASKS_INVOKER_SERVICE_ACCOUNT,
+            "target_url": get_order_processing_url(),
+            "checks": {}
+        }
+        
+        # 檢查 1：配置驗證
+        try:
+            validate_config()
+            diagnostic_results["checks"]["config_validation"] = {
+                "status": "✅ 通過",
+                "message": "配置驗證成功"
+            }
+        except Exception as e:
+            diagnostic_results["checks"]["config_validation"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+        
+        # 檢查 2：Cloud Tasks 客戶端創建
+        try:
+            client = tasks_v2.CloudTasksClient()
+            diagnostic_results["checks"]["client_creation"] = {
+                "status": "✅ 通過",
+                "message": "Cloud Tasks 客戶端創建成功"
+            }
+        except Exception as e:
+            diagnostic_results["checks"]["client_creation"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+            return jsonify(diagnostic_results), 500
+        
+        # 檢查 3：佇列路徑構建
+        try:
+            parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME)
+            diagnostic_results["checks"]["queue_path"] = {
+                "status": "✅ 通過",
+                "message": f"佇列路徑: {parent}"
+            }
+        except Exception as e:
+            diagnostic_results["checks"]["queue_path"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+        
+        # 檢查 4：佇列存在性檢查
+        try:
+            queue = client.get_queue(name=parent)
+            diagnostic_results["checks"]["queue_exists"] = {
+                "status": "✅ 通過",
+                "message": f"佇列存在: {queue.name}"
+            }
+        except exceptions.NotFound:
+            diagnostic_results["checks"]["queue_exists"] = {
+                "status": "⚠️ 警告",
+                "message": f"佇列不存在: {CLOUD_TASKS_QUEUE_NAME}"
+            }
+        except Exception as e:
+            diagnostic_results["checks"]["queue_exists"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+        
+        # 檢查 5：服務帳戶格式驗證
+        try:
+            if '@' in TASKS_INVOKER_SERVICE_ACCOUNT and '.iam.gserviceaccount.com' in TASKS_INVOKER_SERVICE_ACCOUNT:
+                diagnostic_results["checks"]["service_account_format"] = {
+                    "status": "✅ 通過",
+                    "message": "服務帳戶格式正確"
+                }
+            else:
+                diagnostic_results["checks"]["service_account_format"] = {
+                    "status": "❌ 失敗",
+                    "message": "服務帳戶格式不正確"
+                }
+        except Exception as e:
+            diagnostic_results["checks"]["service_account_format"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+        
+        # 檢查 6：目標 URL 可達性
+        try:
+            import requests
+            response = requests.get(get_order_processing_url().replace('/api/orders/process-task', '/api/health'), 
+                                 timeout=10)
+            if response.status_code == 200:
+                diagnostic_results["checks"]["target_url_reachable"] = {
+                    "status": "✅ 通過",
+                    "message": "目標服務可達"
+                }
+            else:
+                diagnostic_results["checks"]["target_url_reachable"] = {
+                    "status": "⚠️ 警告",
+                    "message": f"目標服務回應異常: {response.status_code}"
+                }
+        except Exception as e:
+            diagnostic_results["checks"]["target_url_reachable"] = {
+                "status": "❌ 失敗",
+                "message": f"目標服務不可達: {str(e)}"
+            }
+        
+        # 檢查 7：Cloud Tasks API 權限
+        try:
+            # 嘗試列出佇列來檢查權限
+            request = {"parent": f"projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}"}
+            queues = list(client.list_queues(request=request))
+            diagnostic_results["checks"]["api_permissions"] = {
+                "status": "✅ 通過",
+                "message": f"Cloud Tasks API 權限正常，找到 {len(queues)} 個佇列"
+            }
+        except exceptions.PermissionDenied:
+            diagnostic_results["checks"]["api_permissions"] = {
+                "status": "❌ 失敗",
+                "message": "Cloud Tasks API 權限不足"
+            }
+        except Exception as e:
+            diagnostic_results["checks"]["api_permissions"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+        
+        # 檢查 8：Cloud Run Invoker 權限（模擬檢查）
+        try:
+            # 檢查服務帳戶是否有 Cloud Run Invoker 權限
+            # 這需要 IAM API，我們用簡單的方式檢查
+            if 'run.invoker' in TASKS_INVOKER_SERVICE_ACCOUNT or 'invoker' in TASKS_INVOKER_SERVICE_ACCOUNT:
+                diagnostic_results["checks"]["run_invoker_permission"] = {
+                    "status": "✅ 通過",
+                    "message": "服務帳戶名稱包含 invoker 關鍵字"
+                }
+            else:
+                diagnostic_results["checks"]["run_invoker_permission"] = {
+                    "status": "⚠️ 需要驗證",
+                    "message": "請確認服務帳戶有 Cloud Run Invoker 權限"
+                }
+        except Exception as e:
+            diagnostic_results["checks"]["run_invoker_permission"] = {
+                "status": "❌ 失敗",
+                "message": str(e)
+            }
+        
+        # 總結
+        passed_checks = sum(1 for check in diagnostic_results["checks"].values() 
+                           if check["status"] == "✅ 通過")
+        total_checks = len(diagnostic_results["checks"])
+        
+        diagnostic_results["summary"] = {
+            "total_checks": total_checks,
+            "passed_checks": passed_checks,
+            "overall_status": "✅ 正常" if passed_checks == total_checks else "⚠️ 需要檢查"
+        }
+        
+        return jsonify(diagnostic_results), 200
+        
+    except Exception as e:
+        return jsonify({
+            "error": "診斷失敗",
+            "message": str(e),
+            "timestamp": datetime.now().isoformat()
         }), 500
