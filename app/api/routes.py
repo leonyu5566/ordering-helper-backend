@@ -1140,7 +1140,9 @@ def create_order():
                 order_items_to_create.append(OrderItem(
                     menu_item_id=menu_item.menu_item_id,
                     quantity_small=quantity,
-                    subtotal=subtotal
+                    subtotal=subtotal,
+                    original_name=menu_item.item_name,  # 設定中文原始名稱
+                    translated_name=menu_item.item_name  # 設定翻譯名稱（預設相同）
                 ))
                 
                 # 建立訂單明細供確認
