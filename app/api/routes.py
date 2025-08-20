@@ -1225,7 +1225,7 @@ def create_order():
             
             try:
                 result = db.session.execute(text(order_sql), order_params)
-                db.session.commit()
+                # 不立即 commit，讓外部交易管理
                 print(f"✅ SQL執行成功，影響行數: {result.rowcount}")
             except Exception as sql_error:
                 print(f"❌ SQL執行失敗: {sql_error}")
@@ -1234,7 +1234,7 @@ def create_order():
                 traceback.print_exc()
                 raise sql_error
             
-            # 獲取訂單ID
+            # 獲取插入的訂單ID
             order_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
             order_id = order_id_result.fetchone()[0]
             
@@ -1270,7 +1270,7 @@ def create_order():
                 
                 db.session.execute(text(order_item_sql), order_item_params)
             
-            db.session.commit()
+            # 不立即 commit，讓外部交易管理
             print(f"✅ 已創建 {len(order_items_to_create)} 個訂單項目")
             
             # 創建Order物件用於後續處理

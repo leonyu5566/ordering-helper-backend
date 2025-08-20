@@ -1512,18 +1512,35 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         from ..models import OrderSummary
         from sqlalchemy.orm import Session
         
-        with db.session.begin():  # 交易自動 begin/commit/rollback
-            order_summary = OrderSummary(
-                order_id=order_id,
-                ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
-                chinese_summary=chinese_summary,
-                user_language_summary=user_language_summary,
-                user_language=user_language,
-                total_amount=order.total_amount
-            )
-            db.session.add(order_summary)
-            db.session.flush()  # 獲取 ID
-            summary_id = order_summary.summary_id
+        # 檢查是否已經在交易中
+        if db.session.in_transaction():
+            print("⚠️ 檢測到已存在的交易，使用嵌套交易")
+            with db.session.begin_nested():  # 使用嵌套交易
+                order_summary = OrderSummary(
+                    order_id=order_id,
+                    ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
+                    chinese_summary=chinese_summary,
+                    user_language_summary=user_language_summary,
+                    user_language=user_language,
+                    total_amount=order.total_amount
+                )
+                db.session.add(order_summary)
+                db.session.flush()  # 獲取 ID
+                summary_id = order_summary.summary_id
+        else:
+            print("✅ 開始新的交易")
+            with db.session.begin():  # 交易自動 begin/commit/rollback
+                order_summary = OrderSummary(
+                    order_id=order_id,
+                    ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
+                    chinese_summary=chinese_summary,
+                    user_language_summary=user_language_summary,
+                    user_language=user_language,
+                    total_amount=order.total_amount
+                )
+                db.session.add(order_summary)
+                db.session.flush()  # 獲取 ID
+                summary_id = order_summary.summary_id
             
         print(f"✅ 訂單摘要已成功寫入資料庫: summary_id={summary_id}")
         
@@ -3501,7 +3518,7 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
             
             # 使用原生SQL執行
             result = db.session.execute(text(ocr_menu_sql), ocr_menu_params)
-            db.session.commit()
+            # 不立即 commit，讓外部交易管理
             
             # 獲取插入的ID
             ocr_menu_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
@@ -3557,7 +3574,7 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
                     
                     db.session.execute(text(ocr_menu_translation_sql), ocr_menu_translation_params)
             
-            db.session.commit()
+            # 不立即 commit，讓外部交易管理
             print(f"✅ 已儲存 {len(ocr_items)} 個 OCR 菜單項目和翻譯")
         
         # 3. 建立訂單摘要記錄
@@ -3582,7 +3599,7 @@ def save_ocr_menu_and_summary_to_database(order_id, ocr_items, chinese_summary, 
         
         # 使用原生SQL執行
         result = db.session.execute(text(order_summary_sql), order_summary_params)
-        db.session.commit()
+        # 不立即 commit，讓外部交易管理
         
         # 獲取插入的ID
         summary_id_result = db.session.execute(text("SELECT LAST_INSERT_ID() as id"))
