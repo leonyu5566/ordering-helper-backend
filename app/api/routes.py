@@ -4870,46 +4870,80 @@ def create_quick_order():
         
         # 創建 Cloud Task 來處理背景任務
         try:
-            from google.cloud import tasks_v2
-            import json
-            from ..config.cloud_tasks_config import (
-                GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME,
-                get_order_processing_url, TASKS_INVOKER_SERVICE_ACCOUNT,
-                validate_config
-            )
+            print(f"🔄 開始創建 Cloud Task: order_id={new_order.order_id}")
+            
+            # 導入必要的模組
+            try:
+                from google.cloud import tasks_v2
+                import json
+                from ..config.cloud_tasks_config import (
+                    GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME,
+                    get_order_processing_url, TASKS_INVOKER_SERVICE_ACCOUNT,
+                    validate_config
+                )
+                print("✅ 模組導入成功")
+            except ImportError as import_error:
+                print(f"❌ 模組導入失敗: {import_error}")
+                raise
             
             # 驗證配置
-            validate_config()
+            try:
+                validate_config()
+                print("✅ 配置驗證成功")
+            except Exception as config_error:
+                print(f"❌ 配置驗證失敗: {config_error}")
+                raise
             
             # 創建 Cloud Tasks 客戶端
-            client = tasks_v2.CloudTasksClient()
+            try:
+                client = tasks_v2.CloudTasksClient()
+                print("✅ Cloud Tasks 客戶端創建成功")
+            except Exception as client_error:
+                print(f"❌ Cloud Tasks 客戶端創建失敗: {client_error}")
+                raise
             
             # 構建佇列路徑
-            parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME)
+            try:
+                parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME)
+                print(f"✅ 佇列路徑構建成功: {parent}")
+            except Exception as path_error:
+                print(f"❌ 佇列路徑構建失敗: {path_error}")
+                raise
             
             # 構建任務
-            task = {
-                "http_request": {
-                    "http_method": tasks_v2.HttpMethod.POST,
-                    "url": get_order_processing_url(),
-                    "headers": {
-                        "Content-type": "application/json",
-                    },
-                    "body": json.dumps({
-                        "order_id": new_order.order_id
-                    }).encode(),
-                    "oidc_token": {
-                        "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT
+            try:
+                task = {
+                    "http_request": {
+                        "http_method": tasks_v2.HttpMethod.POST,
+                        "url": get_order_processing_url(),
+                        "headers": {
+                            "Content-type": "application/json",
+                        },
+                        "body": json.dumps({
+                            "order_id": new_order.order_id
+                        }).encode(),
+                        "oidc_token": {
+                            "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT
+                        }
                     }
                 }
-            }
+                print(f"✅ 任務構建成功")
+                print(f"   - URL: {get_order_processing_url()}")
+                print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+            except Exception as task_error:
+                print(f"❌ 任務構建失敗: {task_error}")
+                raise
             
             # 創建任務
-            response = client.create_task(request={"parent": parent, "task": task})
-            print(f"✅ Cloud Task 已創建: {response.name}")
-            print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
-            print(f"   - 目標 URL: {get_order_processing_url()}")
-            print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+            try:
+                response = client.create_task(request={"parent": parent, "task": task})
+                print(f"✅ Cloud Task 已創建: {response.name}")
+                print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
+                print(f"   - 目標 URL: {get_order_processing_url()}")
+                print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+            except Exception as create_error:
+                print(f"❌ 任務創建失敗: {create_error}")
+                raise
             
         except Exception as e:
             print(f"❌ 創建 Cloud Task 失敗: {e}")
