@@ -28,7 +28,7 @@ def test_cloud_tts():
             text_to_speak=test_text,
             output_filename=output_file,
             language_code="zh-TW",
-            voice_name="zh-TW-Wavenet-A",
+            voice_name="cmn-TW-Wavenet-A",
             speaking_rate=1.0
         )
         
@@ -71,7 +71,7 @@ def test_different_speeds():
                 text_to_speak=test_text,
                 output_filename=output_file,
                 language_code="zh-TW",
-                voice_name="zh-TW-Wavenet-A",
+                voice_name="cmn-TW-Wavenet-A",
                 speaking_rate=speed
             )
             

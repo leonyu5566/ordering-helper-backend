@@ -248,13 +248,13 @@ def get_speech_config():
     # 返回一個簡單的配置對象，但實際上我們使用 Cloud TTS
     class MockSpeechConfig:
         def __init__(self):
-            self.speech_synthesis_voice_name = "zh-TW-Wavenet-A"
+            self.speech_synthesis_voice_name = "cmn-TW-Wavenet-A"
             self.speech_synthesis_speaking_rate = 1.0
     
     print("使用 Cloud Text-to-Speech 語音生成服務")
     return MockSpeechConfig()
 
-def generate_cloud_tts_audio(text_to_speak, output_filename, language_code="zh-TW", voice_name="zh-TW-Wavenet-A", speaking_rate=1.0):
+def generate_cloud_tts_audio(text_to_speak, output_filename, language_code="zh-TW", voice_name="cmn-TW-Wavenet-A", speaking_rate=1.0):
     """
     使用 Google Cloud Text-to-Speech API 將文字轉換為音訊檔案。
     
@@ -262,7 +262,7 @@ def generate_cloud_tts_audio(text_to_speak, output_filename, language_code="zh-T
         text_to_speak (str): 要轉換為語音的文字
         output_filename (str): 儲存音訊的檔案路徑
         language_code (str): 語言代碼，例如 'zh-TW' (台灣中文)
-        voice_name (str): 語音名稱，例如 'zh-TW-Wavenet-A' (高品質女聲)
+        voice_name (str): 語音名稱，例如 'cmn-TW-Wavenet-A' (高品質女聲)
         speaking_rate (float): 語速倍率，1.0 為正常速度
         
     Returns:
@@ -788,7 +788,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
                 text_to_speak=order_text,
                 output_filename=audio_path,
                 language_code="zh-TW",
-                voice_name="zh-TW-Wavenet-A",
+                voice_name="cmn-TW-Wavenet-A",
                 speaking_rate=speech_rate
             )
             
@@ -864,7 +864,7 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
                 text_to_speak=order_text,
                 output_filename=audio_path,
                 language_code="zh-TW",
-                voice_name="zh-TW-Wavenet-A",
+                voice_name="cmn-TW-Wavenet-A",
                 speaking_rate=1.0
             )
             
@@ -909,7 +909,7 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
                 text_to_speak=order_text,
                 output_filename=audio_path,
                 language_code="zh-TW",
-                voice_name="zh-TW-Wavenet-A",
+                voice_name="cmn-TW-Wavenet-A",
                 speaking_rate=speech_rate
             )
             
@@ -2237,7 +2237,7 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
             text_to_speak=chinese_text,
             output_filename=voice_path,
             language_code="zh-TW",
-            voice_name="zh-TW-Wavenet-A",
+            voice_name="cmn-TW-Wavenet-A",
             speaking_rate=speech_rate
         )
         
@@ -2623,7 +2623,7 @@ async def synthesize_azure_tts(text: str) -> tuple[str, int]:
             text_to_speak=text,
             output_filename=voice_path,
             language_code="zh-TW",
-            voice_name="zh-TW-Wavenet-A",
+            voice_name="cmn-TW-Wavenet-A",
             speaking_rate=1.0
         )
         
@@ -3321,7 +3321,7 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
                 text_to_speak=order_text,
                 output_filename=audio_path,
                 language_code="zh-TW",
-                voice_name="zh-TW-Wavenet-A",
+                voice_name="cmn-TW-Wavenet-A",
                 speaking_rate=speech_rate
             )
             
@@ -3366,7 +3366,7 @@ def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_styl
             text_to_speak=text,
             output_filename=audio_path,
             language_code="zh-TW",
-            voice_name="zh-TW-Wavenet-A",
+            voice_name="cmn-TW-Wavenet-A",
             speaking_rate=speech_rate
         )
         
