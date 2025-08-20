@@ -3852,3 +3852,90 @@ def render_tts_text(zh_model):
     else:
         voice_text = "、".join(voice_items[:-1]) + "和" + voice_items[-1]
         return f"老闆，我要{voice_text}，謝謝。"
+
+def process_order_background(order_id):
+    """
+    背景處理訂單任務 - 處理語音生成和 LINE 通知
+    這個函式會在訂單建立後被呼叫，在背景中處理耗時操作
+    """
+    try:
+        print(f"🔄 開始背景處理訂單: order_id={order_id}")
+        
+        # 查詢訂單
+        order = Order.query.get(order_id)
+        if not order:
+            print(f"❌ 找不到訂單: {order_id}")
+            return False
+        
+        # 查詢相關資料
+        store = Store.query.get(order.store_id)
+        user = User.query.get(order.user_id)
+        
+        if not store:
+            print(f"❌ 找不到店家: store_id={order.store_id}")
+            return False
+        
+        frontend_store_name = store.store_name
+        
+        # 1. 生成完整的訂單確認內容
+        try:
+            print(f"🔧 準備生成完整訂單確認...")
+            order_confirmation = create_complete_order_confirmation(order_id, user.preferred_lang if user else 'zh', frontend_store_name)
+            print(f"✅ 完整訂單確認生成成功")
+        except Exception as e:
+            print(f"❌ 完整訂單確認生成失敗: {e}")
+            # 使用基本確認內容，繼續執行
+            order_confirmation = {
+                'chinese': f'訂單 {order_id} 確認',
+                'translated': f'Order {order_id} confirmed'
+            }
+        
+        # 2. 生成語音檔案
+        voice_path = None
+        try:
+            print(f"🔧 準備生成語音檔...")
+            voice_path = generate_voice_order(order_id)
+            print(f"✅ 語音檔生成成功: {voice_path}")
+        except Exception as e:
+            print(f"❌ 語音檔生成失敗: {e}")
+            voice_path = None
+        
+        # 3. 發送 LINE 通知（只在非訪客模式下）
+        if user and user.line_user_id:
+            try:
+                print(f"📱 準備發送 LINE 通知...")
+                send_complete_order_notification(order_id, frontend_store_name)
+                print(f"✅ LINE 通知發送完成")
+            except Exception as e:
+                print(f"❌ LINE 通知發送失敗: {e}")
+        
+        # 4. 更新訂單狀態為完成
+        try:
+            order.status = 'completed'
+            db.session.commit()
+            print(f"✅ 訂單狀態已更新為完成: order_id={order_id}")
+        except Exception as e:
+            print(f"❌ 更新訂單狀態失敗: {e}")
+            db.session.rollback()
+            return False
+        
+        print(f"🎉 背景處理完成: order_id={order_id}")
+        return True
+        
+    except Exception as e:
+        print(f"❌ 背景處理訂單失敗: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # 更新訂單狀態為失敗
+        try:
+            order = Order.query.get(order_id)
+            if order:
+                order.status = 'failed'
+                db.session.commit()
+                print(f"⚠️ 訂單狀態已更新為失敗: order_id={order_id}")
+        except Exception as update_error:
+            print(f"❌ 更新失敗狀態也失敗: {update_error}")
+            db.session.rollback()
+        
+        return False

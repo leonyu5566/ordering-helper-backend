@@ -13,7 +13,7 @@
 # =============================================================================
 
 from flask import Blueprint, jsonify, request, send_file, current_app, send_from_directory
-from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, OCRMenu, OCRMenuItem, OCRMenuTranslation, VoiceFile, Language
+from ..models import db, Store, Menu, MenuItem, MenuTranslation, User, Order, OrderItem, StoreTranslation, OCRMenu, OCRMenuItem, OCRMenuTranslation, VoiceFile, Language, OrderSummary
 from .helpers import process_menu_with_gemini, generate_voice_order, create_order_summary, save_uploaded_file, VOICE_DIR
 import json
 import os
@@ -4736,3 +4736,211 @@ def save_ocr_data():
         print(f"❌ 儲存 OCR 資料錯誤: {e}")
         db.session.rollback()
         return jsonify({"error": f"儲存失敗: {str(e)}"}), 500
+
+@app.route('/api/orders/quick', methods=['POST'])
+def create_quick_order():
+    """
+    快速建立訂單端點 - 只建立訂單記錄，不處理語音和通知
+    用於 LIFF 環境的快速回應，避免長時間等待
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "無效的請求資料"}), 400
+        
+        print(f"🚀 快速訂單建立請求: {data}")
+        
+        # 基本驗證
+        required_fields = ['store_name', 'items', 'total_amount']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({"error": f"缺少必要欄位: {field}"}), 400
+        
+        # 解析店家資訊
+        store_name = data.get('store_name', '')
+        store_db_id = data.get('store_id')
+        
+        # 解析使用者資訊
+        line_user_id = data.get('line_user_id')
+        guest_mode = not line_user_id
+        
+        if not guest_mode:
+            # 查找或建立使用者
+            user = User.query.filter_by(line_user_id=line_user_id).first()
+            if not user:
+                return jsonify({"error": "使用者不存在"}), 404
+        else:
+            user = None
+        
+        # 計算總金額
+        total_amount = data.get('total_amount', 0)
+        
+        # 準備訂單項目資料
+        order_items_to_create = []
+        for item in data.get('items', []):
+            order_item = OrderItem(
+                menu_item_id=item.get('menu_item_id', 0),
+                quantity_small=item.get('quantity', 1),
+                subtotal=item.get('price', 0) * item.get('quantity', 1),
+                original_name=item.get('item_name', ''),
+                translated_name=item.get('translated_name', item.get('item_name', ''))
+            )
+            order_items_to_create.append(order_item)
+        
+        # 快速建立訂單（只建立記錄，不處理語音）
+        with db.session.begin():
+            # 建立訂單記錄
+            new_order = Order(
+                user_id=user.user_id if user else 1,  # 訪客模式使用預設使用者
+                store_id=store_db_id or 1,  # 非合作店家使用預設店家
+                total_amount=total_amount,
+                status='pending'  # 明確設定為處理中狀態
+            )
+            
+            db.session.add(new_order)
+            db.session.flush()  # 獲取 order_id
+            
+            # 建立訂單項目
+            for item in order_items_to_create:
+                item.order_id = new_order.order_id
+                db.session.add(item)
+            
+            # 交易自動提交
+        
+        print(f"✅ 快速訂單建立成功: order_id={new_order.order_id}")
+        
+        # 啟動背景處理任務
+        try:
+            from .helpers import process_order_background
+            import threading
+            
+            # 在背景執行緒中處理耗時任務
+            background_thread = threading.Thread(
+                target=process_order_background,
+                args=(new_order.order_id,),
+                daemon=True
+            )
+            background_thread.start()
+            print(f"🔄 背景處理任務已啟動: order_id={new_order.order_id}")
+            
+        except Exception as e:
+            print(f"⚠️ 啟動背景處理任務失敗: {e}")
+            # 不影響主要流程，繼續執行
+        
+        # 立即返回 order_id，讓前端開始輪詢
+        return jsonify({
+            "message": "訂單建立成功，正在處理中",
+            "order_id": new_order.order_id,
+            "status": "pending",
+            "polling_url": f"/api/orders/status/{new_order.order_id}"
+        }), 201
+        
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"❌ 快速訂單建立失敗: {str(e)}")
+        print(f"❌ 錯誤追蹤: {error_traceback}")
+        return jsonify({
+            "error": "快速訂單建立失敗",
+            "details": str(e)
+        }), 500
+
+@app.route('/api/orders/status/<int:order_id>', methods=['GET'])
+def get_order_status(order_id):
+    """
+    查詢訂單狀態端點 - 供前端輪詢使用
+    返回訂單處理進度和最終結果
+    """
+    try:
+        print(f"🔍 查詢訂單狀態: order_id={order_id}")
+        
+        # 查詢訂單
+        order = Order.query.get(order_id)
+        if not order:
+            return jsonify({
+                "error": "找不到訂單",
+                "order_id": order_id
+            }), 404
+        
+        # 查詢相關資料
+        store = Store.query.get(order.store_id)
+        user = User.query.get(order.user_id)
+        
+        # 查詢語音檔案
+        voice_file = VoiceFile.query.filter_by(order_id=order_id).first()
+        
+        # 查詢訂單摘要
+        order_summary = OrderSummary.query.filter_by(order_id=order_id).first()
+        
+        # 準備回應資料
+        response_data = {
+            "order_id": order_id,
+            "status": order.status,
+            "store_name": store.store_name if store else "未知店家",
+            "total_amount": order.total_amount,
+            "order_time": order.order_time.isoformat() if order.order_time else None,
+            "user_id": user.line_user_id if user else None
+        }
+        
+        # 根據狀態返回不同資料
+        if order.status == 'pending':
+            # 處理中狀態
+            response_data.update({
+                "message": "訂單正在處理中，請稍候...",
+                "processing": True,
+                "voice_ready": False,
+                "summary_ready": False
+            })
+        elif order.status == 'completed':
+            # 完成狀態
+            response_data.update({
+                "message": "訂單處理完成！",
+                "processing": False,
+                "voice_ready": voice_file is not None,
+                "summary_ready": order_summary is not None
+            })
+            
+            # 如果有語音檔案，添加語音資訊
+            if voice_file:
+                response_data.update({
+                    "voice_url": voice_file.file_url,
+                    "voice_file_id": voice_file.voice_file_id
+                })
+            
+            # 如果有訂單摘要，添加摘要資訊
+            if order_summary:
+                response_data.update({
+                    "summary": {
+                        "chinese": order_summary.chinese_summary,
+                        "translated": order_summary.user_language_summary,
+                        "language": order_summary.user_language
+                    }
+                })
+        elif order.status == 'failed':
+            # 失敗狀態
+            response_data.update({
+                "message": "訂單處理失敗",
+                "processing": False,
+                "error": True
+            })
+        else:
+            # 未知狀態
+            response_data.update({
+                "message": f"未知訂單狀態: {order.status}",
+                "processing": False
+            })
+        
+        print(f"✅ 訂單狀態查詢成功: status={order.status}")
+        return jsonify(response_data), 200
+        
+    except Exception as e:
+        import traceback
+        error_traceback = traceback.format_exc()
+        print(f"❌ 訂單狀態查詢失敗: {str(e)}")
+        print(f"❌ 錯誤追蹤: {error_traceback}")
+        return jsonify({
+            "error": "訂單狀態查詢失敗",
+            "details": str(e),
+            "order_id": order_id
+        }), 500
