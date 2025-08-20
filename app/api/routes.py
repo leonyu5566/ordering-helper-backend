@@ -4868,22 +4868,27 @@ def create_quick_order():
         
         print(f"✅ 快速訂單建立成功: order_id={new_order.order_id}")
         
-        # 啟動背景處理任務
+        # 啟動背景處理任務（使用內部 API 調用）
         try:
-            from .helpers import process_order_background
+            import requests
             import threading
             
-            # 在背景執行緒中處理耗時任務
-            background_thread = threading.Thread(
-                target=process_order_background,
-                args=(new_order.order_id,),
-                daemon=True
-            )
+            def trigger_background_processing():
+                try:
+                    # 使用內部 API 調用來觸發背景處理
+                    internal_url = f"http://localhost:8080/api/orders/process/{new_order.order_id}"
+                    response = requests.post(internal_url, timeout=1)
+                    print(f"🔄 背景處理觸發成功: {response.status_code}")
+                except Exception as e:
+                    print(f"⚠️ 背景處理觸發失敗: {e}")
+            
+            # 在背景執行緒中觸發處理
+            background_thread = threading.Thread(target=trigger_background_processing, daemon=True)
             background_thread.start()
-            print(f"🔄 背景處理任務已啟動: order_id={new_order.order_id}")
+            print(f"🔄 背景處理任務已觸發: order_id={new_order.order_id}")
             
         except Exception as e:
-            print(f"⚠️ 啟動背景處理任務失敗: {e}")
+            print(f"❌ 啟動背景處理任務失敗: {e}")
             # 不影響主要流程，繼續執行
         
         # 立即返回 order_id，讓前端開始輪詢
@@ -4904,6 +4909,31 @@ def create_quick_order():
             "error": "快速訂單建立失敗",
             "details": str(e)
         }), 500
+
+@api_bp.route('/orders/process/<int:order_id>', methods=['POST'])
+def process_order_internal(order_id):
+    """
+    內部端點：處理訂單背景任務
+    這個端點由 create_quick_order 內部調用，確保背景任務被執行
+    """
+    try:
+        print(f"🔄 內部處理訂單開始: order_id={order_id}")
+        
+        from .helpers import process_order_background
+        success = process_order_background(order_id)
+        
+        if success:
+            print(f"✅ 內部處理訂單完成: order_id={order_id}")
+            return jsonify({"status": "success", "message": "訂單處理完成"}), 200
+        else:
+            print(f"❌ 內部處理訂單失敗: order_id={order_id}")
+            return jsonify({"status": "error", "message": "訂單處理失敗"}), 500
+            
+    except Exception as e:
+        print(f"❌ 內部處理訂單異常: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @api_bp.route('/orders/status/<int:order_id>', methods=['GET'])
 def get_order_status(order_id):
