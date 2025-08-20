@@ -133,7 +133,15 @@ curl https://ordering-helper-backend-your-project-id.asia-east1.run.app/api/heal
 
 ## 🚨 常見問題
 
-### 問題 1：Cloud Tasks 創建失敗
+### 問題 1：ConnectionResetError 錯誤
+**症狀**：`ConnectionResetError(104, 'Connection reset by peer')`
+**原因**：Cloud Run Serverless 環境下的資料庫連線池問題
+**解決**：
+1. 確認 `DB_POOL_RECYCLE=280` 已設定
+2. 確認 `DB_POOL_PRE_PING=True` 已設定
+3. 這些設定會自動避免閒置連線被切斷
+
+### 問題 2：Cloud Tasks 創建失敗
 **症狀**：`❌ Cloud Tasks 創建超時（10秒）`
 **解決**：
 1. 檢查 `GCP_PROJECT_ID` 是否正確

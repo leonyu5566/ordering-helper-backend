@@ -55,10 +55,21 @@ def create_app():
         db_name = os.getenv('DB_DATABASE')
         
         if all([db_username, db_password, db_host, db_name]):
-            # 使用 MySQL 連線，添加 SSL 參數
+            # 使用 MySQL 連線，添加 SSL 參數和連線池設定
             database_url = f"mysql+pymysql://{db_username}:{db_password}@{db_host}/{db_name}?ssl={{'ssl': {{}}}}&ssl_verify_cert=false"
             app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+            
+            # 關鍵修復：加入 Cloud Run Serverless 環境的連線池設定
+            app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+                'pool_recycle': 280,  # 280 秒後回收連線（避免 ConnectionResetError）
+                'pool_pre_ping': True,  # 使用前檢查連線是否有效
+                'pool_size': 10,  # 連線池大小
+                'max_overflow': 20,  # 最大溢出連線數
+                'pool_timeout': 30,  # 連線超時時間
+            }
+            
             print(f"✓ 使用 MySQL 資料庫: {db_host}/{db_name}")
+            print(f"✓ 已設定 Cloud Run 連線池配置 (pool_recycle=280s)")
         else:
             # 回退到 SQLite
             app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
