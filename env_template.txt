@@ -1,22 +1,73 @@
-# 資料庫連線設定
+# =============================================================================
+# 點餐小幫手後端 - 環境變數配置模板
+# 功能：集中管理所有環境配置，方便組員設定
+# =============================================================================
+
+# =============================================================================
+# 資料庫配置
+# =============================================================================
+
+# Cloud MySQL 資料庫連線設定
 DB_HOST=34.81.245.147
 DB_USER=gae252g1usr
 DB_PASSWORD=gae252g1PSWD!
 DB_DATABASE=gae252g1_db
-DB_PORT=3306
 
-# LINE Bot 設定
+# =============================================================================
+# LINE Bot 配置
+# =============================================================================
+
+# LINE Bot 頻道設定
 LINE_CHANNEL_ACCESS_TOKEN=your_line_channel_access_token_here
 LINE_CHANNEL_SECRET=your_line_channel_secret_here
 
-# AI 服務設定
+# =============================================================================
+# AI 服務配置
+# =============================================================================
+
+# Google Gemini API 設定
 GEMINI_API_KEY=your_gemini_api_key_here
+
+# Azure Speech Service 設定（可選）
 AZURE_SPEECH_KEY=your_azure_speech_key_here
 AZURE_SPEECH_REGION=your_azure_speech_region_here
 
-# Google Cloud 設定
-GCS_BUCKET_NAME=ordering-helper-voice-files
+# =============================================================================
+# Google Cloud 配置
+# =============================================================================
 
-# 應用程式設定
+# Google Cloud 專案設定
+GCP_PROJECT_ID=your_gcp_project_id_here
+GCP_LOCATION=asia-east1
+
+# Cloud Run 服務設定
+CLOUD_RUN_SERVICE_NAME=ordering-helper-backend
+CLOUD_RUN_SERVICE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app
+
+# Cloud Tasks 設定
+CLOUD_TASKS_QUEUE_NAME=order-processing-queue
+TASKS_INVOKER_SERVICE_ACCOUNT=tasks-invoker@your-project-id.iam.gserviceaccount.com
+
+# =============================================================================
+# 應用程式配置
+# =============================================================================
+
+# Flask 應用程式設定
 FLASK_ENV=production
 FLASK_DEBUG=False
+SECRET_KEY=your_secret_key_here
+
+# 伺服器設定
+PORT=8080
+HOST=0.0.0.0
+
+# =============================================================================
+# 組員設定說明
+# =============================================================================
+
+# 重要提醒：
+# 1. 將 'your_xxx_here' 替換為您的實際值
+# 2. GCP_PROJECT_ID 必須是您的 Google Cloud 專案 ID
+# 3. CLOUD_RUN_SERVICE_URL 必須是您的 Cloud Run 服務 URL
+# 4. TASKS_INVOKER_SERVICE_ACCOUNT 必須是您的服務帳戶
+# 5. 資料庫配置是共用的，不需要修改

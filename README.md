@@ -1,5 +1,48 @@
 # 點餐小幫手後端系統
 
+## 🚀 組員快速開始
+
+### 1. 環境設定
+```bash
+# 執行自動設定腳本
+./setup_team_env.sh
+
+# 或手動設定
+cp env_template.txt .env
+# 編輯 .env 檔案，設定您的配置
+```
+
+### 2. 啟動應用程式
+```bash
+python3 run.py
+```
+
+### 3. 檢查配置
+啟動後應該看到：
+```
+✅ Cloud Tasks 配置驗證通過
+   - 專案 ID: your-project-id
+   - 服務 URL: https://ordering-helper-backend-your-project-id.asia-east1.run.app
+```
+
+### 4. 詳細設定指南
+請參考 [TEAM_SETUP_GUIDE.md](TEAM_SETUP_GUIDE.md) 進行詳細設定。
+
+## 🔧 重要提醒
+
+**組員必須修改的配置：**
+- `GCP_PROJECT_ID` - 您的 Google Cloud 專案 ID
+- `CLOUD_RUN_SERVICE_URL` - 您的 Cloud Run 服務 URL  
+- `TASKS_INVOKER_SERVICE_ACCOUNT` - 您的服務帳戶
+- `LINE_CHANNEL_ACCESS_TOKEN` - 您的 LINE Bot 存取權杖
+- `LINE_CHANNEL_SECRET` - 您的 LINE Bot 密鑰
+- `GEMINI_API_KEY` - 您的 Google Gemini API 金鑰
+
+**共用配置（通常不需要修改）：**
+- 資料庫連線設定（DB_HOST, DB_USER, DB_PASSWORD, DB_DATABASE）
+
+---
+
 ## 專案概述
 
 這是一個專為 LINE Bot 點餐系統設計的後端 API，主要負責處理合作店家的菜單資料查詢和非合作店家的菜單圖片翻譯功能。
