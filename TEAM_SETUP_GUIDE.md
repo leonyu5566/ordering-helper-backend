@@ -21,6 +21,9 @@ GCP_PROJECT_ID=your-actual-project-id
 # 您的 Cloud Run 服務 URL
 CLOUD_RUN_SERVICE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app
 
+# 您的應用程式基礎 URL
+BASE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app
+
 # 您的服務帳戶
 TASKS_INVOKER_SERVICE_ACCOUNT=tasks-invoker@your-project-id.iam.gserviceaccount.com
 ```

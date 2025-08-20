@@ -44,6 +44,9 @@ GCP_LOCATION=asia-east1
 CLOUD_RUN_SERVICE_NAME=ordering-helper-backend
 CLOUD_RUN_SERVICE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app
 
+# 應用程式 URL 設定（用於生成各種端點 URL）
+BASE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app
+
 # Cloud Tasks 設定
 CLOUD_TASKS_QUEUE_NAME=order-processing-queue
 TASKS_INVOKER_SERVICE_ACCOUNT=tasks-invoker@your-project-id.iam.gserviceaccount.com

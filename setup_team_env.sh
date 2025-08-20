@@ -51,6 +51,7 @@ if command -v gcloud &> /dev/null; then
             # 更新 .env 檔案中的專案 ID
             sed -i.bak "s/GCP_PROJECT_ID=your_gcp_project_id_here/GCP_PROJECT_ID=$PROJECT_ID/g" .env
             sed -i.bak "s/CLOUD_RUN_SERVICE_URL=https:\/\/ordering-helper-backend-your-project-id.asia-east1.run.app/CLOUD_RUN_SERVICE_URL=https:\/\/ordering-helper-backend-$PROJECT_ID.asia-east1.run.app/g" .env
+            sed -i.bak "s/BASE_URL=https:\/\/ordering-helper-backend-your-project-id.asia-east1.run.app/BASE_URL=https:\/\/ordering-helper-backend-$PROJECT_ID.asia-east1.run.app/g" .env
             sed -i.bak "s/TASKS_INVOKER_SERVICE_ACCOUNT=tasks-invoker@your-project-id.iam.gserviceaccount.com/TASKS_INVOKER_SERVICE_ACCOUNT=tasks-invoker@$PROJECT_ID.iam.gserviceaccount.com/g" .env
             echo "✅ 已自動設定專案相關配置"
         fi
@@ -104,6 +105,11 @@ fi
 # 檢查服務 URL
 if grep -q "CLOUD_RUN_SERVICE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app" .env; then
     MISSING_CONFIGS+=("CLOUD_RUN_SERVICE_URL")
+fi
+
+# 檢查 BASE URL
+if grep -q "BASE_URL=https://ordering-helper-backend-your-project-id.asia-east1.run.app" .env; then
+    MISSING_CONFIGS+=("BASE_URL")
 fi
 
 # 檢查服務帳戶

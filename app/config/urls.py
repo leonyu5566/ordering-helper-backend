@@ -13,8 +13,8 @@ from typing import Optional
 class URLConfig:
     """URL 配置管理類別"""
     
-    # 預設的 Cloud Run URL
-    DEFAULT_CLOUD_RUN_URL = "https://ordering-helper-backend-1095766716155.asia-east1.run.app"
+    # 預設的 Cloud Run URL（使用環境變數）
+    DEFAULT_CLOUD_RUN_URL = os.getenv('CLOUD_RUN_SERVICE_URL', "https://ordering-helper-backend-1095766716155.asia-east1.run.app")
     
     # 開發環境 URL
     DEFAULT_DEV_URL = "http://localhost:5000"

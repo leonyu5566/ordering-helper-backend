@@ -32,7 +32,8 @@ python3 run.py
 
 **組員必須修改的配置：**
 - `GCP_PROJECT_ID` - 您的 Google Cloud 專案 ID
-- `CLOUD_RUN_SERVICE_URL` - 您的 Cloud Run 服務 URL  
+- `CLOUD_RUN_SERVICE_URL` - 您的 Cloud Run 服務 URL
+- `BASE_URL` - 您的應用程式基礎 URL
 - `TASKS_INVOKER_SERVICE_ACCOUNT` - 您的服務帳戶
 - `LINE_CHANNEL_ACCESS_TOKEN` - 您的 LINE Bot 存取權杖
 - `LINE_CHANNEL_SECRET` - 您的 LINE Bot 密鑰
