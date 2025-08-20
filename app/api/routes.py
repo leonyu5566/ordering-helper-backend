@@ -4868,27 +4868,53 @@ def create_quick_order():
         
         print(f"✅ 快速訂單建立成功: order_id={new_order.order_id}")
         
-        # 啟動背景處理任務（使用內部 API 調用）
+        # 創建 Cloud Task 來處理背景任務
         try:
-            import requests
-            import threading
+            from google.cloud import tasks_v2
+            import json
+            from ..config.cloud_tasks_config import (
+                GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME,
+                get_order_processing_url, TASKS_INVOKER_SERVICE_ACCOUNT,
+                validate_config
+            )
             
-            def trigger_background_processing():
-                try:
-                    # 使用內部 API 調用來觸發背景處理
-                    internal_url = f"http://localhost:8080/api/orders/process/{new_order.order_id}"
-                    response = requests.post(internal_url, timeout=1)
-                    print(f"🔄 背景處理觸發成功: {response.status_code}")
-                except Exception as e:
-                    print(f"⚠️ 背景處理觸發失敗: {e}")
+            # 驗證配置
+            validate_config()
             
-            # 在背景執行緒中觸發處理
-            background_thread = threading.Thread(target=trigger_background_processing, daemon=True)
-            background_thread.start()
-            print(f"🔄 背景處理任務已觸發: order_id={new_order.order_id}")
+            # 創建 Cloud Tasks 客戶端
+            client = tasks_v2.CloudTasksClient()
+            
+            # 構建佇列路徑
+            parent = client.queue_path(GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME)
+            
+            # 構建任務
+            task = {
+                "http_request": {
+                    "http_method": tasks_v2.HttpMethod.POST,
+                    "url": get_order_processing_url(),
+                    "headers": {
+                        "Content-type": "application/json",
+                    },
+                    "body": json.dumps({
+                        "order_id": new_order.order_id
+                    }).encode(),
+                    "oidc_token": {
+                        "service_account_email": TASKS_INVOKER_SERVICE_ACCOUNT
+                    }
+                }
+            }
+            
+            # 創建任務
+            response = client.create_task(request={"parent": parent, "task": task})
+            print(f"✅ Cloud Task 已創建: {response.name}")
+            print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
+            print(f"   - 目標 URL: {get_order_processing_url()}")
+            print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
             
         except Exception as e:
-            print(f"❌ 啟動背景處理任務失敗: {e}")
+            print(f"❌ 創建 Cloud Task 失敗: {e}")
+            import traceback
+            traceback.print_exc()
             # 不影響主要流程，繼續執行
         
         # 立即返回 order_id，讓前端開始輪詢
@@ -4910,30 +4936,40 @@ def create_quick_order():
             "details": str(e)
         }), 500
 
-@api_bp.route('/orders/process/<int:order_id>', methods=['POST'])
-def process_order_internal(order_id):
+
+
+@api_bp.route('/orders/process-task', methods=['POST'])
+def process_order_task():
     """
-    內部端點：處理訂單背景任務
-    這個端點由 create_quick_order 內部調用，確保背景任務被執行
+    Cloud Tasks 背景任務處理端點
+    這個端點只會被 Cloud Tasks 調用，執行耗時的訂單處理任務
     """
     try:
-        print(f"🔄 內部處理訂單開始: order_id={order_id}")
+        data = request.get_json()
+        order_id = data.get('order_id')
         
+        if not order_id:
+            print("❌ 缺少 order_id 參數")
+            return "Missing order_id", 400
+        
+        print(f"⚙️ Cloud Task 開始處理訂單: order_id={order_id}")
+        
+        # 執行背景處理任務
         from .helpers import process_order_background
         success = process_order_background(order_id)
         
         if success:
-            print(f"✅ 內部處理訂單完成: order_id={order_id}")
-            return jsonify({"status": "success", "message": "訂單處理完成"}), 200
+            print(f"✅ Cloud Task 處理完成: order_id={order_id}")
+            return "OK", 200
         else:
-            print(f"❌ 內部處理訂單失敗: order_id={order_id}")
-            return jsonify({"status": "error", "message": "訂單處理失敗"}), 500
+            print(f"❌ Cloud Task 處理失敗: order_id={order_id}")
+            return "Processing failed", 500
             
     except Exception as e:
-        print(f"❌ 內部處理訂單異常: {e}")
+        print(f"❌ Cloud Task 處理異常: {e}")
         import traceback
         traceback.print_exc()
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return str(e), 500
 
 @api_bp.route('/orders/status/<int:order_id>', methods=['GET'])
 def get_order_status(order_id):

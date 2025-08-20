@@ -1,0 +1,37 @@
+# =============================================================================
+# Cloud Tasks 環境變數範例檔案
+# 功能：提供 Cloud Tasks 相關環境變數的範例
+# 使用方式：複製此檔案為 .env 並填入實際值
+# =============================================================================
+
+# Google Cloud 專案設定
+GCP_PROJECT_ID=solid-heaven-466011-d1
+GCP_LOCATION=asia-east1
+
+# Cloud Tasks 佇列設定
+CLOUD_TASKS_QUEUE_NAME=order-processing-queue
+
+# Cloud Run 服務設定
+CLOUD_RUN_SERVICE_NAME=ordering-helper-backend
+CLOUD_RUN_SERVICE_URL=https://ordering-helper-backend-00690-mh5-asia-east1.run.app
+
+# 服務帳戶設定
+TASKS_INVOKER_SERVICE_ACCOUNT=tasks-invoker@solid-heaven-466011-d1.iam.gserviceaccount.com
+
+# =============================================================================
+# 說明
+# =============================================================================
+
+# 1. 這些環境變數會覆蓋 app/config/cloud_tasks_config.py 中的預設值
+# 2. 如果不需要修改，可以直接使用配置檔案中的預設值
+# 3. 在 Cloud Run 部署時，可以在環境變數中設定這些值
+# 4. 本地開發時，可以創建 .env 檔案並載入這些變數
+
+# =============================================================================
+# 重要提醒
+# =============================================================================
+
+# - 確保 TASKS_INVOKER_SERVICE_ACCOUNT 有 Cloud Tasks Invoker 權限
+# - 確保 CLOUD_RUN_SERVICE_URL 是正確的服務 URL
+# - 確保佇列已在 Google Cloud Console 中創建
+# - 確保 Cloud Tasks API 已啟用

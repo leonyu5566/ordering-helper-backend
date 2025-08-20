@@ -20,5 +20,8 @@ google-cloud-storage==2.10.0
 # Google Cloud Translation API (用於多語言支援)
 google-cloud-translate==3.12.0
 
+# Google Cloud Tasks (用於背景任務處理)
+google-cloud-tasks==2.14.2
+
 # 音訊處理 (用於計算音訊長度)
 pydub==0.25.1
