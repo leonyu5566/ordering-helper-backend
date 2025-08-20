@@ -1486,8 +1486,7 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                     
                     print(f"✅ 更新品項名稱: original='{order_item.original_name}', translated='{order_item.translated_name}'")
             
-            # 提交更改
-            db.session.commit()
+            # 不需要額外的 commit，因為已經在同一個交易中
             print(f"✅ OrderItem 品項名稱更新完成")
             
         except Exception as e:
