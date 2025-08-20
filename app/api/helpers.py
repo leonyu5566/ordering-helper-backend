@@ -1511,11 +1511,17 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
     try:
         from ..models import OrderSummary
         from sqlalchemy.orm import Session
+        from sqlalchemy.exc import SQLAlchemyError
         
-        # 檢查是否已經在交易中
-        if db.session.in_transaction():
-            print("⚠️ 檢測到已存在的交易，使用嵌套交易")
-            with db.session.begin_nested():  # 使用嵌套交易
+        session = db.session  # 取得實際 Session 物件
+        
+        # 使用更可靠的方法檢查是否在交易中
+        try:
+            # 嘗試開始一個嵌套交易，如果成功表示已經在交易中
+            session.begin_nested()
+            session.rollback()  # 立即回滾測試交易
+            print("⚠️ 檢測到既有交易，使用嵌套交易")
+            with session.begin_nested():
                 order_summary = OrderSummary(
                     order_id=order_id,
                     ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
@@ -1524,12 +1530,27 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                     user_language=user_language,
                     total_amount=order.total_amount
                 )
-                db.session.add(order_summary)
-                db.session.flush()  # 獲取 ID
+                session.add(order_summary)
+                session.flush()  # 獲取 ID
+                summary_id = order_summary.summary_id
+        except Exception:
+            # 如果無法開始嵌套交易，表示不在交易中
+            print("✅ 開始新的交易")
+            with session.begin():  # 交易自動 begin/commit/rollback
+                order_summary = OrderSummary(
+                    order_id=order_id,
+                    ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
+                    chinese_summary=chinese_summary,
+                    user_language_summary=user_language_summary,
+                    user_language=user_language,
+                    total_amount=order.total_amount
+                )
+                session.add(order_summary)
+                session.flush()  # 獲取 ID
                 summary_id = order_summary.summary_id
         else:
             print("✅ 開始新的交易")
-            with db.session.begin():  # 交易自動 begin/commit/rollback
+            with session.begin():  # 交易自動 begin/commit/rollback
                 order_summary = OrderSummary(
                     order_id=order_id,
                     ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
@@ -1538,8 +1559,8 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
                     user_language=user_language,
                     total_amount=order.total_amount
                 )
-                db.session.add(order_summary)
-                db.session.flush()  # 獲取 ID
+                session.add(order_summary)
+                session.flush()  # 獲取 ID
                 summary_id = order_summary.summary_id
             
         print(f"✅ 訂單摘要已成功寫入資料庫: summary_id={summary_id}")
@@ -1578,6 +1599,10 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             print(f"⚠️ 更新 OrderItem 品項名稱失敗: {e}")
             # 不影響主要流程，繼續執行
         
+    except SQLAlchemyError as e:
+        session.rollback()
+        print(f"⚠️ 寫入訂單摘要失敗: {e}")
+        # 不影響主要流程，繼續執行
     except Exception as e:
         print(f"⚠️ 寫入訂單摘要失敗: {e}")
         # 不影響主要流程，繼續執行
