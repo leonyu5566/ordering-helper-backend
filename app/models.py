@@ -147,7 +147,7 @@ class OrderItem(db.Model):
     __tablename__ = 'order_items'
     order_item_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
     order_id = db.Column(db.BigInteger, db.ForeignKey('orders.order_id'), nullable=False)
-    menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=False)
+    menu_item_id = db.Column(db.BigInteger, db.ForeignKey('menu_items.menu_item_id'), nullable=True)  # 可為空，支援 OCR 項目
     quantity_small = db.Column(db.Integer, nullable=False, default=0)
     subtotal = db.Column(db.Integer, nullable=False)
     

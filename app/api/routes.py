@@ -4817,8 +4817,20 @@ def create_quick_order():
             if not translated_name:
                 translated_name = original_name
             
+            # 處理 menu_item_id - 如果是 OCR 臨時 ID，設為 NULL
+            menu_item_id = item.get('menu_item_id', 0)
+            if isinstance(menu_item_id, str) and menu_item_id.startswith('temp_'):
+                # OCR 臨時 ID，設為 NULL
+                menu_item_id = None
+            elif isinstance(menu_item_id, str):
+                # 嘗試轉換為整數
+                try:
+                    menu_item_id = int(menu_item_id)
+                except (ValueError, TypeError):
+                    menu_item_id = None
+            
             order_item = OrderItem(
-                menu_item_id=item.get('menu_item_id', 0),
+                menu_item_id=menu_item_id,
                 quantity_small=quantity,
                 subtotal=subtotal,
                 original_name=original_name,
