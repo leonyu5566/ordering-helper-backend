@@ -4928,7 +4928,7 @@ def create_quick_order():
                 from ..config.cloud_tasks_config import (
                     GCP_PROJECT_ID, GCP_LOCATION, CLOUD_TASKS_QUEUE_NAME,
                     get_order_processing_url, TASKS_INVOKER_SERVICE_ACCOUNT,
-                    validate_config
+                    validate_config, CLOUD_RUN_SERVICE_URL
                 )
                 print("✅ 模組導入成功")
             except ImportError as import_error:
