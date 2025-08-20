@@ -4574,8 +4574,13 @@ def create_ocr_order_optimized():
             'voice_file_path': voice_file_path
         }
         
+        print(f"📋 準備儲存資料結構:")
+        print(f"📋 save_data 內容: {save_data}")
+        print(f"📋 order_items_data 內容: {order_items_data}")
+        
         # 暫存儲存資料
         _ocr_temp_storage[f"{temp_ocr_id}_save_data"] = save_data
+        print(f"✅ 儲存資料已暫存到 _ocr_temp_storage[{temp_ocr_id}_save_data]")
         
         print(f"✅ 優化 OCR 訂單處理完成")
         
@@ -4626,6 +4631,12 @@ def save_ocr_data():
         
         print(f"🔍 開始儲存 OCR 資料到資料庫...")
         print(f"📋 儲存資料 ID: {save_data_id}")
+        print(f"📋 暫存資料內容: {save_data}")
+        print(f"📋 項目數量: {len(save_data['items'])}")
+        
+        # 檢查每個項目的資料結構
+        for i, item in enumerate(save_data['items']):
+            print(f"📋 項目 {i+1}: original_name='{item.get('original_name')}', translated_name='{item.get('translated_name')}', price={item.get('price')}, quantity={item.get('quantity')}")
         
         # 使用交易確保資料一致性
         with db.session.begin():
@@ -4672,10 +4683,12 @@ def save_ocr_data():
             print(f"✅ 建立訂單記錄: {order.order_id}")
             
             # 5. 儲存訂單項目（包含雙語摘要）
-            for item in save_data['items']:
+            for i, item in enumerate(save_data['items']):
+                print(f"📋 建立 OrderItem {i+1}: original_name='{item.get('original_name')}', translated_name='{item.get('translated_name')}'")
+                
                 order_item = OrderItem(
                     order_id=order.order_id,
-                    temp_item_id=f"ocr_{ocr_menu.ocr_menu_id}_{len(save_data['items'])}",
+                    temp_item_id=f"ocr_{ocr_menu.ocr_menu_id}_{i+1}",
                     temp_item_name=item['original_name'],  # 中文菜名
                     temp_item_price=item['price'],
                     quantity_small=item['quantity'],
@@ -4685,6 +4698,7 @@ def save_ocr_data():
                     is_temp_item=1
                 )
                 db.session.add(order_item)
+                print(f"✅ OrderItem {i+1} 已加入 session")
         
         # 清理暫存資料
         del _ocr_temp_storage[save_data_id]
