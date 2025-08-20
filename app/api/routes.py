@@ -1305,20 +1305,6 @@ def create_order():
                 traceback.print_exc()
                 raise e
             
-            # 生成中文語音檔
-            print(f"🔧 準備生成語音檔...")
-            voice_path = None
-            try:
-                voice_path = generate_voice_order(new_order.order_id)
-                print(f"✅ 語音檔生成成功: {voice_path}")
-            except Exception as e:
-                print(f"❌ 語音檔生成失敗: {e}")
-                print(f"錯誤類型: {type(e).__name__}")
-                import traceback
-                traceback.print_exc()
-                # 不拋出異常，繼續執行
-                voice_path = None
-            
             # 如果是OCR菜單訂單，建立訂單摘要並儲存到資料庫
             if ocr_menu_id:
                 try:
@@ -1362,35 +1348,6 @@ def create_order():
                 except Exception as e:
                     print(f"⚠️ 儲存OCR訂單摘要時發生錯誤: {e}")
                     # 不影響主要流程，繼續執行
-                
-                # 只在非訪客模式下發送 LINE 通知
-                if not guest_mode:
-                    send_complete_order_notification(new_order.order_id, frontend_store_name)
-                
-                return jsonify({
-                    "message": "訂單建立成功", 
-                    "order_id": new_order.order_id,
-                    "order_details": order_details,
-                    "total_amount": total_amount,
-                    "confirmation": order_confirmation,
-                    "voice_generated": voice_path is not None,
-                    "ocr_menu_id": ocr_menu_id
-                }), 201
-            
-            # 如果不是OCR菜單訂單，也需要返回成功響應
-            else:
-                # 只在非訪客模式下發送 LINE 通知
-                if not guest_mode:
-                    send_complete_order_notification(new_order.order_id, frontend_store_name)
-                
-                return jsonify({
-                    "message": "訂單建立成功", 
-                    "order_id": new_order.order_id,
-                    "order_details": order_details,
-                    "total_amount": total_amount,
-                    "confirmation": order_confirmation,
-                    "voice_generated": voice_path is not None
-                }), 201
             
         except Exception as e:
             db.session.rollback()
@@ -1409,6 +1366,52 @@ def create_order():
                     "total_amount": total_amount
                 }
             }), 500
+        
+        # 🔧 交易提交後的操作：語音生成和 LINE 通知
+        print(f"✅ 資料庫交易已提交，開始後續處理...")
+        
+        # 生成中文語音檔
+        voice_path = None
+        try:
+            print(f"🔧 準備生成語音檔...")
+            voice_path = generate_voice_order(new_order.order_id)
+            print(f"✅ 語音檔生成成功: {voice_path}")
+        except Exception as e:
+            print(f"❌ 語音檔生成失敗: {e}")
+            print(f"錯誤類型: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            # 不拋出異常，繼續執行
+            voice_path = None
+        
+        # 只在非訪客模式下發送 LINE 通知
+        if not guest_mode:
+            try:
+                print(f"📱 準備發送 LINE 通知...")
+                send_complete_order_notification(new_order.order_id, frontend_store_name)
+                print(f"✅ LINE 通知發送完成")
+            except Exception as e:
+                print(f"❌ LINE 通知發送失敗: {e}")
+                print(f"錯誤類型: {type(e).__name__}")
+                import traceback
+                traceback.print_exc()
+                # 不拋出異常，繼續執行
+        
+        # 返回成功響應
+        response_data = {
+            "message": "訂單建立成功", 
+            "order_id": new_order.order_id,
+            "order_details": order_details,
+            "total_amount": total_amount,
+            "confirmation": order_confirmation,
+            "voice_generated": voice_path is not None
+        }
+        
+        # 如果是OCR菜單訂單，添加OCR相關資訊
+        if ocr_menu_id:
+            response_data["ocr_menu_id"] = ocr_menu_id
+        
+        return jsonify(response_data), 201
         
     except Exception as e:
         db.session.rollback()
