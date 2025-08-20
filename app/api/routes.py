@@ -4751,11 +4751,20 @@ def create_quick_order():
         
         print(f"🚀 快速訂單建立請求: {data}")
         
-        # 基本驗證
-        required_fields = ['store_name', 'items', 'total_amount']
+        # 基本驗證 - 支援多種欄位名稱
+        required_fields = ['store_name', 'items']
         for field in required_fields:
             if field not in data:
                 return jsonify({"error": f"缺少必要欄位: {field}"}), 400
+        
+        # 檢查總金額欄位（支援多種名稱）
+        total_amount = None
+        if 'total_amount' in data:
+            total_amount = data.get('total_amount', 0)
+        elif 'total' in data:
+            total_amount = data.get('total', 0)
+        else:
+            return jsonify({"error": "缺少必要欄位: total_amount 或 total"}), 400
         
         # 解析店家資訊
         store_name = data.get('store_name', '')
@@ -4773,18 +4782,47 @@ def create_quick_order():
         else:
             user = None
         
-        # 計算總金額
-        total_amount = data.get('total_amount', 0)
+        # 總金額已在上面處理
         
         # 準備訂單項目資料
         order_items_to_create = []
         for item in data.get('items', []):
+            # 處理數量（支援多種欄位名稱）
+            quantity = item.get('quantity', item.get('qty', 1))
+            
+            # 處理價格（支援多種欄位名稱）
+            price = item.get('price', item.get('price_unit', 0))
+            
+            # 處理小計（優先使用提供的 subtotal，否則計算）
+            subtotal = item.get('subtotal', price * quantity)
+            
+            # 處理名稱（支援多種格式）
+            original_name = item.get('original_name', '')
+            translated_name = item.get('translated_name', '')
+            
+            # 如果沒有直接提供名稱，嘗試從其他欄位獲取
+            if not original_name:
+                if 'name' in item and isinstance(item['name'], dict):
+                    original_name = item['name'].get('original', '')
+                else:
+                    original_name = item.get('item_name', '')
+            
+            if not translated_name:
+                if 'name' in item and isinstance(item['name'], dict):
+                    translated_name = item['name'].get('translated', '')
+                else:
+                    translated_name = item.get('item_name', '')
+            
+            # 如果還是沒有，使用原始名稱
+            if not translated_name:
+                translated_name = original_name
+            
             order_item = OrderItem(
                 menu_item_id=item.get('menu_item_id', 0),
-                quantity_small=item.get('quantity', 1),
-                subtotal=item.get('price', 0) * item.get('quantity', 1),
-                original_name=item.get('item_name', ''),
-                translated_name=item.get('translated_name', item.get('item_name', ''))
+                quantity_small=quantity,
+                subtotal=subtotal,
+                original_name=original_name,
+                translated_name=translated_name
             )
             order_items_to_create.append(order_item)
         
