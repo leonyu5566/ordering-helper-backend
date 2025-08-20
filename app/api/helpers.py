@@ -242,17 +242,77 @@ def get_gemini_client():
         print(f"Gemini API 初始化失敗: {e}")
         return None
 
-# gTTS 設定（替換 Azure Speech）
+# Cloud Text-to-Speech 設定（替換 gTTS）
 def get_speech_config():
-    """取得語音配置（已改為使用 gTTS）"""
-    # 返回一個簡單的配置對象，但實際上我們使用 gTTS
+    """取得語音配置（已改為使用 Cloud TTS）"""
+    # 返回一個簡單的配置對象，但實際上我們使用 Cloud TTS
     class MockSpeechConfig:
         def __init__(self):
-            self.speech_synthesis_voice_name = "zh-TW-HsiaoChenNeural"
+            self.speech_synthesis_voice_name = "zh-TW-Wavenet-A"
             self.speech_synthesis_speaking_rate = 1.0
     
-    print("使用 gTTS 語音生成服務")
+    print("使用 Cloud Text-to-Speech 語音生成服務")
     return MockSpeechConfig()
+
+def generate_cloud_tts_audio(text_to_speak, output_filename, language_code="zh-TW", voice_name="zh-TW-Wavenet-A", speaking_rate=1.0):
+    """
+    使用 Google Cloud Text-to-Speech API 將文字轉換為音訊檔案。
+    
+    Args:
+        text_to_speak (str): 要轉換為語音的文字
+        output_filename (str): 儲存音訊的檔案路徑
+        language_code (str): 語言代碼，例如 'zh-TW' (台灣中文)
+        voice_name (str): 語音名稱，例如 'zh-TW-Wavenet-A' (高品質女聲)
+        speaking_rate (float): 語速倍率，1.0 為正常速度
+        
+    Returns:
+        bool: 如果成功生成並儲存檔案則返回 True，否則返回 False
+    """
+    try:
+        from google.cloud import texttospeech
+        from google.api_core import exceptions
+        
+        # 1. 實例化一個客戶端
+        # 在 Cloud Run 或其他 GCP 環境中，這會自動使用服務帳號進行驗證
+        client = texttospeech.TextToSpeechClient()
+        
+        # 2. 設定輸入文字
+        synthesis_input = texttospeech.SynthesisInput(text=text_to_speak)
+        
+        # 3. 建立語音設定
+        # 使用 WaveNet 語音以獲得最高品質
+        voice = texttospeech.VoiceSelectionParams(
+            language_code=language_code, 
+            name=voice_name
+        )
+        
+        # 4. 選擇音訊輸出格式 (直接輸出 MP3)
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3,
+            speaking_rate=speaking_rate
+        )
+        
+        # 5. 執行 TTS 請求
+        print(f"🔄 正在使用 Cloud TTS (語音: {voice_name}) 生成音訊...")
+        response = client.synthesize_speech(
+            input=synthesis_input, 
+            voice=voice, 
+            audio_config=audio_config
+        )
+        
+        # 6. 將音訊內容寫入檔案
+        with open(output_filename, "wb") as out:
+            out.write(response.audio_content)
+        
+        print(f"✅ 成功！MP3 音訊檔案已儲存至 '{output_filename}'")
+        return True
+        
+    except exceptions.GoogleAPICallError as e:
+        print(f"❌ API 呼叫失敗：{e}")
+        return False
+    except Exception as e:
+        print(f"❌ 發生未預期的錯誤：{e}")
+        return False
 
 def cleanup_old_voice_files(max_age=3600):
     """刪除 60 分鐘以前的 MP3（延長清理時間）"""
@@ -714,9 +774,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
         print(f"[TTS] 預處理後的訂單文本: {order_text}")
         
         try:
-            # 使用 gTTS 生成語音
-            from gtts import gTTS
-            
+            # 使用 Cloud TTS 生成語音
             # 確保目錄存在
             os.makedirs(VOICE_DIR, exist_ok=True)
             
@@ -725,12 +783,17 @@ def generate_voice_order(order_id, speech_rate=1.0):
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS] Will save to {audio_path}")
             
-            # 使用 gTTS 生成語音（中文）
-            tts = gTTS(text=order_text, lang='zh-tw', slow=False)
-            tts.save(audio_path)
+            # 使用 Cloud TTS 生成語音（中文）
+            success = generate_cloud_tts_audio(
+                text_to_speak=order_text,
+                output_filename=audio_path,
+                language_code="zh-TW",
+                voice_name="zh-TW-Wavenet-A",
+                speaking_rate=speech_rate
+            )
             
             # 檢查檔案是否真的生成
-            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            if success and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 print(f"[TTS] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
                 return audio_path
             else:
@@ -738,7 +801,7 @@ def generate_voice_order(order_id, speech_rate=1.0):
                 return generate_voice_order_fallback(order_id, speech_rate)
                 
         except Exception as e:
-            print(f"gTTS 處理失敗：{e}")
+            print(f"Cloud TTS 處理失敗：{e}")
             return generate_voice_order_fallback(order_id, speech_rate)
             
     except Exception as e:
@@ -787,9 +850,7 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             return None
         
         try:
-            # 使用 gTTS 生成語音
-            from gtts import gTTS
-            
+            # 使用 Cloud TTS 生成語音
             # 確保目錄存在
             os.makedirs(VOICE_DIR, exist_ok=True)
             
@@ -798,11 +859,16 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS] Will save to {audio_path}")
             
-            # 使用 gTTS 生成語音（中文）
-            tts = gTTS(text=order_text, lang='zh-tw', slow=False)
-            tts.save(audio_path)
+            # 使用 Cloud TTS 生成語音（中文）
+            success = generate_cloud_tts_audio(
+                text_to_speak=order_text,
+                output_filename=audio_path,
+                language_code="zh-TW",
+                voice_name="zh-TW-Wavenet-A",
+                speaking_rate=1.0
+            )
             
-            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            if success and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
@@ -810,7 +876,7 @@ def generate_voice_from_temp_order(temp_order, speech_rate=1.0):
                 return None
                 
         except Exception as e:
-            print(f"gTTS 處理失敗：{e}")
+            print(f"Cloud TTS 處理失敗：{e}")
             return None
             
     except Exception as e:
@@ -828,9 +894,7 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
         print(f"[TTS] 自定義語音預處理後的文本: {order_text}")
         
         try:
-            # 使用 gTTS 生成語音
-            from gtts import gTTS
-            
+            # 使用 Cloud TTS 生成語音
             # 確保目錄存在
             os.makedirs(VOICE_DIR, exist_ok=True)
             
@@ -839,13 +903,17 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS] Will save to {audio_path}")
             
-            # 使用 gTTS 生成語音（中文）
-            # 注意：gTTS 不支援語速調整，但我們可以通過 slow 參數來控制
-            slow = speech_rate < 0.8  # 如果語速小於 0.8，使用慢速
-            tts = gTTS(text=order_text, lang='zh-tw', slow=slow)
-            tts.save(audio_path)
+            # 使用 Cloud TTS 生成語音（中文）
+            # Cloud TTS 支援精確的語速調整
+            success = generate_cloud_tts_audio(
+                text_to_speak=order_text,
+                output_filename=audio_path,
+                language_code="zh-TW",
+                voice_name="zh-TW-Wavenet-A",
+                speaking_rate=speech_rate
+            )
             
-            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            if success and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 print(f"[TTS] Success, file exists? {os.path.exists(audio_path)}")
                 return audio_path
             else:
@@ -853,7 +921,7 @@ def generate_voice_with_custom_rate(order_text, speech_rate=1.0, voice_name="zh-
                 return None
                 
         except Exception as e:
-            print(f"gTTS 處理失敗：{e}")
+            print(f"Cloud TTS 處理失敗：{e}")
             return None
             
     except Exception as e:
@@ -2136,13 +2204,12 @@ def generate_fallback_order_summary(items, user_language):
 
 def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
     """
-    使用 gTTS 生成中文語音檔
+    使用 Cloud TTS 生成中文語音檔
     輸入：訂單摘要、訂單ID、語速
     輸出：語音檔絕對路徑
     """
     cleanup_old_voice_files()
     try:
-        from gtts import gTTS
         import os
         
         # 準備語音文字（處理不同類型的輸入）
@@ -2155,7 +2222,7 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         
         # 應用文本預處理（確保沒有遺漏的 x1 格式）
         chinese_text = normalize_order_text_for_tts(chinese_text)
-        print(f"[TTS] gTTS 語音預處理後的文本: {chinese_text}")
+        print(f"[TTS] Cloud TTS 語音預處理後的文本: {chinese_text}")
         
         # 確保目錄存在
         os.makedirs(VOICE_DIR, exist_ok=True)
@@ -2165,11 +2232,16 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
         voice_path = os.path.join(VOICE_DIR, filename)
         print(f"[TTS] Will save to {voice_path}")
         
-        # 使用 gTTS 生成語音（中文）
-        tts = gTTS(text=chinese_text, lang='zh-tw', slow=False)
-        tts.save(voice_path)
+        # 使用 Cloud TTS 生成語音（中文）
+        success = generate_cloud_tts_audio(
+            text_to_speak=chinese_text,
+            output_filename=voice_path,
+            language_code="zh-TW",
+            voice_name="zh-TW-Wavenet-A",
+            speaking_rate=speech_rate
+        )
         
-        if os.path.exists(voice_path) and os.path.getsize(voice_path) > 0:
+        if success and os.path.exists(voice_path) and os.path.getsize(voice_path) > 0:
             print(f"[TTS] Success, file exists? {os.path.exists(voice_path)}")
             return voice_path
         else:
@@ -2177,7 +2249,7 @@ def generate_chinese_voice_with_azure(order_summary, order_id, speech_rate=1.0):
             return None
             
     except Exception as e:
-        print(f"gTTS 語音生成失敗: {e}")
+        print(f"Cloud TTS 語音生成失敗: {e}")
         return None
 
 # =============================================================================
@@ -2533,11 +2605,10 @@ def build_chinese_voice_text(zh_items: List[Dict]) -> str:
 
 async def synthesize_azure_tts(text: str) -> tuple[str, int]:
     """
-    使用 gTTS 合成語音
+    使用 Cloud TTS 合成語音
     回傳：(語音檔URL, 持續時間毫秒)
     """
     try:
-        from gtts import gTTS
         import os
         
         # 確保目錄存在
@@ -2547,12 +2618,17 @@ async def synthesize_azure_tts(text: str) -> tuple[str, int]:
         filename = f"{uuid.uuid4()}.mp3"
         voice_path = os.path.join(VOICE_DIR, filename)
         
-        # 使用 gTTS 生成語音（中文）
-        tts = gTTS(text=text, lang='zh-tw', slow=False)
-        tts.save(voice_path)
+        # 使用 Cloud TTS 生成語音（中文）
+        success = generate_cloud_tts_audio(
+            text_to_speak=text,
+            output_filename=voice_path,
+            language_code="zh-TW",
+            voice_name="zh-TW-Wavenet-A",
+            speaking_rate=1.0
+        )
         
-        if os.path.exists(voice_path) and os.path.getsize(voice_path) > 0:
-            # 估算持續時間（gTTS 沒有提供持續時間，我們根據文字長度估算）
+        if success and os.path.exists(voice_path) and os.path.getsize(voice_path) > 0:
+            # 估算持續時間（Cloud TTS 沒有提供持續時間，我們根據文字長度估算）
             # 假設每個中文字符約 0.5 秒
             estimated_duration_ms = len(text) * 500
             return voice_path, estimated_duration_ms
@@ -2561,7 +2637,7 @@ async def synthesize_azure_tts(text: str) -> tuple[str, int]:
             return None, 0
             
     except Exception as e:
-        print(f"gTTS 語音生成失敗: {e}")
+        print(f"Cloud TTS 語音生成失敗: {e}")
         return None, 0
 
 # =============================================================================
@@ -3230,9 +3306,7 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
         print(f"[TTS Enhanced] 預處理後的訂單文本: {order_text}")
         
         try:
-            # 使用 gTTS 生成語音
-            from gtts import gTTS
-            
+            # 使用 Cloud TTS 生成語音
             # 確保目錄存在
             os.makedirs(VOICE_DIR, exist_ok=True)
             
@@ -3241,14 +3315,18 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
             audio_path = os.path.join(VOICE_DIR, filename)
             print(f"[TTS Enhanced] Will save to {audio_path}")
             
-            # 使用 gTTS 生成語音（中文）
-            # 注意：gTTS 不支援語速調整和情感風格，但我們可以通過 slow 參數來控制
-            slow = speech_rate < 0.8  # 如果語速小於 0.8，使用慢速
-            tts = gTTS(text=order_text, lang='zh-tw', slow=slow)
-            tts.save(audio_path)
+            # 使用 Cloud TTS 生成語音（中文）
+            # Cloud TTS 支援精確的語速調整
+            success = generate_cloud_tts_audio(
+                text_to_speak=order_text,
+                output_filename=audio_path,
+                language_code="zh-TW",
+                voice_name="zh-TW-Wavenet-A",
+                speaking_rate=speech_rate
+            )
             
             # 檢查檔案是否真的生成
-            if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+            if success and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
                 print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
                 return audio_path
             else:
@@ -3256,7 +3334,7 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
                 return generate_voice_order_fallback(order_id, speech_rate)
                 
         except Exception as e:
-            print(f"gTTS Enhanced 處理失敗：{e}")
+            print(f"Cloud TTS Enhanced 處理失敗：{e}")
             return generate_voice_order_fallback(order_id, speech_rate)
             
     except Exception as e:
@@ -3265,13 +3343,13 @@ def generate_voice_order_enhanced(order_id, speech_rate=1.0, emotion_style="chee
 
 def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_style="cheerful", use_hd_voice=True):
     """
-    使用 gTTS 生成增強版自訂語音檔
+    使用 Cloud TTS 生成增強版自訂語音檔
     
     Args:
         text: 要轉換的文字
         speech_rate: 語速倍率 (0.5-2.0)
-        emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")（gTTS 不支援，保留參數相容性）
-        use_hd_voice: 是否使用 HD 聲音（gTTS 不支援，保留參數相容性）
+        emotion_style: 情感風格 ("cheerful", "friendly", "excited", "calm", "sad")（Cloud TTS 支援部分情感風格）
+        use_hd_voice: 是否使用 HD 聲音（Cloud TTS 支援高品質語音）
     """
     try:
         # 確保目錄存在
@@ -3282,14 +3360,18 @@ def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_styl
         audio_path = os.path.join(VOICE_DIR, filename)
         print(f"[TTS Enhanced] Will save to {audio_path}")
         
-        # 使用 gTTS 生成語音（中文）
-        # 注意：gTTS 不支援語速調整和情感風格，但我們可以通過 slow 參數來控制
-        slow = speech_rate < 0.8  # 如果語速小於 0.8，使用慢速
-        tts = gTTS(text=text, lang='zh-tw', slow=slow)
-        tts.save(audio_path)
+        # 使用 Cloud TTS 生成語音（中文）
+        # Cloud TTS 支援精確的語速調整
+        success = generate_cloud_tts_audio(
+            text_to_speak=text,
+            output_filename=audio_path,
+            language_code="zh-TW",
+            voice_name="zh-TW-Wavenet-A",
+            speaking_rate=speech_rate
+        )
         
         # 檢查檔案是否真的生成
-        if os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
+        if success and os.path.exists(audio_path) and os.path.getsize(audio_path) > 0:
             print(f"[TTS Enhanced] Success, file exists and size: {os.path.getsize(audio_path)} bytes")
             return audio_path
         else:
@@ -3297,7 +3379,7 @@ def generate_voice_with_custom_rate_enhanced(text, speech_rate=1.0, emotion_styl
             return None
             
     except Exception as e:
-        print(f"gTTS Enhanced 處理失敗：{e}")
+        print(f"Cloud TTS Enhanced 處理失敗：{e}")
         return None
 
 def create_order_summary(order_id, user_language='zh'):
