@@ -1515,53 +1515,20 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
         
         session = db.session  # 取得實際 Session 物件
         
-        # 使用更可靠的方法檢查是否在交易中
-        try:
-            # 嘗試開始一個嵌套交易，如果成功表示已經在交易中
-            session.begin_nested()
-            session.rollback()  # 立即回滾測試交易
-            print("⚠️ 檢測到既有交易，使用嵌套交易")
-            with session.begin_nested():
-                order_summary = OrderSummary(
-                    order_id=order_id,
-                    ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
-                    chinese_summary=chinese_summary,
-                    user_language_summary=user_language_summary,
-                    user_language=user_language,
-                    total_amount=order.total_amount
-                )
-                session.add(order_summary)
-                session.flush()  # 獲取 ID
-                summary_id = order_summary.summary_id
-        except Exception:
-            # 如果無法開始嵌套交易，表示不在交易中
-            print("✅ 開始新的交易")
-            with session.begin():  # 交易自動 begin/commit/rollback
-                order_summary = OrderSummary(
-                    order_id=order_id,
-                    ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
-                    chinese_summary=chinese_summary,
-                    user_language_summary=user_language_summary,
-                    user_language=user_language,
-                    total_amount=order.total_amount
-                )
-                session.add(order_summary)
-                session.flush()  # 獲取 ID
-                summary_id = order_summary.summary_id
-        else:
-            print("✅ 開始新的交易")
-            with session.begin():  # 交易自動 begin/commit/rollback
-                order_summary = OrderSummary(
-                    order_id=order_id,
-                    ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
-                    chinese_summary=chinese_summary,
-                    user_language_summary=user_language_summary,
-                    user_language=user_language,
-                    total_amount=order.total_amount
-                )
-                session.add(order_summary)
-                session.flush()  # 獲取 ID
-                summary_id = order_summary.summary_id
+        # 簡化的交易管理：直接使用嵌套交易，避免破壞性檢測
+        print("📝 準備寫入訂單摘要到資料庫...")
+        with session.begin_nested():
+            order_summary = OrderSummary(
+                order_id=order_id,
+                ocr_menu_id=None,  # 合作店家沒有 OCR 菜單
+                chinese_summary=chinese_summary,
+                user_language_summary=user_language_summary,
+                user_language=user_language,
+                total_amount=order.total_amount
+            )
+            session.add(order_summary)
+            session.flush()  # 獲取 ID
+            summary_id = order_summary.summary_id
             
         print(f"✅ 訂單摘要已成功寫入資料庫: summary_id={summary_id}")
         

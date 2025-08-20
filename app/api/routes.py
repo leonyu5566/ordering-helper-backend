@@ -1287,67 +1287,19 @@ def create_order():
             print(f"   total_amount: {new_order.total_amount}")
             print(f"   frontend_store_name: {frontend_store_name}")
             
-            # 建立完整訂單確認內容
-            from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
-            
-            print(f"🔧 準備生成訂單確認...")
+            # 準備基本的訂單確認內容（不包含資料庫寫入）
             print(f"📋 訂單ID: {new_order.order_id}")
             print(f"📋 用戶偏好語言: {user.preferred_lang}")
             
-            try:
-                order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang, frontend_store_name)
-                print(f"✅ 訂單確認生成成功")
-                print(f"📋 確認內容: {order_confirmation}")
-            except Exception as e:
-                print(f"❌ 訂單確認生成失敗: {e}")
-                print(f"錯誤類型: {type(e).__name__}")
-                import traceback
-                traceback.print_exc()
-                raise e
+            # 建立基本的訂單確認內容（不使用 create_complete_order_confirmation）
+            order_confirmation = {
+                "chinese": f"訂單已建立，總金額：${total_amount}",
+                "translated": f"Order created, total: ${total_amount}",
+                "chinese_voice_text": f"訂單已建立，總金額{total_amount}元"
+            }
             
-            # 如果是OCR菜單訂單，建立訂單摘要並儲存到資料庫
-            if ocr_menu_id:
-                try:
-                    from .helpers import save_ocr_menu_and_summary_to_database
-                    
-                    # 準備OCR項目資料
-                    ocr_items = []
-                    for item in order_details:
-                        if item.get('is_ocr'):
-                            ocr_items.append({
-                                'name': {
-                                    'original': item.get('item_name', ''),
-                                    'translated': item.get('translated_name', item.get('item_name', ''))
-                                },
-                                'price': item.get('price', 0),
-                                'item_name': item.get('item_name', ''),
-                                'translated_name': item.get('translated_name', item.get('item_name', ''))
-                            })
-                    
-                    if ocr_items:
-                        # 儲存到資料庫
-                        save_result = save_ocr_menu_and_summary_to_database(
-                            order_id=new_order.order_id,
-                            ocr_items=ocr_items,
-                            chinese_summary=order_confirmation.get('chinese', 'OCR訂單摘要'),
-                            user_language_summary=order_confirmation.get('translated', 'OCR訂單摘要'),
-                            user_language=data.get('language', 'zh'),
-                            total_amount=total_amount,
-                            user_id=user.user_id if user else None,
-                            store_id=store_db_id,  # 新增 store_id
-                            store_name=data.get('store_name', 'OCR店家'),
-                            existing_ocr_menu_id=ocr_menu_id
-                        )
-                        
-                        if save_result['success']:
-                            print(f"✅ OCR訂單摘要已成功儲存到資料庫")
-                            print(f"   OCR菜單ID: {save_result['ocr_menu_id']}")
-                            print(f"   訂單摘要ID: {save_result['summary_id']}")
-                        else:
-                            print(f"⚠️ OCR訂單摘要儲存失敗: {save_result['message']}")
-                except Exception as e:
-                    print(f"⚠️ 儲存OCR訂單摘要時發生錯誤: {e}")
-                    # 不影響主要流程，繼續執行
+            print(f"✅ 基本訂單確認內容已準備")
+            print(f"📋 確認內容: {order_confirmation}")
             
         except Exception as e:
             db.session.rollback()
@@ -1367,10 +1319,69 @@ def create_order():
                 }
             }), 500
         
-        # 🔧 交易提交後的操作：語音生成和 LINE 通知
+        # 🔧 交易提交後的操作：完整訂單確認、語音生成和 LINE 通知
         print(f"✅ 資料庫交易已提交，開始後續處理...")
         
-        # 生成中文語音檔
+        # 1. 生成完整的訂單確認內容
+        try:
+            from .helpers import create_complete_order_confirmation, send_complete_order_notification, generate_voice_order
+            
+            print(f"🔧 準備生成完整訂單確認...")
+            order_confirmation = create_complete_order_confirmation(new_order.order_id, user.preferred_lang, frontend_store_name)
+            print(f"✅ 完整訂單確認生成成功")
+            print(f"📋 確認內容: {order_confirmation}")
+        except Exception as e:
+            print(f"❌ 完整訂單確認生成失敗: {e}")
+            print(f"錯誤類型: {type(e).__name__}")
+            import traceback
+            traceback.print_exc()
+            # 使用基本確認內容，繼續執行
+        
+        # 2. 如果是OCR菜單訂單，建立訂單摘要並儲存到資料庫
+        if ocr_menu_id:
+            try:
+                from .helpers import save_ocr_menu_and_summary_to_database
+                
+                # 準備OCR項目資料
+                ocr_items = []
+                for item in order_details:
+                    if item.get('is_ocr'):
+                        ocr_items.append({
+                            'name': {
+                                'original': item.get('item_name', ''),
+                                'translated': item.get('translated_name', item.get('item_name', ''))
+                            },
+                            'price': item.get('price', 0),
+                            'item_name': item.get('item_name', ''),
+                            'translated_name': item.get('translated_name', item.get('item_name', ''))
+                        })
+                
+                if ocr_items:
+                    # 儲存到資料庫
+                    save_result = save_ocr_menu_and_summary_to_database(
+                        order_id=new_order.order_id,
+                        ocr_items=ocr_items,
+                        chinese_summary=order_confirmation.get('chinese', 'OCR訂單摘要'),
+                        user_language_summary=order_confirmation.get('translated', 'OCR訂單摘要'),
+                        user_language=data.get('language', 'zh'),
+                        total_amount=total_amount,
+                        user_id=user.user_id if user else None,
+                        store_id=store_db_id,  # 新增 store_id
+                        store_name=data.get('store_name', 'OCR店家'),
+                        existing_ocr_menu_id=ocr_menu_id
+                    )
+                    
+                    if save_result['success']:
+                        print(f"✅ OCR訂單摘要已成功儲存到資料庫")
+                        print(f"   OCR菜單ID: {save_result['ocr_menu_id']}")
+                        print(f"   訂單摘要ID: {save_result['summary_id']}")
+                    else:
+                        print(f"⚠️ OCR訂單摘要儲存失敗: {save_result['message']}")
+            except Exception as e:
+                print(f"⚠️ 儲存OCR訂單摘要時發生錯誤: {e}")
+                # 不影響主要流程，繼續執行
+        
+        # 3. 生成中文語音檔
         voice_path = None
         try:
             print(f"🔧 準備生成語音檔...")
@@ -1384,7 +1395,7 @@ def create_order():
             # 不拋出異常，繼續執行
             voice_path = None
         
-        # 只在非訪客模式下發送 LINE 通知
+        # 4. 只在非訪客模式下發送 LINE 通知
         if not guest_mode:
             try:
                 print(f"📱 準備發送 LINE 通知...")
