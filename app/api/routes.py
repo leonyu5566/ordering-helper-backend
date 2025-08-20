@@ -1391,14 +1391,34 @@ def create_order():
                 print(f"❌ 任務構建失敗: {task_error}")
                 raise
             
-            # 創建任務
+            # 創建任務（加入超時處理）
             try:
-                response = client.create_task(request={"parent": parent, "task": task})
-                print(f"✅ Cloud Task 已創建: {response.name}")
-                print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
-                print(f"   - 目標 URL: {get_order_processing_url()}")
-                print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
-                cloud_task_created = True
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Cloud Tasks 創建超時")
+                
+                # 設定 10 秒超時
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(10)
+                
+                try:
+                    response = client.create_task(request={"parent": parent, "task": task})
+                    signal.alarm(0)  # 取消超時
+                    print(f"✅ Cloud Task 已創建: {response.name}")
+                    print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
+                    print(f"   - 目標 URL: {get_order_processing_url()}")
+                    print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+                    cloud_task_created = True
+                except TimeoutError:
+                    signal.alarm(0)  # 取消超時
+                    print(f"❌ Cloud Tasks 創建超時（10秒）")
+                    raise
+                except Exception as create_error:
+                    signal.alarm(0)  # 取消超時
+                    print(f"❌ 任務創建失敗: {create_error}")
+                    raise
+                    
             except Exception as create_error:
                 print(f"❌ 任務創建失敗: {create_error}")
                 raise
@@ -4951,13 +4971,33 @@ def create_quick_order():
                 print(f"❌ 任務構建失敗: {task_error}")
                 raise
             
-            # 創建任務
+            # 創建任務（加入超時處理）
             try:
-                response = client.create_task(request={"parent": parent, "task": task})
-                print(f"✅ Cloud Task 已創建: {response.name}")
-                print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
-                print(f"   - 目標 URL: {get_order_processing_url()}")
-                print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Cloud Tasks 創建超時")
+                
+                # 設定 10 秒超時
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(10)
+                
+                try:
+                    response = client.create_task(request={"parent": parent, "task": task})
+                    signal.alarm(0)  # 取消超時
+                    print(f"✅ Cloud Task 已創建: {response.name}")
+                    print(f"   - 佇列: {CLOUD_TASKS_QUEUE_NAME}")
+                    print(f"   - 目標 URL: {get_order_processing_url()}")
+                    print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+                except TimeoutError:
+                    signal.alarm(0)  # 取消超時
+                    print(f"❌ Cloud Tasks 創建超時（10秒）")
+                    raise
+                except Exception as create_error:
+                    signal.alarm(0)  # 取消超時
+                    print(f"❌ 任務創建失敗: {create_error}")
+                    raise
+                    
             except Exception as create_error:
                 print(f"❌ 任務創建失敗: {create_error}")
                 raise

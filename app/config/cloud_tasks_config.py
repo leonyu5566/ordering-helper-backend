@@ -67,7 +67,10 @@ TASK_CONFIG = {
 
 def get_order_processing_url():
     """獲取訂單處理端點的完整 URL"""
-    return f"{CLOUD_RUN_SERVICE_URL}{ORDER_PROCESSING_ENDPOINT}"
+    # 確保 URL 格式正確，避免重複斜線
+    base_url = CLOUD_RUN_SERVICE_URL.rstrip('/')
+    endpoint = ORDER_PROCESSING_ENDPOINT.lstrip('/')
+    return f"{base_url}/{endpoint}"
 
 def get_queue_path():
     """獲取佇列路徑"""
@@ -95,12 +98,25 @@ def validate_config():
     if missing_vars:
         raise ValueError(f"缺少必要的配置變數: {missing_vars}")
     
+    # 驗證 URL 格式
+    if not CLOUD_RUN_SERVICE_URL.startswith(('http://', 'https://')):
+        raise ValueError(f"無效的服務 URL 格式: {CLOUD_RUN_SERVICE_URL}")
+    
+    # 驗證服務帳戶格式
+    if '@' not in TASKS_INVOKER_SERVICE_ACCOUNT or '.iam.gserviceaccount.com' not in TASKS_INVOKER_SERVICE_ACCOUNT:
+        raise ValueError(f"無效的服務帳戶格式: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+    
+    # 測試 URL 構建
+    test_url = get_order_processing_url()
+    print(f"🔧 測試 URL 構建: {test_url}")
+    
     print("✅ Cloud Tasks 配置驗證通過")
     print(f"   - 專案 ID: {GCP_PROJECT_ID}")
     print(f"   - 位置: {GCP_LOCATION}")
     print(f"   - 佇列名稱: {CLOUD_TASKS_QUEUE_NAME}")
     print(f"   - 服務 URL: {CLOUD_RUN_SERVICE_URL}")
     print(f"   - 服務帳戶: {TASKS_INVOKER_SERVICE_ACCOUNT}")
+    print(f"   - 處理端點 URL: {test_url}")
 
 # =============================================================================
 # 配置說明
