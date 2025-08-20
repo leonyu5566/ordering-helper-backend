@@ -116,18 +116,19 @@ def translate_single_text():
     
     try:
         data = request.get_json(silent=True) or {}
-        text = data.get('text', '')
-        target = request.args.get('target', 'en')
+        contents = data.get('contents', [])
+        target = data.get('target', 'en')
+        source = data.get('source', 'zh')
         
-        if not text:
-            response = jsonify({"translated": ""})
+        if not contents or not target:
+            response = jsonify({"translated": contents if isinstance(contents, list) else [contents]})
             response.headers.add('Access-Control-Allow-Origin', '*')
             return response, 200
         
         # 使用新的翻譯服務
-        from .translation_service import normalize_lang, translate_text
+        from .translation_service import normalize_lang, translate_texts
         normalized_target = normalize_lang(target)
-        translated = translate_text(text, normalized_target)
+        translated = translate_texts(contents, normalized_target, source)
         
         response = jsonify({"translated": translated})
         response.headers.add('Access-Control-Allow-Origin', '*')
@@ -137,7 +138,7 @@ def translate_single_text():
     except Exception as e:
         current_app.logger.error(f"單一文字翻譯失敗: {str(e)}")
         # 即使出錯也要回傳 200，避免前端卡住
-        response = jsonify({"translated": text, "error": "翻譯失敗，回傳原文"})
+        response = jsonify({"translated": contents if isinstance(contents, list) else [contents], "error": "翻譯失敗，回傳原文"})
         response.headers.add('Access-Control-Allow-Origin', '*')
         return response, 200
 
@@ -4737,7 +4738,7 @@ def save_ocr_data():
         db.session.rollback()
         return jsonify({"error": f"儲存失敗: {str(e)}"}), 500
 
-@app.route('/api/orders/quick', methods=['POST'])
+@api_bp.route('/orders/quick', methods=['POST'])
 def create_quick_order():
     """
     快速建立訂單端點 - 只建立訂單記錄，不處理語音和通知
@@ -4846,7 +4847,7 @@ def create_quick_order():
             "details": str(e)
         }), 500
 
-@app.route('/api/orders/status/<int:order_id>', methods=['GET'])
+@api_bp.route('/orders/status/<int:order_id>', methods=['GET'])
 def get_order_status(order_id):
     """
     查詢訂單狀態端點 - 供前端輪詢使用
