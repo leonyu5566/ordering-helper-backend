@@ -1459,6 +1459,41 @@ def create_complete_order_confirmation(order_id, user_language='zh', store_name=
             
         print(f"✅ 訂單摘要已成功寫入資料庫: summary_id={summary_id}")
         
+        # 更新 OrderItem 表的品項名稱欄位
+        try:
+            from ..models import OrderItem
+            
+            # 查詢該訂單的所有項目
+            order_items = OrderItem.query.filter_by(order_id=order_id).all()
+            
+            for order_item in order_items:
+                # 查詢對應的 menu_item
+                menu_item = MenuItem.query.get(order_item.menu_item_id)
+                if menu_item:
+                    # 設定品項名稱
+                    order_item.original_name = menu_item.item_name
+                    order_item.translated_name = menu_item.item_name
+                    
+                    # 如果有翻譯資料，使用翻譯
+                    if user_language != 'zh':
+                        try:
+                            translated_name = translate_text_with_fallback(menu_item.item_name, user_language)
+                            if translated_name and translated_name != menu_item.item_name:
+                                order_item.translated_name = translated_name
+                                print(f"✅ 更新品項翻譯: '{menu_item.item_name}' → '{translated_name}'")
+                        except Exception as e:
+                            print(f"⚠️ 品項翻譯失敗: {e}")
+                    
+                    print(f"✅ 更新品項名稱: original='{order_item.original_name}', translated='{order_item.translated_name}'")
+            
+            # 提交更改
+            db.session.commit()
+            print(f"✅ OrderItem 品項名稱更新完成")
+            
+        except Exception as e:
+            print(f"⚠️ 更新 OrderItem 品項名稱失敗: {e}")
+            # 不影響主要流程，繼續執行
+        
     except Exception as e:
         print(f"⚠️ 寫入訂單摘要失敗: {e}")
         # 不影響主要流程，繼續執行
